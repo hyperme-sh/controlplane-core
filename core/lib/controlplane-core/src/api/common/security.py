@@ -1,5 +1,10 @@
-from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
+from typing import Annotated
+
+from fastapi import Depends
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from passlib.hash import pbkdf2_sha256
+
+from api.common.exceptions import UnauthorizedException
 from api.core.config import settings
 
 JWT_SECRET = settings.jwt_secret
@@ -16,8 +21,28 @@ REFRESH_TOKEN_EXPIRE_DAYS = settings.refresh_token_expire_days
 
 ACTIVATION_TOKEN_EXPIRE_HOURS = 24  # Token expires in 24 hours
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/account/login", refreshUrl="api/v1/account/refresh", auto_error=False)
+http_bearer_scheme = HTTPBearer(auto_error=False)
 tenant_header = APIKeyHeader(name="x-tenant-id", auto_error=False)
+
+
+async def bearer_token_optional(
+    creds: Annotated[
+        HTTPAuthorizationCredentials | None, Depends(http_bearer_scheme)
+    ],
+) -> str | None:
+    if creds is None:
+        return None
+    return creds.credentials
+
+
+async def bearer_token_required(
+    creds: Annotated[
+        HTTPAuthorizationCredentials | None, Depends(http_bearer_scheme)
+    ],
+) -> str:
+    if creds is None or not creds.credentials:
+        raise UnauthorizedException("Not authenticated")
+    return creds.credentials
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

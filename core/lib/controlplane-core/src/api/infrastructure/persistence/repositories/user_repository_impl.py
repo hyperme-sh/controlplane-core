@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import func, select
@@ -43,13 +44,16 @@ class UserRepository(BaseRepository[User], AuditLogRepository):
         return result
 
     async def create(self, data: CreateUserDto) -> uuid.UUID | None:
+        kc_sub = data.keycloak_sub
         payload = {
             "email": data.email,
             "first_name": data.first_name,
             "last_name": data.last_name,
             "gender": data.gender.value if hasattr(data.gender, "value") else str(data.gender),
             "password": data.password,
-            "is_active": False,
+            "keycloak_sub": kc_sub,
+            "is_active": True if kc_sub else False,
+            "activated_at": datetime.now(timezone.utc) if kc_sub else None,
             "role_id": parse_uuid(data.role_id),
             "tenant_id": parse_uuid(data.tenant_id),
         }

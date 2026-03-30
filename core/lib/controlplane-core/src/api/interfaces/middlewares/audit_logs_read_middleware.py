@@ -2,9 +2,9 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from api.common.utils import capture_audit_log, get_logger
-from api.core.container import get_jwt_token_service, get_role_service, get_subscription_plan_service, get_user_service
+from api.core.container import get_role_service, get_subscription_plan_service, get_user_service
 from api.domain.dtos.audit_logs_dto import AuditLogDto
-from api.infrastructure.security.current_user import current_user_optional
+from api.infrastructure.security.current_user import resolve_me_optional_from_token
 
 logger = get_logger(__name__)
 
@@ -23,16 +23,14 @@ class AuditLogsReadMiddleware(BaseHTTPMiddleware):
         if "authorization" in request.headers:
             token = request.headers["authorization"].replace("Bearer ", "")
         user_service = get_user_service()
-        jwt_service = get_jwt_token_service()
         role_service = get_role_service()
-        subscription_service = get_subscription_plan_service()    
+        subscription_service = get_subscription_plan_service()
         if request.method == "GET":
-            current_user = await current_user_optional(
+            current_user = await resolve_me_optional_from_token(
                 token,
                 user_service=user_service,
-                token_service=jwt_service,
                 role_service=role_service,
-                subscription_service=subscription_service
+                subscription_service=subscription_service,
             )
         
             entity = self._get_entity_name(request.url.path)

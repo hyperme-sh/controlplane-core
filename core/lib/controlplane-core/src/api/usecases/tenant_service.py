@@ -55,7 +55,8 @@ class TenantService:
 
     async def create_tenant(self, tenant_data: CreateTenantDto) -> UUID | None:
         """Create a new tenant. Raises InvalidOperationException if admin password is weak."""
-        validate_password(tenant_data.admin_password)
+        if tenant_data.admin_password:
+            validate_password(tenant_data.admin_password)
         response = await self.tenant_repository.create(tenant_data)
         if response is not None:
             await get_tenant_event_publisher().publish(

@@ -1,6 +1,6 @@
 
 from dotenv import load_dotenv
-from pydantic import EmailStr, ConfigDict, Field, field_validator
+from pydantic import EmailStr, ConfigDict, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 from controlplane_events.topics import CONTROLPLANE_EVENTS_V1
@@ -96,6 +96,40 @@ class Settings(BaseSettings):
         if v == "":
             return None
         return v
+
+    # Keycloak OIDC (required for API auth; compose sets these for Docker)
+    keycloak_jwks_url: str | None = Field(
+        default=None,
+        validation_alias="KEYCLOAK_JWKS_URL",
+        description="JWKS URL reachable from this process (e.g. http://keycloak:8080/.../openid-certs)",
+    )
+    keycloak_issuer: str | None = Field(
+        default=None,
+        validation_alias="KEYCLOAK_ISSUER",
+        description="Must match access-token iss (e.g. http://localhost:8081/realms/controlplane)",
+    )
+    keycloak_client_id: str = Field(
+        default="controlplane-frontend",
+        validation_alias="KEYCLOAK_CLIENT_ID",
+    )
+
+    @field_validator("keycloak_jwks_url", "keycloak_issuer", mode="before")
+    @classmethod
+    def _empty_keycloak_none(cls, v: object) -> object:
+        if v == "":
+            return None
+        return v
+
+    @model_validator(mode="after")
+    def _keycloak_local_defaults(self) -> Settings:
+        if self.keycloak_jwks_url is None:
+            self.keycloak_jwks_url = (
+                "http://localhost:8081/realms/controlplane/protocol/openid-certs"
+            )
+        if self.keycloak_issuer is None:
+            self.keycloak_issuer = "http://localhost:8081/realms/controlplane"
+        return self
+
 
 # Instantiate settings once
 settings = Settings()

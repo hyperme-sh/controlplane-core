@@ -7,7 +7,6 @@ from api.infrastructure.externals.coolify_app import CoolifyApp
 from api.infrastructure.externals.dns_resolver import DnsResolver
 from api.infrastructure.externals.smtp_email import SmtpEmail
 
-from api.infrastructure.externals.sso_auth_provider import SSOAuthProvider
 from api.infrastructure.externals.stripe_resolver import StripeResolver
 from api.infrastructure.persistence.repositories.branding_repository_impl import BrandingRepository
 from api.infrastructure.persistence.repositories.chat_history_ai_repository_impl import ChatHistoryAIRepository
@@ -141,10 +140,9 @@ container.register(AuditLogRepository, scope=punq.Scope.singleton)
 container.register(AuditLogsService, scope=punq.Scope.singleton)
 
 
-## SSO Settings Components
+## SSO Settings Components (tenant OAuth config CRUD; login is Keycloak-only)
 container.register(SSOSettingsProviderRepository, scope=punq.Scope.singleton)
 container.register(SSOSettingsService, scope=punq.Scope.singleton)
-container.register(SSOAuthProvider, scope=punq.Scope.singleton)
 
 ## Branding components
 container.register(BrandingRepository, scope=punq.Scope.singleton)
@@ -255,11 +253,4 @@ def get_audit_logs_service() -> AuditLogsService:
 
 def get_sso_settings_service() -> SSOSettingsService:
     return container.resolve(SSOSettingsService)
-
-def get_sso_auth_provider() -> SSOAuthProvider:
-    return container.resolve(SSOAuthProvider)
-
-
-
-
 

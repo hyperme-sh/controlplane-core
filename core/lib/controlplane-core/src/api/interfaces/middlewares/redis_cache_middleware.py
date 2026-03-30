@@ -6,8 +6,8 @@ from fastapi import Request
 from api.common.utils import get_logger
 from api.core.config import settings
 
-from api.core.container import get_jwt_token_service, get_role_service, get_user_service, get_subscription_plan_service
-from api.infrastructure.security.current_user import  current_user_optional
+from api.core.container import get_role_service, get_user_service, get_subscription_plan_service
+from api.infrastructure.security.current_user import resolve_me_optional_from_token
 
 logger = get_logger(__name__)
 
@@ -15,10 +15,7 @@ redis_cache_expiry = 300  # Cache expiry time in seconds (5 minutes)
 redis: Redis =  from_url(url=settings.redis_uri, decode_responses=True)
 
 not_allowed_cache_paths = [
-    "/api/v1/account/login",
     "/api/v1/account/logout",
-    "/api/v1/account/register",
-    "/api/v1/account/refresh_token",
     "/api/v1/app_configuration/",
     "/api/v1/security/passkeys",
     "/api/v1/configurations/stripe/webhooks",
@@ -46,16 +43,14 @@ class RedisCacheMiddleware(BaseHTTPMiddleware):
         try:
             
             user_service = get_user_service()
-            jwt_service = get_jwt_token_service()
             role_service = get_role_service()
             subscription_service = get_subscription_plan_service()
 
-            current_user = await current_user_optional(
+            current_user = await resolve_me_optional_from_token(
                 token,
                 user_service=user_service,
-                token_service=jwt_service,
                 role_service=role_service,
-                subscription_service=subscription_service
+                subscription_service=subscription_service,
             )
         except Exception as e:
             logger.debug(f"Could not resolve current_user in middleware: {e}")

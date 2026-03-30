@@ -30,6 +30,7 @@ def serialize_user(row: m.User) -> dict[str, Any]:
             "activated_at": row.activated_at.isoformat() if row.activated_at else None,
             "image_url": row.image_url,
             "sso_provider_id": row.sso_provider_id,
+            "keycloak_sub": row.keycloak_sub,
         }
     )
     return d

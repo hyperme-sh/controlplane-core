@@ -5,14 +5,16 @@ from typing import Any
 
 from pydantic import EmailStr
 
+from api.common.enums.gender import Gender
 from api.common.event_types import USER_CREATED_V1
-from api.common.exceptions import InvalidOperationException
+from api.common.exceptions import InvalidOperationException, UnauthorizedException
 from api.common.security import hash_it
 from api.common.utils import get_logger
 from api.core.exceptions import EmailAlreadyExistsException, UserNotFoundException
 from api.domain.dtos.dashboard_dto import TimeSeriesDto
 from api.domain.dtos.user_dto import CreateUserDto, UpdateUserDto, UserDto, UserListDto
 from api.domain.entities.user import User
+from api.domain.enum.role import RoleType
 from api.domain.entities.user_password_reset import UserPasswordReset
 from api.infrastructure.persistence.repositories.user_password_reset_repository_impl import (
     UserPasswordResetRepository,
@@ -21,6 +23,7 @@ from api.domain.serialization import parse_uuid
 from api.infrastructure.messaging.tenant_event_publisher import (
     get_tenant_event_publisher,
 )
+from api.infrastructure.persistence.repositories.role_repository_impl import RoleRepository
 from api.infrastructure.persistence.repositories.user_repository_impl import UserRepository
 
 logger = get_logger(__name__)
@@ -31,9 +34,11 @@ class UserService:
         self,
         user_repository: UserRepository,
         user_password_reset_repository: UserPasswordResetRepository,
+        role_repository: RoleRepository,
     ):
         self.user_repository = user_repository
         self.user_password_reset_repository = user_password_reset_repository
+        self.role_repository = role_repository
         logger.info("Initialized.")
 
     async def list_users(self, skip: int = 0, limit: int = 10) -> UserListDto:
@@ -55,19 +60,78 @@ class UserService:
         existing = await self.user_repository.single_or_none(email=user_data.email)
         if existing is not None:
             raise EmailAlreadyExistsException(user_data.email)
-        user_data.password = hash_it(user_data.password)
-        user_id = await self.user_repository.create(user_data)
-        tid = parse_uuid(user_data.tenant_id) if user_data.tenant_id else None
+        to_create = user_data.model_copy()
+        if to_create.password is not None:
+            to_create = to_create.model_copy(update={"password": hash_it(to_create.password)})
+        user_id = await self.user_repository.create(to_create)
+        tid = parse_uuid(to_create.tenant_id) if to_create.tenant_id else None
         await get_tenant_event_publisher().publish(
             tenant_id=tid,
             event_type=USER_CREATED_V1,
             payload={
                 "user_id": str(user_id),
-                "email": str(user_data.email),
-                "tenant_id": user_data.tenant_id,
+                "email": str(to_create.email),
+                "tenant_id": to_create.tenant_id,
             },
         )
         return user_id
+
+    async def ensure_user_from_keycloak_claims(
+        self, claims: dict[str, object]
+    ) -> User:
+        sub = claims.get("sub")
+        if not sub or not isinstance(sub, str):
+            raise UnauthorizedException("Invalid token: missing sub")
+        email_raw = claims.get("email") or claims.get("preferred_username")
+        if not email_raw or not isinstance(email_raw, str):
+            raise UnauthorizedException("Invalid token: missing email")
+        email = email_raw.strip().lower()
+        if claims.get("email_verified") is False:
+            raise UnauthorizedException("Email not verified at identity provider")
+
+        row = await self.user_repository.single_or_none(keycloak_sub=sub)
+        if row:
+            return row
+        row = await self.user_repository.single_or_none(email=email)
+        if row:
+            await self.user_repository.update(str(row.id), UpdateUserDto(keycloak_sub=sub))
+            updated = await self.user_repository.get(str(row.id))
+            if updated is None:
+                raise InvalidOperationException("Failed to link Keycloak identity")
+            return updated
+
+        guest = await self.role_repository.single_or_none(name=RoleType.GUEST.value)
+        if guest is None:
+            raise InvalidOperationException("GUEST role not found; seed the database")
+
+        first = str(claims.get("given_name") or claims.get("name") or email.split("@")[0])[
+            :255
+        ]
+        last = str(claims.get("family_name") or "")[:255]
+        dto = CreateUserDto(
+            email=email,
+            first_name=first,
+            last_name=last,
+            gender=Gender.PREFER_NOT_TO_SAY,
+            role_id=str(guest.id),
+            password=None,
+            keycloak_sub=sub,
+        )
+        uid = await self.user_repository.create(dto)
+        tid = parse_uuid(dto.tenant_id) if dto.tenant_id else None
+        await get_tenant_event_publisher().publish(
+            tenant_id=tid,
+            event_type=USER_CREATED_V1,
+            payload={
+                "user_id": str(uid),
+                "email": str(dto.email),
+                "tenant_id": dto.tenant_id,
+            },
+        )
+        created = await self.user_repository.get(str(uid))
+        if created is None:
+            raise InvalidOperationException("Failed to create user from Keycloak")
+        return created
 
     async def update_user(self, user_id: str, user_data: UpdateUserDto) -> User | None:
         existing = await self.user_repository.get(user_id)

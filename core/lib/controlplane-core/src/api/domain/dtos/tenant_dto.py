@@ -28,7 +28,7 @@ class CreateTenantDto(BaseModel):
     name: str
     subdomain: Subdomain
     admin_email: EmailStr
-    admin_password: str
+    admin_password: str | None = None
     first_name: str
     last_name: str
     gender: Gender

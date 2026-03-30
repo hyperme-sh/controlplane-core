@@ -48,7 +48,7 @@ async def create_tenant(
         last_name=data.last_name,
         gender=data.gender,
         tenant_id=response.id,
-        sub_domain=data.subdomain
+        sub_domain=data.subdomain,
     )
     payload=WorkerPayloadDto(
         label="post-tenant-creation",

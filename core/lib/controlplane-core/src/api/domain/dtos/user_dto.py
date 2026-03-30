@@ -19,8 +19,9 @@ class BaseUserDto(BaseModel):
 
 
 class CreateUserDto(BaseUserDto):
-    password: str
+    password: str | None = None
     sub_domain: Optional[str] = None
+    keycloak_sub: str | None = None
 
 
 class UpdateUserDto(BaseModel):
@@ -34,6 +35,7 @@ class UpdateUserDto(BaseModel):
     activated_at: Optional[datetime] = None
     tenant_id: str | None = None
     sso_provider_id: Optional[str] = None
+    keycloak_sub: Optional[str] = None
 
 
 class UserDto(BaseModel):
@@ -50,6 +52,7 @@ class UserDto(BaseModel):
     updated_at: str
     tenant_id: Optional[str] = None
     sso_provider_id: Optional[str] = None
+    keycloak_sub: Optional[str] = None
 
 
 class UserListDto(BaseModel):
@@ -80,6 +83,7 @@ def user_from_row(row: User) -> UserDto:
         updated_at=d["updated_at"] or "",
         tenant_id=d["tenant_id"],
         sso_provider_id=d["sso_provider_id"],
+        keycloak_sub=d.get("keycloak_sub"),
     )
 
 
