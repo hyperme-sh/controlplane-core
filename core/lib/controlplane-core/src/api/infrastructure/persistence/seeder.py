@@ -1,11 +1,9 @@
-import os
-
 from faker import Faker
 
 from api.common.enums.gender import Gender
 from api.common.security import hash_it
 from api.common.seeder_utils import get_seed_roles
-from api.common.utils import create_temp_file, get_logger, get_utc_now
+from api.common.utils import get_logger
 from api.core.config import settings
 from api.core.container import get_role_service, get_user_service
 from api.domain.dtos.role_dto import CreateRoleDto, UpdateRoleDto
@@ -20,15 +18,15 @@ from api.infrastructure.persistence.repositories.user_repository_impl import \
 fake = Faker()
 
 logger = get_logger(__name__)
-LOCK_FILE = "seed.lock"
+
+# Coordinates seed across gateway / auth-service / user-service / payment-service (each has its own container /tmp).
+_SEED_LOCK_KEY1 = 7_408_263
+_SEED_LOCK_KEY2 = 1_928_374
+
 
 async def seed_initial_data():
     if settings.fastapi_env != "development":
         logger.info("Seeding is only allowed in development environment. Skipping seeding.")
-        return
-
-    if os.path.exists(create_temp_file(LOCK_FILE)):
-        logger.info("Seeding has already been completed. Skipping...")
         return
 
     from sqlalchemy import text
@@ -37,13 +35,28 @@ async def seed_initial_data():
 
     maker = get_session_maker()
     async with maker() as session:
-        tok = set_db_session(session)
+        await session.execute(
+            text("SELECT pg_advisory_lock(:k1, :k2)").bindparams(
+                k1=_SEED_LOCK_KEY1, k2=_SEED_LOCK_KEY2
+            )
+        )
+        tok = None
         try:
+            tok = set_db_session(session)
             await session.execute(text("SET LOCAL app.current_tenant_id = ''"))
             await _run_seed_body()
             await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
         finally:
-            reset_db_session(tok)
+            if tok is not None:
+                reset_db_session(tok)
+            await session.execute(
+                text("SELECT pg_advisory_unlock(:k1, :k2)").bindparams(
+                    k1=_SEED_LOCK_KEY1, k2=_SEED_LOCK_KEY2
+                )
+            )
 
 
 async def _run_seed_body() -> None:
@@ -58,7 +71,7 @@ async def _run_seed_body() -> None:
             is_role_existing = await role_repo.single_or_none(name=role.name)
             if is_role_existing:
                 logger.info(f"Role {role.name} already exists. Skipping...")
-                return
+                continue
             create_role = CreateRoleDto(
                 name=role.name,
                 description=role.description,
@@ -77,6 +90,9 @@ async def _run_seed_body() -> None:
     existing_admin = await user_repo.single_or_none(email=settings.admin_email)
     if existing_admin is None:
         existing_role_admin = await role_repo.single_or_none(name=RoleType.ADMIN)
+        if existing_role_admin is None:
+            logger.error("ADMIN role is missing; cannot seed admin user. Seed roles first.")
+            return
         create_user = CreateUserDto(
             email=settings.admin_email,
             first_name="Admin",
@@ -102,18 +118,17 @@ async def _run_seed_body() -> None:
     if existing_users < 10:
         logger.info("Seeding fake users...")
         existing_role_guest = await role_repo.single_or_none(name=RoleType.GUEST)
-        for _ in range(100):
-            fake_user = CreateUserDto(
-                first_name=fake.first_name(),
-                last_name=fake.last_name(),
-                email=fake.email(),
-                role_id=str(existing_role_guest.id),
-                gender=fake.random_element(elements=[Gender.MALE.value, Gender.FEMALE.value, Gender.PREFER_NOT_TO_SAY.value, Gender.OTHER.value]),
-                password=hash_it("Test@123!"),
-            )
-            await user_repo.create(data=fake_user)
-        logger.info("Seeded fake users.")
-    
-    # Create lock file to indicate seeding is done
-    with open(create_temp_file(LOCK_FILE), "w") as f:
-        f.write("seeding completed")
+        if existing_role_guest is None:
+            logger.warning("GUEST role missing; skipping fake user seed.")
+        else:
+            for _ in range(100):
+                fake_user = CreateUserDto(
+                    first_name=fake.first_name(),
+                    last_name=fake.last_name(),
+                    email=fake.email(),
+                    role_id=str(existing_role_guest.id),
+                    gender=fake.random_element(elements=[Gender.MALE.value, Gender.FEMALE.value, Gender.PREFER_NOT_TO_SAY.value, Gender.OTHER.value]),
+                    password=hash_it("Test@123!"),
+                )
+                await user_repo.create(data=fake_user)
+            logger.info("Seeded fake users.")
