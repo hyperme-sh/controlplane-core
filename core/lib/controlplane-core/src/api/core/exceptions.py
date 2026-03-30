@@ -1,0 +1,115 @@
+# Keep only domain-specific exceptions here
+
+from api.common.exceptions import AwsException, AzureException, InvalidOperationException, NotFoundException, ConflictException, ForbiddenException
+
+class UserNotFoundException(NotFoundException):
+    def __init__(self, user_id: str):
+        super().__init__("User", user_id)
+
+class EmailAlreadyExistsException(ConflictException):
+    def __init__(self, email: str):
+        super().__init__("User", email)
+
+class InvalidSubdomainException(InvalidOperationException):
+    def __init__(self, subdomain: str):
+        message = f"Subdomain '{subdomain}' is invalid format (3–63 chars, letters/digits/hyphens, no leading/trailing hyphen)."
+        super().__init__(message)
+
+class InvalidCustomDomainException(InvalidOperationException):
+    def __init__(self, custom_domain: str):
+        message = f"Custom domain '{custom_domain}' is invalid format."
+        super().__init__(message)
+
+class TenantNotFoundException(NotFoundException):
+    def __init__(self, tenant_id: str):
+        super().__init__("Tenant", tenant_id)
+
+class RoleNotFoundException(NotFoundException):
+    def __init__(self, role_id: str):
+        super().__init__("Role", role_id)
+
+class RoleAlreadyExistsException(ConflictException):
+    def __init__(self, name: str):
+        super().__init__("Role", name)
+
+class TenantNotActiveException(InvalidOperationException):
+    def __init__(self, tenant_id: str):
+        message = f"Tenant with ID '{tenant_id}' is not active."
+        super().__init__(message)
+
+
+class S3StorageException(AwsException):
+    def __init__(self, message: str):
+        local_message = f"S3 Storage Error: {message}"
+        super().__init__(local_message)
+
+class AzureBlobStorageException(AzureException):
+    def __init__(self, message: str):
+        local_message = f"Azure Blob Storage Error: {message}"
+        super().__init__(local_message)
+
+
+class StorageNotEnabledException(InvalidOperationException):
+    def __init__(self):
+        message = "No storage provider is enabled. Please enable a storage provider in the settings."
+        super().__init__(message)
+
+class CoolifyIntegrationException(InvalidOperationException):
+    def __init__(self, message: str):
+        local_message = f"Coolify Integration Error: {message}"
+        super().__init__(local_message)
+
+
+class PassKeyException(InvalidOperationException):
+    def __init__(self, message: str):
+        local_message = f"PassKey Error: {message}"
+        super().__init__(local_message)
+
+
+class FeatureNotEnabledException(ForbiddenException):
+    def __init__(self, feature: str):
+        message = f"Feature '{feature}' is not enabled."
+        super().__init__(message)
+
+class StripeSettingsNotFoundException(NotFoundException):
+    def __init__(self, message: str):
+        super().__init__("StripeSettings", message)
+
+
+class ProductException(InvalidOperationException):
+    def __init__(self, message: str):
+        local_message = f"Product Error: {message}"
+        super().__init__(local_message)
+
+class ProductNotFoundException(NotFoundException):
+    def __init__(self, product_id: str):
+        super().__init__("Product", product_id)
+
+
+
+class PricingException(InvalidOperationException):
+    def __init__(self, message: str):
+        local_message = f"Pricing Error: {message}"
+        super().__init__(local_message)
+
+class PricingNotFoundException(NotFoundException):
+    def __init__(self, pricing_id: str):
+        super().__init__("Pricing", pricing_id)
+
+
+
+class BillingRecordException(InvalidOperationException):
+    def __init__(self, message: str):
+        local_message = f"BillingRecord Error: {message}"
+        super().__init__(local_message)
+
+
+class BillingRecordNotFoundException(NotFoundException):
+    def __init__(self, record_id: str):
+        super().__init__("BillingRecord", record_id)
+
+
+class BrandingException(InvalidOperationException):
+    def __init__(self, message: str):
+        local_message = f"Branding Error: {message}"
+        super().__init__(local_message)
