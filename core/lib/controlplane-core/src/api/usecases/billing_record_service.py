@@ -1,6 +1,12 @@
+import uuid
 from typing import Any, Literal, Optional
 
+from api.common.event_types import BILLING_RECORD_CREATED_V1
 from api.common.utils import get_logger
+from api.domain.serialization import parse_uuid
+from api.infrastructure.messaging.tenant_event_publisher import (
+    get_tenant_event_publisher,
+)
 from api.core.exceptions import (BillingRecordException,
                                  BillingRecordNotFoundException)
 from api.domain.dtos.billing_dto import (BillingRecordDto,
@@ -19,6 +25,21 @@ from stripe import StripeClient
 logger = get_logger(__name__)
 
 
+def _billing_payload_for_event(payload: dict[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for k, v in payload.items():
+        if isinstance(v, uuid.UUID):
+            out[k] = str(v)
+        elif isinstance(v, dict):
+            out[k] = {
+                sk: str(sv) if isinstance(sv, uuid.UUID) else sv
+                for sk, sv in v.items()
+            }
+        else:
+            out[k] = v
+    return out
+
+
 class BillingRecordService:
     def __init__(
         self,
@@ -31,6 +52,19 @@ class BillingRecordService:
             billing_record_repository
         )
         self.stripe_resolver: StripeResolver = stripe_resolver
+
+    async def _publish_billing_record_created(self, payload: dict[str, Any]) -> None:
+        raw_tid = payload.get("tenant_id")
+        tid = (
+            parse_uuid(raw_tid)
+            if raw_tid not in (None, "")
+            else None
+        )
+        await get_tenant_event_publisher().publish(
+            tenant_id=tid,
+            event_type=BILLING_RECORD_CREATED_V1,
+            payload=_billing_payload_for_event(payload),
+        )
 
     # Helper methods
     def _extract_period(
@@ -156,19 +190,19 @@ class BillingRecordService:
                 "cancel_url": f"{frontend_url}/checkout/cancel?tenant_id={checkout_req.tenant_id}",
             }
         )
-        await self.billing_record_repository.create(
-            {
-                "scope": "host",
-                "actor": "tenant",
-                "tenant_id": checkout_req.tenant_id,
-                "payment_type": checkout_req.mode,
-                "price_id": checkout_req.price_id,
-                "stripe_customer_id": customer.id,
-                "stripe_session_id": checkout_session.id,
-                "currency": checkout_session.currency or "eur",
-                "status": "pending",
-            }
-        )
+        host_row = {
+            "scope": "host",
+            "actor": "tenant",
+            "tenant_id": checkout_req.tenant_id,
+            "payment_type": checkout_req.mode,
+            "price_id": checkout_req.price_id,
+            "stripe_customer_id": customer.id,
+            "stripe_session_id": checkout_session.id,
+            "currency": checkout_session.currency or "eur",
+            "status": "pending",
+        }
+        await self.billing_record_repository.create(host_row)
+        await self._publish_billing_record_created(host_row)
         return checkout_session.url
 
     async def create_tenant_check_out_session_for_tenant_users(
@@ -195,20 +229,20 @@ class BillingRecordService:
             }
         )
 
-        await self.billing_record_repository.create(
-            {
-                "scope": "tenant",
-                "actor": "end_user",
-                "tenant_id": checkout_req.tenant_id,
-                "user_id": user_id,
-                "payment_type": checkout_req.mode,
-                "price_id": checkout_req.price_id,
-                "stripe_customer_id": customer.id,
-                "stripe_session_id": checkout_session.id,
-                "currency": checkout_session.currency or "eur",
-                "status": "pending",
-            }
-        )
+        tenant_row = {
+            "scope": "tenant",
+            "actor": "end_user",
+            "tenant_id": checkout_req.tenant_id,
+            "user_id": user_id,
+            "payment_type": checkout_req.mode,
+            "price_id": checkout_req.price_id,
+            "stripe_customer_id": customer.id,
+            "stripe_session_id": checkout_session.id,
+            "currency": checkout_session.currency or "eur",
+            "status": "pending",
+        }
+        await self.billing_record_repository.create(tenant_row)
+        await self._publish_billing_record_created(tenant_row)
         return checkout_session.url
 
     async def handle_host_checkout_success(
@@ -355,3 +389,4 @@ class BillingRecordService:
         Create a billing record in the database
         """
         await self.billing_record_repository.create(billing_record)
+        await self._publish_billing_record_created(billing_record)

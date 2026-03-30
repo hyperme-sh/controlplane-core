@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import EmailStr
 
+from api.common.event_types import USER_CREATED_V1
 from api.common.exceptions import InvalidOperationException
 from api.common.security import hash_it
 from api.common.utils import get_logger
@@ -15,6 +16,10 @@ from api.domain.entities.user import User
 from api.domain.entities.user_password_reset import UserPasswordReset
 from api.infrastructure.persistence.repositories.user_password_reset_repository_impl import (
     UserPasswordResetRepository,
+)
+from api.domain.serialization import parse_uuid
+from api.infrastructure.messaging.tenant_event_publisher import (
+    get_tenant_event_publisher,
 )
 from api.infrastructure.persistence.repositories.user_repository_impl import UserRepository
 
@@ -52,6 +57,16 @@ class UserService:
             raise EmailAlreadyExistsException(user_data.email)
         user_data.password = hash_it(user_data.password)
         user_id = await self.user_repository.create(user_data)
+        tid = parse_uuid(user_data.tenant_id) if user_data.tenant_id else None
+        await get_tenant_event_publisher().publish(
+            tenant_id=tid,
+            event_type=USER_CREATED_V1,
+            payload={
+                "user_id": str(user_id),
+                "email": str(user_data.email),
+                "tenant_id": user_data.tenant_id,
+            },
+        )
         return user_id
 
     async def update_user(self, user_id: str, user_data: UpdateUserDto) -> User | None:

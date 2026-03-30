@@ -1,7 +1,11 @@
 from typing import Any, List
 from uuid import UUID
 
+from api.common.event_types import TENANT_CREATED_V1
 from api.common.utils import get_logger, validate_password
+from api.infrastructure.messaging.tenant_event_publisher import (
+    get_tenant_event_publisher,
+)
 from api.core.exceptions import TenantNotFoundException
 from api.domain.dtos.tenant_dto import CreateTenantDto, FeatureDto, TenantListDto, UpdateTenantDto
 from api.domain.entities.tenant import Tenant
@@ -53,6 +57,16 @@ class TenantService:
         """Create a new tenant. Raises InvalidOperationException if admin password is weak."""
         validate_password(tenant_data.admin_password)
         response = await self.tenant_repository.create(tenant_data)
+        if response is not None:
+            await get_tenant_event_publisher().publish(
+                tenant_id=response,
+                event_type=TENANT_CREATED_V1,
+                payload={
+                    "tenant_id": str(response),
+                    "name": tenant_data.name,
+                    "subdomain": str(tenant_data.subdomain),
+                },
+            )
         return response
 
 

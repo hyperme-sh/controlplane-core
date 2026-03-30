@@ -1,7 +1,9 @@
 
 from dotenv import load_dotenv
-from pydantic import EmailStr, ConfigDict
+from pydantic import EmailStr, ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings
+
+from controlplane_events.topics import CONTROLPLANE_EVENTS_V1
 
 load_dotenv()
 
@@ -75,6 +77,25 @@ class Settings(BaseSettings):
     stripe_publishable_key: str = ""
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
+
+    # Kafka (optional; unset = no-op publisher)
+    kafka_bootstrap_servers: str | None = Field(
+        default=None,
+        validation_alias="KAFKA_BOOTSTRAP_SERVERS",
+    )
+    kafka_events_topic: str = CONTROLPLANE_EVENTS_V1
+    service_name: str = Field(
+        default="controlplane",
+        validation_alias="SERVICE_NAME",
+        description="Identifies the process in event envelopes (gateway, user-service, …)",
+    )
+
+    @field_validator("kafka_bootstrap_servers", mode="before")
+    @classmethod
+    def _empty_kafka_none(cls, v: object) -> object:
+        if v == "":
+            return None
+        return v
 
 # Instantiate settings once
 settings = Settings()

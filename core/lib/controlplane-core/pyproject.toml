@@ -8,6 +8,7 @@ version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
     "controlplane-db",
+    "controlplane-events",
     "azure-storage-blob>=12.26.0",
     "boto3>=1.40.32",
     "celery[redis]>=5.3.1",
@@ -15,7 +16,7 @@ dependencies = [
     "faker>=37.8.0",
     "fastapi-mail>=1.5.0",
     "fastapi-sso>=0.18.0",
-    "fastapi[standard]>=0.116.2",
+    "fastapi[standard]>=0.135.0",
     "flower>=2.0.1",
     "httpx>=0.28.1",
     "langchain>=0.3.27",
@@ -24,7 +25,7 @@ dependencies = [
     "openpyxl>=3.1.5",
     "passlib>=1.7.4",
     "punq>=0.7.0",
-    "pydantic>=2.11.9",
+    "pydantic>=2.12.0",
     "pydantic-settings>=2.6.0",
     "pyjwt>=2.10.1",
     "pytest>=8.4.2",
@@ -40,6 +41,7 @@ dependencies = [
 
 [tool.uv.sources]
 controlplane-db = { workspace = true }
+controlplane-events = { workspace = true }
 
 [tool.hatch.build.targets.wheel]
 only-include = ["src/api"]
