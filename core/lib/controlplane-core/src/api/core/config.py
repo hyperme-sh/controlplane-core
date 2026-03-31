@@ -173,6 +173,17 @@ class Settings(BaseSettings):
         description="If True, /auth/me rejects tokens unless MFA is indicated (amr/acr).",
     )
 
+    acl_service_base_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("ACL_SERVICE_URL", "acl_service_base_url"),
+        description="Base URL for acl-service (POST /api/v1/acl/enforce). Empty = skip HTTP ACL (allow).",
+    )
+    payment_service_base_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("PAYMENT_SERVICE_URL", "payment_service_base_url"),
+        description="Base URL for payment-service (optional; paid listing flow).",
+    )
+
     def oidc_bootstrap_admin_email_set(self) -> frozenset[str]:
         emails = {str(self.admin_email).strip().lower()}
         for part in self.bootstrap_admin_emails.split(","):
@@ -206,6 +217,8 @@ class Settings(BaseSettings):
         "keycloak_jwks_url",
         "keycloak_issuer",
         "keycloak_jwks_request_host",
+        "acl_service_base_url",
+        "payment_service_base_url",
         mode="before",
     )
     @classmethod
