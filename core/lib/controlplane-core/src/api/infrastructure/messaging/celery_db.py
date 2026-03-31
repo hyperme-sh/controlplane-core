@@ -32,7 +32,7 @@ async def run_with_db_session(
     tenant_id: str | None,
     work: Callable[[], Awaitable[T]],
 ) -> T:
-    """One transaction: SET LOCAL app.current_tenant_id, then await work()."""
+    """One transaction: set_config(app.current_tenant_id, ...) for RLS, then await work()."""
     maker = async_sessionmaker(
         _engine_singleton(), expire_on_commit=False, autoflush=False
     )
@@ -41,7 +41,7 @@ async def run_with_db_session(
         token = set_db_session(session)
         try:
             await session.execute(
-                text("SET LOCAL app.current_tenant_id = :tid"),
+                text("SELECT set_config('app.current_tenant_id', :tid, true)"),
                 {"tid": str(tenant_id) if tenant_id else ""},
             )
             out = await work()

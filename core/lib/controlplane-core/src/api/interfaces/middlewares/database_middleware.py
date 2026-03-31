@@ -47,7 +47,9 @@ class DbSessionMiddleware(BaseHTTPMiddleware):
         async with maker() as session:
             token = set_db_session(session)
             try:
-                await session.execute(text("SET LOCAL app.current_tenant_id = ''"))
+                await session.execute(
+                    text("SELECT set_config('app.current_tenant_id', '', true)")
+                )
 
                 tenant_uuid: uuid.UUID | None = None
                 tenant_host = get_tenant_host(request) if is_tenancy_enabled() else None
@@ -73,7 +75,7 @@ class DbSessionMiddleware(BaseHTTPMiddleware):
 
                 if tenant_uuid is not None:
                     await session.execute(
-                        text("SET LOCAL app.current_tenant_id = :tid"),
+                        text("SELECT set_config('app.current_tenant_id', :tid, true)"),
                         {"tid": str(tenant_uuid)},
                     )
                     request.state.tenant_id = tenant_uuid

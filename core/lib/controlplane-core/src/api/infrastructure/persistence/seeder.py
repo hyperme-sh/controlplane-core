@@ -43,7 +43,9 @@ async def seed_initial_data():
         tok = None
         try:
             tok = set_db_session(session)
-            await session.execute(text("SET LOCAL app.current_tenant_id = ''"))
+            await session.execute(
+                text("SELECT set_config('app.current_tenant_id', '', true)")
+            )
             await _run_seed_body()
             await session.commit()
         except Exception:
