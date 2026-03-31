@@ -3,11 +3,12 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from pydantic import EmailStr
+from pydantic import EmailStr, TypeAdapter
 
 from api.common.enums.gender import Gender
 from api.common.event_types import USER_CREATED_V1
 from api.common.exceptions import InvalidOperationException, UnauthorizedException
+from api.core.config import settings
 from api.common.security import hash_it
 from api.common.utils import get_logger
 from api.core.exceptions import EmailAlreadyExistsException, UserNotFoundException
@@ -27,6 +28,93 @@ from api.infrastructure.persistence.repositories.role_repository_impl import Rol
 from api.infrastructure.persistence.repositories.user_repository_impl import UserRepository
 
 logger = get_logger(__name__)
+
+_email_adapter = TypeAdapter(EmailStr)
+
+_MS_CLAIM_EMAIL = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
+_MS_CLAIM_UPN = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn"
+
+
+def _str_claim(claims: dict[str, object], key: str) -> str | None:
+    v = claims.get(key)
+    if isinstance(v, str):
+        s = v.strip()
+        return s or None
+    return None
+
+
+def _email_candidates_from_raw(raw: str) -> list[str]:
+    out = [raw]
+    if "#EXT#" in raw:
+        head = raw.split("#EXT#", 1)[0].strip()
+        if head and head not in out:
+            out.append(head)
+    return out
+
+
+def _first_valid_email_from_oidc_claims(claims: dict[str, object]) -> str | None:
+    keys: list[str] = []
+    seen: set[str] = set()
+    for k in (
+        "email",
+        "preferred_username",
+        "upn",
+        "unique_name",
+        _MS_CLAIM_EMAIL,
+        _MS_CLAIM_UPN,
+    ):
+        if k not in seen:
+            seen.add(k)
+            keys.append(k)
+    for k in settings.oidc_extra_email_claim_keys():
+        if k not in seen:
+            seen.add(k)
+            keys.append(k)
+    for key in keys:
+        raw = _str_claim(claims, key)
+        if not raw:
+            continue
+        for cand in _email_candidates_from_raw(raw):
+            try:
+                return str(_email_adapter.validate_python(cand)).lower()
+            except Exception:
+                continue
+    return None
+
+
+def _oidc_subject_str(claims: dict[str, object]) -> str:
+    sub_raw = claims.get("sub")
+    if sub_raw is None or sub_raw == "":
+        raise UnauthorizedException("Invalid token: missing sub")
+    sub = str(sub_raw).strip()
+    if not sub:
+        raise UnauthorizedException("Invalid token: missing sub")
+    return sub
+
+
+def _groups_from_oidc_claims(claims: dict[str, object]) -> list[str]:
+    raw = claims.get("groups")
+    if isinstance(raw, list):
+        return [str(x).strip() for x in raw if str(x).strip()]
+    if isinstance(raw, str) and raw.strip():
+        s = raw.strip()
+        if "," in s:
+            return [p.strip() for p in s.split(",") if p.strip()]
+        return [s]
+    return []
+
+
+def _oidc_claims_want_admin(email: str, claims: dict[str, object]) -> bool:
+    em = email.strip().lower()
+    if em in settings.oidc_bootstrap_admin_email_set():
+        return True
+    gids = settings.oidc_entra_admin_group_id_set()
+    if not gids:
+        return False
+    for g in _groups_from_oidc_claims(claims):
+        if g.strip().lower() in gids:
+            return True
+    return False
 
 
 class UserService:
@@ -76,25 +164,57 @@ class UserService:
         )
         return user_id
 
+    async def _maybe_promote_oidc_admin(
+        self, user_id: str, email: str, claims: dict[str, object]
+    ) -> None:
+        if not _oidc_claims_want_admin(email, claims):
+            return
+        admin = await self.role_repository.single_or_none(name=RoleType.ADMIN.value)
+        if admin is None:
+            return
+        row = await self.user_repository.get(user_id)
+        if row is None or str(row.role_id) == str(admin.id):
+            return
+        await self.user_repository.update(
+            user_id, UpdateUserDto(role_id=str(admin.id))
+        )
+
     async def ensure_user_from_keycloak_claims(
         self, claims: dict[str, object]
     ) -> User:
-        sub = claims.get("sub")
-        if not sub or not isinstance(sub, str):
-            raise UnauthorizedException("Invalid token: missing sub")
-        email_raw = claims.get("email") or claims.get("preferred_username")
-        if not email_raw or not isinstance(email_raw, str):
-            raise UnauthorizedException("Invalid token: missing email")
-        email = email_raw.strip().lower()
-        if claims.get("email_verified") is False:
+        sub = _oidc_subject_str(claims)
+        email = _first_valid_email_from_oidc_claims(claims)
+        if email is None:
+            logger.warning(
+                "OIDC JIT: no valid email in access token (claim keys: %s)",
+                sorted(claims.keys()),
+            )
+            raise UnauthorizedException(
+                "Access token has no valid email claim. Request scope 'email' and map IdP "
+                "email into the access token, or set OIDC_EXTRA_EMAIL_CLAIMS for a custom "
+                "claim name (see docs/oidc-console.md)."
+            )
+        if claims.get("email_verified") is False and not settings.oidc_relax_email_verified:
             raise UnauthorizedException("Email not verified at identity provider")
 
         row = await self.user_repository.single_or_none(keycloak_sub=sub)
         if row:
-            return row
-        row = await self.user_repository.single_or_none(email=email)
+            await self._maybe_promote_oidc_admin(str(row.id), email, claims)
+            updated = await self.user_repository.get(str(row.id))
+            return updated or row
+
+        row = await self.user_repository.single_or_none_platform_email_ci(email)
+        if row is None:
+            row = await self.user_repository.single_or_none(email=email)
         if row:
-            await self.user_repository.update(str(row.id), UpdateUserDto(keycloak_sub=sub))
+            link_updates = UpdateUserDto(keycloak_sub=sub)
+            if _oidc_claims_want_admin(email, claims):
+                admin = await self.role_repository.single_or_none(name=RoleType.ADMIN.value)
+                if admin is not None:
+                    link_updates = UpdateUserDto(
+                        keycloak_sub=sub, role_id=str(admin.id)
+                    )
+            await self.user_repository.update(str(row.id), link_updates)
             updated = await self.user_repository.get(str(row.id))
             if updated is None:
                 raise InvalidOperationException("Failed to link Keycloak identity")
@@ -103,6 +223,8 @@ class UserService:
         guest = await self.role_repository.single_or_none(name=RoleType.GUEST.value)
         if guest is None:
             raise InvalidOperationException("GUEST role not found; seed the database")
+        admin = await self.role_repository.single_or_none(name=RoleType.ADMIN.value)
+        role = admin if admin and _oidc_claims_want_admin(email, claims) else guest
 
         first = str(claims.get("given_name") or claims.get("name") or email.split("@")[0])[
             :255
@@ -113,7 +235,7 @@ class UserService:
             first_name=first,
             last_name=last,
             gender=Gender.PREFER_NOT_TO_SAY,
-            role_id=str(guest.id),
+            role_id=str(role.id),
             password=None,
             keycloak_sub=sub,
         )

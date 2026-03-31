@@ -23,6 +23,17 @@ class UserRepository(BaseRepository[User], AuditLogRepository):
     def __init__(self) -> None:
         super().__init__(User)
 
+    async def single_or_none_platform_email_ci(self, email: str) -> User | None:
+        """Match platform user (tenant_id IS NULL) by case-insensitive email."""
+        normalized = email.strip().lower()
+        stmt = (
+            select(User)
+            .where(func.lower(User.email) == normalized)
+            .where(User.tenant_id.is_(None))
+        )
+        res = await self.session.execute(stmt)
+        return res.scalar_one_or_none()
+
     async def list(self, skip: int = 0, limit: int = 10) -> UserListDto:
         cnt = await self.session.execute(select(func.count()).select_from(User))
         total = int(cnt.scalar_one())

@@ -1,6 +1,7 @@
+from __future__ import annotations
 
 from dotenv import load_dotenv
-from pydantic import EmailStr, ConfigDict, Field, field_validator, model_validator
+from pydantic import AliasChoices, EmailStr, ConfigDict, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 from controlplane_events.topics import CONTROLPLANE_EVENTS_V1
@@ -25,7 +26,7 @@ class Settings(BaseSettings):
     refresh_algorithm: str = "HS512"
     refresh_token_secret: str = "dev-refresh-secret-change-me"
 
-    admin_email: EmailStr = "admin@example.com"
+    admin_email: EmailStr = "chris@fyberlabs.com"
     admin_password: str = "Test@123!"
 
     app_title: str = "Full-Stack FastAPI React Template"
@@ -38,7 +39,10 @@ class Settings(BaseSettings):
     host_main_domain: str = "fsrapp.com"
     host_main_domain_prefix: str = "demo"  # Prefix for subdomains, e.g., demo.fsrapp.com. Change as needed.
 
-    redis_uri: str = "redis://localhost:6372"
+    redis_uri: str = Field(
+        default="redis://localhost:6372",
+        validation_alias=AliasChoices("REDIS_URI", "REDIS_URL"),
+    )
     celery_result_backend: str = "redis://localhost:6372/0"
     celery_broker_url: str = "redis://localhost:6372/0"
 
@@ -112,6 +116,50 @@ class Settings(BaseSettings):
         default="controlplane-frontend",
         validation_alias="KEYCLOAK_CLIENT_ID",
     )
+
+    # Single-tenant / dev: map OIDC users to ADMIN (beyond DB seed for ADMIN_EMAIL).
+    bootstrap_admin_emails: str = Field(
+        default="",
+        validation_alias="BOOTSTRAP_ADMIN_EMAILS",
+        description="Comma-separated extra emails → ADMIN on OIDC create/link (ADMIN_EMAIL is always included).",
+    )
+    entra_admin_group_ids: str = Field(
+        default="",
+        validation_alias="ENTRA_ADMIN_GROUP_IDS",
+        description="Comma-separated Entra group object IDs; if access token 'groups' contains any, assign ADMIN.",
+    )
+    oidc_relax_email_verified: bool = Field(
+        default=False,
+        validation_alias="OIDC_RELAX_EMAIL_VERIFIED",
+        description="If True, do not reject access tokens with email_verified=false (common with some IdP brokers).",
+    )
+    oidc_extra_email_claims: str = Field(
+        default="",
+        validation_alias="OIDC_EXTRA_EMAIL_CLAIMS",
+        description="Comma-separated extra JWT claim names to resolve email (after standard OIDC / Entra claims).",
+    )
+
+    def oidc_bootstrap_admin_email_set(self) -> frozenset[str]:
+        emails = {str(self.admin_email).strip().lower()}
+        for part in self.bootstrap_admin_emails.split(","):
+            s = part.strip().lower()
+            if s:
+                emails.add(s)
+        return frozenset(emails)
+
+    def oidc_entra_admin_group_id_set(self) -> frozenset[str]:
+        return frozenset(
+            x.strip().lower()
+            for x in self.entra_admin_group_ids.split(",")
+            if x.strip()
+        )
+
+    def oidc_extra_email_claim_keys(self) -> tuple[str, ...]:
+        return tuple(
+            x.strip()
+            for x in self.oidc_extra_email_claims.split(",")
+            if x.strip()
+        )
 
     @field_validator("keycloak_jwks_url", "keycloak_issuer", mode="before")
     @classmethod
