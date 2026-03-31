@@ -105,8 +105,7 @@ class RedisCacheMiddleware(BaseHTTPMiddleware):
             logger.debug(f"Response status {response.status_code} not cached.")
             await self._clear_cache(user_id, tenant_id)
             logger.debug(f"Cleared cache for user: {user_id}, tenant: {tenant_id}")
-            return await call_next(request)
-
+            # Body already consumed above; do not call call_next again (would yield "No response returned").
 
         # Return new Response (since body_iterator is consumed)
         return Response(

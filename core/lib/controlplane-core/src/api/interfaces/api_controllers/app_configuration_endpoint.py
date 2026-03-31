@@ -59,8 +59,13 @@ async def get_app_configuration(
         if user_pref_doc is not None:
             user_pref_doc.setdefault("preferences", {})["passkey_enabled"] = passkey_enabled
 
-    tenant_id = str(current_user.tenant_id) if current_user and current_user.tenant_id else str(tenant_id) if tenant_id else None
-    t = await get_tenant(tenant_service, str(tenant_id))
+    resolved_tenant_id: str | None = None
+    if current_user and current_user.tenant_id:
+        resolved_tenant_id = str(current_user.tenant_id)
+    elif tenant_id is not None:
+        resolved_tenant_id = str(tenant_id)
+
+    t = await get_tenant(tenant_service, resolved_tenant_id)
     current_tenant = tenant_from_row(t) if t else None
 
     enabled_sso_provider = await sso_settings_service.get_only_enabled_providers()
@@ -72,7 +77,7 @@ async def get_app_configuration(
         branding_theme_default = await branding_service.default_theme_config()
         branding = BrandingDto(
             id="unknown",
-            tenant_id=tenant_id if tenant_id else "",
+            tenant_id=resolved_tenant_id if resolved_tenant_id else "",
             app_name=current_tenant.name if current_tenant else "",
             logo_url=None,
             logo_type=None,

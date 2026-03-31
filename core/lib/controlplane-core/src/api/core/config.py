@@ -105,7 +105,7 @@ class Settings(BaseSettings):
     keycloak_jwks_url: str | None = Field(
         default=None,
         validation_alias="KEYCLOAK_JWKS_URL",
-        description="JWKS URL reachable from this process (e.g. http://keycloak:8080/.../openid-certs)",
+        description="JWKS URL reachable from this process (Keycloak 26+: .../protocol/openid-connect/certs)",
     )
     keycloak_issuer: str | None = Field(
         default=None,
@@ -115,6 +115,12 @@ class Settings(BaseSettings):
     keycloak_client_id: str = Field(
         default="controlplane-frontend",
         validation_alias="KEYCLOAK_CLIENT_ID",
+    )
+    # Optional Host header when fetching JWKS via an internal base URL (Keycloak hostname v2).
+    keycloak_jwks_request_host: str | None = Field(
+        default=None,
+        validation_alias="KEYCLOAK_JWKS_REQUEST_HOST",
+        description="Send as Host header on JWKS HTTP requests (e.g. localhost:8081 with docker-compose port map).",
     )
 
     # Single-tenant / dev: map OIDC users to ADMIN (beyond DB seed for ADMIN_EMAIL).
@@ -161,7 +167,12 @@ class Settings(BaseSettings):
             if x.strip()
         )
 
-    @field_validator("keycloak_jwks_url", "keycloak_issuer", mode="before")
+    @field_validator(
+        "keycloak_jwks_url",
+        "keycloak_issuer",
+        "keycloak_jwks_request_host",
+        mode="before",
+    )
     @classmethod
     def _empty_keycloak_none(cls, v: object) -> object:
         if v == "":
@@ -172,7 +183,7 @@ class Settings(BaseSettings):
     def _keycloak_local_defaults(self) -> Settings:
         if self.keycloak_jwks_url is None:
             self.keycloak_jwks_url = (
-                "http://localhost:8081/realms/controlplane/protocol/openid-certs"
+                "http://localhost:8081/realms/controlplane/protocol/openid-connect/certs"
             )
         if self.keycloak_issuer is None:
             self.keycloak_issuer = "http://localhost:8081/realms/controlplane"
