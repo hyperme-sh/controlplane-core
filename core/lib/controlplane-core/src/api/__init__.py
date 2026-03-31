@@ -198,6 +198,14 @@ router.include_router(sso_router)
 app.include_router(router)
 
 
+# Phase 2: aggregated OpenAPI (HTTP merge from microservices). Must register before the catch-all route.
+try:
+    from gateway.aggregation import register_aggregation_routes
+
+    register_aggregation_routes(app)
+except ImportError:
+    logger.debug("gateway package not available; skipping OpenAPI aggregation routes")
+
 
 # Catch-all route for React Router (only in production with static files)
 @app.get("/{full_path:path}", include_in_schema=False)
