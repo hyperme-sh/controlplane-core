@@ -206,6 +206,13 @@ try:
 except ImportError:
     logger.debug("gateway package not available; skipping OpenAPI aggregation routes")
 
+try:
+    from gateway.graphql.register import register_graphql_routes
+
+    register_graphql_routes(app)
+except ImportError:
+    logger.debug("gateway package not available; skipping GraphQL routes")
+
 
 # Catch-all route for React Router (only in production with static files)
 @app.get("/{full_path:path}", include_in_schema=False)
