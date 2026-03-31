@@ -1,6 +1,7 @@
 import os
+from contextlib import AsyncExitStack, asynccontextmanager
+
 from fastapi import FastAPI, APIRouter, Request, status
-from contextlib import asynccontextmanager
 
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -81,7 +82,23 @@ async def lifespan(app: FastAPI):
     else:
         set_tenant_event_publisher(NoOpTenantEventPublisher())
 
-    yield
+    async with AsyncExitStack() as stack:
+        try:
+            from gateway.grpc_server import grpc_server_lifespan
+            from gateway.gateway_settings import GatewayCrossCuttingSettings
+
+            gs = GatewayCrossCuttingSettings()
+            await stack.enter_async_context(
+                grpc_server_lifespan(
+                    host=gs.grpc_host,
+                    port=gs.grpc_port,
+                    enabled=gs.grpc_enabled,
+                )
+            )
+        except ImportError:
+            logger.debug("gateway.grpc_server not available; skipping gRPC")
+
+        yield
 
     set_tenant_event_publisher(None)
     if kafka_producer is not None:
@@ -197,6 +214,13 @@ router.include_router(sso_router)
 
 app.include_router(router)
 
+# Gateway: CORS, auth, rate limits, optional OTEL (before OpenAPI/GraphQL mounts).
+try:
+    from gateway.register_cross_cutting import register_gateway_cross_cutting
+
+    register_gateway_cross_cutting(app)
+except ImportError:
+    logger.debug("gateway.register_cross_cutting not available; skipping gateway middleware")
 
 # Phase 2: aggregated OpenAPI (HTTP merge from microservices). Must register before the catch-all route.
 try:
