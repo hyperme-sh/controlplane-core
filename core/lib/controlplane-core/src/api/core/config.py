@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from dotenv import load_dotenv
 from pydantic import AliasChoices, EmailStr, ConfigDict, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
@@ -145,6 +147,32 @@ class Settings(BaseSettings):
         description="Comma-separated extra JWT claim names to resolve email (after standard OIDC / Entra claims).",
     )
 
+    # Auth-service OIDC (authorization code, refresh, optional introspection)
+    keycloak_client_secret: str = Field(
+        default="",
+        validation_alias="KEYCLOAK_CLIENT_SECRET",
+        description="Confidential client secret for token exchange / introspection from backend.",
+    )
+    auth_oidc_redirect_uri: str = Field(
+        default="http://localhost:5173/auth/callback",
+        validation_alias="AUTH_OIDC_REDIRECT_URI",
+        description="Public SPA redirect URI registered in Keycloak for the auth code flow.",
+    )
+    auth_token_validation_mode: Literal["jwt", "introspection"] = Field(
+        default="jwt",
+        validation_alias="AUTH_TOKEN_VALIDATION_MODE",
+    )
+    auth_tenant_claim_names: str = Field(
+        default="tenant_id,https://panopticon.dev/tenant_id",
+        validation_alias="AUTH_TENANT_CLAIM_NAMES",
+        description="Comma-separated JWT claim names; first present value wins for tenant UUID.",
+    )
+    oidc_require_mfa: bool = Field(
+        default=False,
+        validation_alias="OIDC_REQUIRE_MFA",
+        description="If True, /auth/me rejects tokens unless MFA is indicated (amr/acr).",
+    )
+
     def oidc_bootstrap_admin_email_set(self) -> frozenset[str]:
         emails = {str(self.admin_email).strip().lower()}
         for part in self.bootstrap_admin_emails.split(","):
@@ -164,6 +192,13 @@ class Settings(BaseSettings):
         return tuple(
             x.strip()
             for x in self.oidc_extra_email_claims.split(",")
+            if x.strip()
+        )
+
+    def auth_tenant_claim_name_list(self) -> tuple[str, ...]:
+        return tuple(
+            x.strip()
+            for x in self.auth_tenant_claim_names.split(",")
             if x.strip()
         )
 
