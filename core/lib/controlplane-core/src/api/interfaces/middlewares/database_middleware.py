@@ -1,10 +1,17 @@
+"""Request DB session and RLS tenant GUC for the monolith.
+
+Opens an ``AsyncSession`` per request and sets ``app.current_tenant_id`` before
+handlers (see ``set_current_tenant_id_guc``). JWT tenant vs ``X-Tenant-ID``
+alignment for mutating routes lives in auth dependencies (e.g.
+``require_matched_tenant`` in services), not in this middleware.
+"""
+
 from __future__ import annotations
 
 import uuid
 from typing import Annotated, Optional
 
 from fastapi import Depends, Request
-from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from api.common.utils import get_host_main_domain_name, get_logger, is_subdomain, is_tenancy_enabled
@@ -17,6 +24,7 @@ from api.infrastructure.persistence.db_session import (
     reset_db_session,
     set_db_session,
 )
+from api.infrastructure.persistence.tenant_guc import set_current_tenant_id_guc
 
 logger = get_logger(__name__)
 
@@ -47,9 +55,7 @@ class DbSessionMiddleware(BaseHTTPMiddleware):
         async with maker() as session:
             token = set_db_session(session)
             try:
-                await session.execute(
-                    text("SELECT set_config('app.current_tenant_id', '', true)")
-                )
+                await set_current_tenant_id_guc(session, None)
 
                 tenant_uuid: uuid.UUID | None = None
                 tenant_host = get_tenant_host(request) if is_tenancy_enabled() else None
@@ -74,10 +80,7 @@ class DbSessionMiddleware(BaseHTTPMiddleware):
                             logger.warning(f"Invalid tenant id header/param: {tid}")
 
                 if tenant_uuid is not None:
-                    await session.execute(
-                        text("SELECT set_config('app.current_tenant_id', :tid, true)"),
-                        {"tid": str(tenant_uuid)},
-                    )
+                    await set_current_tenant_id_guc(session, tenant_uuid)
                     request.state.tenant_id = tenant_uuid
                 else:
                     request.state.tenant_id = None
