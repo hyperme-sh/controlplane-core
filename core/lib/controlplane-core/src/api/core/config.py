@@ -184,6 +184,51 @@ class Settings(BaseSettings):
         description="Base URL for payment-service (optional; paid listing flow).",
     )
 
+    ai_upstream_base_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AI_UPSTREAM_BASE_URL", "ai_upstream_base_url"),
+        description="OpenAI-compatible base (e.g. https://api.openai.com/v1 or http://ollama:11434/v1).",
+    )
+    ai_upstream_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("AI_UPSTREAM_API_KEY", "OPENAI_API_KEY"),
+        description="Bearer token for upstream LLM (optional for local Ollama).",
+    )
+    ai_default_max_tokens: int = Field(
+        default=256,
+        validation_alias="AI_DEFAULT_MAX_TOKENS",
+        ge=1,
+        le=128_000,
+    )
+    ai_cost_per_1k_input_usd: float = Field(
+        default=0.002,
+        validation_alias="AI_COST_PER_1K_INPUT_USD",
+        ge=0.0,
+    )
+    ai_cost_per_1k_output_usd: float = Field(
+        default=0.006,
+        validation_alias="AI_COST_PER_1K_OUTPUT_USD",
+        ge=0.0,
+    )
+    ai_lamports_per_1k_tokens: int = Field(
+        default=1_000,
+        validation_alias="AI_LAMPORTS_PER_1K_TOKENS",
+        ge=1,
+        description="Crypto budget: lamports charged per 1000 tokens (estimated + actual settle).",
+    )
+    ai_rate_limit_per_minute: int = Field(
+        default=120,
+        validation_alias="AI_RATE_LIMIT_PER_MINUTE",
+        ge=1,
+        description="Per-tenant per-user sliding window (in-process; reset on restart).",
+    )
+    ai_stripe_meter_event_name: str = Field(
+        default="ai_inference_tokens",
+        validation_alias="AI_STRIPE_METER_EVENT_NAME",
+        min_length=1,
+        max_length=128,
+    )
+
     def oidc_bootstrap_admin_email_set(self) -> frozenset[str]:
         emails = {str(self.admin_email).strip().lower()}
         for part in self.bootstrap_admin_emails.split(","):
@@ -219,6 +264,7 @@ class Settings(BaseSettings):
         "keycloak_jwks_request_host",
         "acl_service_base_url",
         "payment_service_base_url",
+        "ai_upstream_base_url",
         mode="before",
     )
     @classmethod
