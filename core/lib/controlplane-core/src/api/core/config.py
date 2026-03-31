@@ -222,6 +222,12 @@ class Settings(BaseSettings):
         ge=1,
         description="Per-tenant per-user sliding window (in-process; reset on restart).",
     )
+    acl_rate_limit_per_minute: int = Field(
+        default=240,
+        validation_alias="ACL_RATE_LIMIT_PER_MINUTE",
+        ge=1,
+        description="Rate limit for POST /api/v1/acl/enforce (tenant+user sliding window).",
+    )
     ai_stripe_meter_event_name: str = Field(
         default="ai_inference_tokens",
         validation_alias="AI_STRIPE_METER_EVENT_NAME",
