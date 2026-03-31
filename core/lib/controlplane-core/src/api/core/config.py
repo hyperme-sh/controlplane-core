@@ -117,6 +117,15 @@ class Settings(BaseSettings):
     keycloak_client_id: str = Field(
         default="controlplane-frontend",
         validation_alias="KEYCLOAK_CLIENT_ID",
+        description="Primary OIDC client id (legacy); see keycloak_allowed_client_ids for gateway validation.",
+    )
+    keycloak_allowed_client_ids: str = Field(
+        default=(
+            "controlplane-frontend,controlplane-mobile,controlplane-device,"
+            "controlplane-m2m,controlplane-api-key"
+        ),
+        validation_alias="KEYCLOAK_ALLOWED_CLIENT_IDS",
+        description="Comma-separated Keycloak client ids allowed in access-token azp (public + M2M).",
     )
     # Optional Host header when fetching JWKS via an internal base URL (Keycloak hostname v2).
     keycloak_jwks_request_host: str | None = Field(
@@ -171,6 +180,16 @@ class Settings(BaseSettings):
         default=False,
         validation_alias="OIDC_REQUIRE_MFA",
         description="If True, /auth/me rejects tokens unless MFA is indicated (amr/acr).",
+    )
+    api_key_exchange_jwt_secret: str = Field(
+        default="dev-api-key-exchange-secret-change-in-production-min-32-chars!!",
+        validation_alias="API_KEY_EXCHANGE_JWT_SECRET",
+        description="HS256 secret for short-lived JWTs minted after API key validation (gateway + auth validate).",
+    )
+    api_keys_internal_token: str = Field(
+        default="dev-api-keys-internal-token",
+        validation_alias="API_KEYS_INTERNAL_TOKEN",
+        description="Shared secret for gateway → api-keys-service internal validate endpoint.",
     )
 
     acl_service_base_url: str | None = Field(
@@ -263,6 +282,12 @@ class Settings(BaseSettings):
             for x in self.auth_tenant_claim_names.split(",")
             if x.strip()
         )
+
+    def keycloak_allowed_azp_set(self) -> frozenset[str]:
+        ids = {x.strip() for x in self.keycloak_allowed_client_ids.split(",") if x.strip()}
+        if self.keycloak_client_id:
+            ids.add(self.keycloak_client_id.strip())
+        return frozenset(ids)
 
     @field_validator(
         "keycloak_jwks_url",

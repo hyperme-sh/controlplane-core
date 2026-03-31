@@ -25,7 +25,7 @@ class KeycloakJWTValidator:
     ) -> None:
         self._jwks_url = jwks_url
         self._issuer = issuer
-        self._client_id = client_id
+        self._client_id = client_id  # legacy single-id; validation uses settings.keycloak_allowed_azp_set()
         jwks_headers: dict[str, str] = {}
         if jwks_request_host:
             jwks_headers["Host"] = jwks_request_host.strip()
@@ -50,8 +50,11 @@ class KeycloakJWTValidator:
             options={"verify_aud": False},
         )
         azp = payload.get("azp")
-        if azp != self._client_id:
-            raise InvalidTokenError(f"Invalid azp: expected {self._client_id!r}, got {azp!r}")
+        allowed = settings.keycloak_allowed_azp_set()
+        if azp not in allowed:
+            raise InvalidTokenError(
+                f"Invalid azp: {azp!r} not in allowed clients {sorted(allowed)!r}"
+            )
         return payload
 
     async def validate(self, token: str) -> dict[str, object]:
