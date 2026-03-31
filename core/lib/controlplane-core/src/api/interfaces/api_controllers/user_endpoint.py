@@ -25,8 +25,20 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
+_USER_SVC = (
+    "Prefer the dedicated user-service: same paths under `/api/v1/users` "
+    "(e.g. `docker compose` service `user-service`, host port 8002). "
+    "This monolith route remains for backward compatibility and will be removed later."
+)
 
-@router.get("/", response_model=UserListDto)
+
+@router.get(
+    "/",
+    response_model=UserListDto,
+    deprecated=True,
+    summary="List users (deprecated)",
+    description=_USER_SVC,
+)
 async def list_users(
     skip: int = 0, limit: int = 10,
     service: UserService = Depends(get_user_service),
@@ -35,7 +47,14 @@ async def list_users(
     return await service.list_users(skip=skip, limit=limit)
 
 
-@router.post("/", response_model=CreateUserResponseDto, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=CreateUserResponseDto,
+    status_code=status.HTTP_201_CREATED,
+    deprecated=True,
+    summary="Create user (deprecated)",
+    description=_USER_SVC,
+)
 async def create_user(
     data: CreateUserDto,
     current_user: CurrentUser,
@@ -51,7 +70,13 @@ async def create_user(
     return CreateUserResponseDto(id=str(new_user_id))
 
 
-@router.get("/{user_id}", response_model=UserDto)
+@router.get(
+    "/{user_id}",
+    response_model=UserDto,
+    deprecated=True,
+    summary="Get user (deprecated)",
+    description=_USER_SVC,
+)
 async def get_user(
     user_id: str,
     service: UserService = Depends(get_user_service),
@@ -64,7 +89,14 @@ async def get_user(
     return user_from_row(user)
 
 
-@router.put("/{user_id}", response_model=UserDto, status_code=status.HTTP_200_OK)
+@router.put(
+    "/{user_id}",
+    response_model=UserDto,
+    status_code=status.HTTP_200_OK,
+    deprecated=True,
+    summary="Update user (deprecated)",
+    description=_USER_SVC,
+)
 async def update_user(
     user_id: str,
     data: UpdateUserDto,
@@ -80,7 +112,13 @@ async def update_user(
         raise InvalidOperationException("User update failed.")
     return user_from_row(user)
 
-@router.get("/profile/{image_key:path}", response_model=UserProfileImageUpdateDto)
+@router.get(
+    "/profile/{image_key:path}",
+    response_model=UserProfileImageUpdateDto,
+    deprecated=True,
+    summary="Get profile image URL (deprecated)",
+    description=_USER_SVC,
+)
 async def get_profile_image(
     image_key: str,
     _bool: bool = Depends(check_permissions_for_current_role(required_permissions=[Permission.USER_VIEW_ONLY])),
@@ -93,7 +131,13 @@ async def get_profile_image(
         logger.error(f"Error fetching profile image: {e}")
         return UserProfileImageUpdateDto(image_url="")
     
-@router.delete("/{user_id}", status_code=status.HTTP_202_ACCEPTED)
+@router.delete(
+    "/{user_id}",
+    status_code=status.HTTP_202_ACCEPTED,
+    deprecated=True,
+    summary="Delete user (deprecated)",
+    description=_USER_SVC,
+)
 async def delete_user(
     user_id: str,
     service: UserService = Depends(get_user_service),
@@ -105,7 +149,14 @@ async def delete_user(
 
 
 
-@router.put("/{user_id}/update_profile_picture", response_model=UserProfileImageUpdateDto, status_code=status.HTTP_202_ACCEPTED)
+@router.put(
+    "/{user_id}/update_profile_picture",
+    response_model=UserProfileImageUpdateDto,
+    status_code=status.HTTP_202_ACCEPTED,
+    deprecated=True,
+    summary="Update profile picture (deprecated)",
+    description=_USER_SVC,
+)
 async def update_profile_picture(
     user_id: str,
     file: UploadFile = File(...),
@@ -121,7 +172,14 @@ async def update_profile_picture(
     return UserProfileImageUpdateDto(image_url=file_location)
 
 
-@router.patch("/{user_id}/assign_role", response_model=UserDto, status_code=status.HTTP_202_ACCEPTED)
+@router.patch(
+    "/{user_id}/assign_role",
+    response_model=UserDto,
+    status_code=status.HTTP_202_ACCEPTED,
+    deprecated=True,
+    summary="Assign user role (deprecated)",
+    description=_USER_SVC,
+)
 async def patch_user(
     user_id: str, role_update: UserRoleUpdateRequestDto,
     _: bool = Depends(check_permissions_for_current_role([Permission.USER_ROLE_ASSIGN_OR_REMOVE_ONLY])),
@@ -142,7 +200,14 @@ async def patch_user(
   
 
 
-@router.patch("/{user_id}/remove_role", response_model=UserDto, status_code=status.HTTP_202_ACCEPTED)
+@router.patch(
+    "/{user_id}/remove_role",
+    response_model=UserDto,
+    status_code=status.HTTP_202_ACCEPTED,
+    deprecated=True,
+    summary="Remove user role (deprecated)",
+    description=_USER_SVC,
+)
 async def remove_user_role(
      user_id: str, role_update: UserRoleUpdateRequestDto,
     _: bool = Depends(check_permissions_for_current_role([Permission.USER_ROLE_ASSIGN_OR_REMOVE_ONLY])),
