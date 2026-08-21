@@ -26,9 +26,9 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/users", tags=["Users"])
 
 _USER_SVC = (
-    "Prefer the dedicated user-service: same paths under `/api/v1/users` "
-    "(e.g. `docker compose` service `user-service`, host port 8002). "
-    "This monolith route remains for backward compatibility and will be removed later."
+    "Unmounted from the gateway monolith. Same paths are reverse-proxied to "
+    "user-service (`/api/v1/users`, `/api/v1/groups`, `/api/v1/organizations`). "
+    "This module is leftover code; do not remount it."
 )
 
 

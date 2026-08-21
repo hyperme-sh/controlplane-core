@@ -17,7 +17,6 @@ from api.interfaces.middlewares.audit_logs_read_middleware import AuditLogsReadM
 from api.interfaces.middlewares.database_middleware import DbSessionMiddleware
 from api.interfaces.middlewares.redis_cache_middleware import RedisCacheMiddleware
 from api.interfaces.api_controllers.account_endpoint import router as account_router
-from api.interfaces.api_controllers.user_endpoint import router as user_router
 from api.interfaces.api_controllers.tenant_endpoint import router as tenant_router
 from api.interfaces.api_controllers.role_endpoint import router as role_router
 from api.interfaces.api_controllers.app_configuration_endpoint import router as app_configuration_router
@@ -196,7 +195,8 @@ router.include_router(account_router)
 router.include_router(manage_security_router)
 router.include_router(dashboard_router)
 
-router.include_router(user_router)
+# Deprecated monolith /users|/groups|/organizations are no longer mounted.
+# The gateway edge proxy forwards those prefixes to user-service.
 router.include_router(role_router)
 router.include_router(permissions_router)
 router.include_router(storage_router)
