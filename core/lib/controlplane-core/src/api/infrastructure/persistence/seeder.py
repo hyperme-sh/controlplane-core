@@ -24,11 +24,131 @@ _SEED_LOCK_KEY1 = 7_408_263
 _SEED_LOCK_KEY2 = 1_928_374
 
 
-async def seed_initial_data():
-    if settings.fastapi_env != "development":
-        logger.info("Seeding is only allowed in development environment. Skipping seeding.")
-        return
+def _role_name(name: RoleType | str) -> str:
+    return name.value if isinstance(name, RoleType) else str(name)
 
+
+def _permission_values(permissions: list | None) -> list[str]:
+    values: list[str] = []
+    for perm in permissions or []:
+        values.append(perm.value if isinstance(perm, Permission) else str(perm))
+    return values
+
+
+async def seed_platform_roles(role_repo: RoleRepository) -> None:
+    """Prod-safe role rows only. No users, no ADMIN_PASSWORD hash, no fake guests."""
+    for role in get_seed_roles():
+        name = _role_name(role.name)
+        if await role_repo.single_or_none(name=name):
+            logger.info("Role %s already exists. Skipping...", name)
+            continue
+        permissions = list(role.permissions)
+        if name == RoleType.ADMIN.value and Permission.HOST_MANAGE_TENANTS not in permissions:
+            permissions.append(Permission.HOST_MANAGE_TENANTS)
+        role_id = await role_repo.create(
+            data=CreateRoleDto(name=name, description=role.description)
+        )
+        await role_repo.update(
+            role_id=str(role_id),
+            data=UpdateRoleDto(
+                name=name,
+                description=role.description,
+                permissions=permissions,
+            ),
+        )
+        logger.info("Seeded role: %s", name)
+    await _ensure_admin_host_manage_tenants(role_repo)
+
+
+async def _ensure_admin_host_manage_tenants(role_repo: RoleRepository) -> None:
+    admin = await role_repo.single_or_none(name=RoleType.ADMIN.value)
+    if admin is None:
+        return
+    values = _permission_values(admin.permissions)
+    if Permission.HOST_MANAGE_TENANTS.value in values:
+        return
+    permissions = [Permission(v) for v in values]
+    permissions.append(Permission.HOST_MANAGE_TENANTS)
+    await role_repo.update(
+        role_id=str(admin.id),
+        data=UpdateRoleDto(
+            name=_role_name(admin.name),
+            description=admin.description,
+            permissions=permissions,
+        ),
+    )
+    logger.info("Attached %s on admin", Permission.HOST_MANAGE_TENANTS.value)
+
+
+async def seed_development_users(
+    user_repo: UserRepository, role_repo: RoleRepository
+) -> None:
+    existing_admin = await user_repo.single_or_none(email=settings.admin_email)
+    if existing_admin is None:
+        existing_role_admin = await role_repo.single_or_none(name=RoleType.ADMIN.value)
+        if existing_role_admin is None:
+            logger.error("ADMIN role is missing; cannot seed admin user. Seed roles first.")
+            return
+        create_user = CreateUserDto(
+            email=settings.admin_email,
+            first_name="Admin",
+            last_name="User",
+            password=hash_it(settings.admin_password),
+            gender=Gender.MALE,
+        )
+        user_id = await user_repo.create(data=create_user)
+        logger.info("Created admin user with email: %s", settings.admin_email)
+        await user_repo.update(
+            user_id=str(user_id),
+            data=UpdateUserDto(role_id=str(existing_role_admin.id)),
+        )
+        logger.info("Updated admin user with role: %s", existing_role_admin.name)
+
+    existing_users = await user_repo.count()
+    if existing_users < 10:
+        logger.info("Seeding fake users...")
+        existing_role_guest = await role_repo.single_or_none(name=RoleType.GUEST.value)
+        if existing_role_guest is None:
+            logger.warning("GUEST role missing; skipping fake user seed.")
+            return
+        for _ in range(100):
+            fake_user = CreateUserDto(
+                first_name=fake.first_name(),
+                last_name=fake.last_name(),
+                email=fake.email(),
+                role_id=str(existing_role_guest.id),
+                gender=fake.random_element(
+                    elements=[
+                        Gender.MALE.value,
+                        Gender.FEMALE.value,
+                        Gender.PREFER_NOT_TO_SAY.value,
+                        Gender.OTHER.value,
+                    ]
+                ),
+                password=hash_it("Test@123!"),
+            )
+            await user_repo.create(data=fake_user)
+        logger.info("Seeded fake users.")
+
+
+async def apply_seed(
+    role_repo: RoleRepository,
+    user_repo: UserRepository,
+    *,
+    fastapi_env: str,
+) -> None:
+    await seed_platform_roles(role_repo)
+    if fastapi_env == "development":
+        await seed_development_users(user_repo, role_repo)
+        logger.info("Seeding completed.")
+        return
+    logger.info(
+        "Development user seeder skipped outside development (fastapi_env=%s).",
+        fastapi_env,
+    )
+
+
+async def seed_initial_data():
     from sqlalchemy import text
 
     from api.infrastructure.persistence.db_session import get_session_maker, reset_db_session, set_db_session
@@ -46,7 +166,11 @@ async def seed_initial_data():
             await session.execute(
                 text("SELECT set_config('app.current_tenant_id', '', true)")
             )
-            await _run_seed_body()
+            user_repo: UserRepository = get_user_service().user_repository
+            role_repo: RoleRepository = get_role_service().role_repository
+            await apply_seed(
+                role_repo, user_repo, fastapi_env=settings.fastapi_env
+            )
             await session.commit()
         except Exception:
             await session.rollback()
@@ -59,78 +183,3 @@ async def seed_initial_data():
                     k1=_SEED_LOCK_KEY1, k2=_SEED_LOCK_KEY2
                 )
             )
-
-
-async def _run_seed_body() -> None:
-    user_repo: UserRepository = get_user_service().user_repository
-    role_repo: RoleRepository = get_role_service().role_repository
-
-    existing_roles = await role_repo.count()
-    roles = get_seed_roles()
-    if existing_roles == 0:
-        logger.info("Seeding initial data...")
-        for role in roles:
-            is_role_existing = await role_repo.single_or_none(name=role.name)
-            if is_role_existing:
-                logger.info(f"Role {role.name} already exists. Skipping...")
-                continue
-            create_role = CreateRoleDto(
-                name=role.name,
-                description=role.description,
-            )
-            role_id = await role_repo.create(data=create_role)
-            update_role = UpdateRoleDto(
-                name=role.name, description=role.description,
-                permissions=role.permissions
-            )
-            await role_repo.update(role_id=str(role_id), data=update_role)
-            logger.info(f"Seeded role: {role.name}")
-        logger.info("Seeded initial roles.")
-
-
-    # Example: Create an admin user if not exists
-    existing_admin = await user_repo.single_or_none(email=settings.admin_email)
-    if existing_admin is None:
-        existing_role_admin = await role_repo.single_or_none(name=RoleType.ADMIN)
-        if existing_role_admin is None:
-            logger.error("ADMIN role is missing; cannot seed admin user. Seed roles first.")
-            return
-        create_user = CreateUserDto(
-            email=settings.admin_email,
-            first_name="Admin",
-            last_name="User",
-            password=hash_it(settings.admin_password),
-            gender=Gender.MALE
-        )
-        user_id = await user_repo.create(data=create_user)
-        logger.info(f"Created admin user with email: {settings.admin_email}")
-        update_user = UpdateUserDto(role_id=str(existing_role_admin.id))
-        await user_repo.update(user_id=str(user_id), data=update_user)
-        existing_role_admin.permissions.append(Permission.HOST_MANAGE_TENANTS)
-        await role_repo.update(role_id=str(existing_role_admin.id), data=UpdateRoleDto(
-            name=existing_role_admin.name,
-            description=existing_role_admin.description,
-            permissions=existing_role_admin.permissions.copy()
-        ))
-        logger.info(f"Updated admin user with role: {existing_role_admin.name}")
-        logger.info("Seeding completed.")
-
-    # Add bunch of fake users
-    existing_users = await user_repo.count()
-    if existing_users < 10:
-        logger.info("Seeding fake users...")
-        existing_role_guest = await role_repo.single_or_none(name=RoleType.GUEST)
-        if existing_role_guest is None:
-            logger.warning("GUEST role missing; skipping fake user seed.")
-        else:
-            for _ in range(100):
-                fake_user = CreateUserDto(
-                    first_name=fake.first_name(),
-                    last_name=fake.last_name(),
-                    email=fake.email(),
-                    role_id=str(existing_role_guest.id),
-                    gender=fake.random_element(elements=[Gender.MALE.value, Gender.FEMALE.value, Gender.PREFER_NOT_TO_SAY.value, Gender.OTHER.value]),
-                    password=hash_it("Test@123!"),
-                )
-                await user_repo.create(data=fake_user)
-            logger.info("Seeded fake users.")
