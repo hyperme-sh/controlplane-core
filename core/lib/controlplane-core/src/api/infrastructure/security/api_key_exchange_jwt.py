@@ -21,6 +21,7 @@ def mint_api_key_session_jwt(
     key_record_id: uuid.UUID,
     tenant_id: uuid.UUID,
     scopes: list[str],
+    purpose: str | None = None,
 ) -> str:
     """Short-lived JWT so downstream validate_access_token accepts API-key callers."""
     now = int(time.time())
@@ -34,6 +35,8 @@ def mint_api_key_session_jwt(
         "https://panopticon.dev/tenant_id": str(tenant_id),
         "scope": " ".join(scopes),
     }
+    if purpose:
+        payload["purpose"] = purpose
     return jwt.encode(
         payload,
         settings.api_key_exchange_jwt_secret,
