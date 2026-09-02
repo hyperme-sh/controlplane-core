@@ -3,6 +3,7 @@
 TENANT_CREATED_V1 = "tenant.created.v1"
 USER_CREATED_V1 = "user.created.v1"
 GROUP_MEMBER_ADDED_V1 = "group.member.added.v1"
+GROUP_MEMBER_REMOVED_V1 = "group.member.removed.v1"
 BILLING_RECORD_CREATED_V1 = "billing.record.created.v1"
 PAYMENT_SUCCEEDED_V1 = "payment.succeeded.v1"
 BUDGET_ALLOCATED_V1 = "budget.allocated.v1"
