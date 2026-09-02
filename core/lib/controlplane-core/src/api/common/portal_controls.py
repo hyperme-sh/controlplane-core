@@ -85,6 +85,7 @@ class PortalControls:
     can_see_host_status: bool
     can_see_leases: bool
     can_use_ir_door: bool
+    can_export_ir_receipts: bool
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -97,6 +98,7 @@ class PortalControls:
             "can_see_host_status": self.can_see_host_status,
             "can_see_leases": self.can_see_leases,
             "can_use_ir_door": self.can_use_ir_door,
+            "can_export_ir_receipts": self.can_export_ir_receipts,
         }
 
 
@@ -118,5 +120,6 @@ def evaluate_portal_controls(
         can_checkout=renter,
         can_see_host_status=host,
         can_see_leases=renter,
-        can_use_ir_door=False,
+        can_use_ir_door=admin,
+        can_export_ir_receipts=admin,
     )
