@@ -7,6 +7,7 @@ Never put prompt bodies, enroll tokens, or Stripe secrets on the bus.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from typing import Any, Protocol, runtime_checkable
@@ -15,7 +16,10 @@ from controlplane_events import (
     AioKafkaEventProducer,
     CONTROLPLANE_EVENTS_V1,
     ControlPlaneEventEnvelope,
+    dispatch_controlplane_envelope,
 )
+from controlplane_events.routing_consumer import Handler
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +83,11 @@ class ServiceBusSender(Protocol):
     async def send_json(self, *, topic: str, body: str, session_id: str | None) -> None: ...
 
 
+@runtime_checkable
+class ServiceBusReceiver(Protocol):
+    async def receive_json(self) -> list[str]: ...
+
+
 class MemoryServiceBusSender:
     """In-process Service Bus stand-in. Tests and local runs without Azure."""
 
@@ -87,6 +96,23 @@ class MemoryServiceBusSender:
 
     async def send_json(self, *, topic: str, body: str, session_id: str | None) -> None:
         self.sent.append({"topic": topic, "body": body, "session_id": session_id})
+
+
+class MemoryServiceBusReceiver:
+    """In-process Service Bus receive stand-in. Tests without live Azure."""
+
+    def __init__(self) -> None:
+        self.inbox: list[str] = []
+        self.received: list[str] = []
+
+    def enqueue(self, body: str) -> None:
+        self.inbox.append(body)
+
+    async def receive_json(self) -> list[str]:
+        batch = list(self.inbox)
+        self.inbox.clear()
+        self.received.extend(batch)
+        return batch
 
 
 class AzureServiceBusSender:
@@ -126,6 +152,112 @@ class AzureServiceBusSender:
                     application_properties=props,
                 )
             )
+
+
+class AzureServiceBusReceiver:
+    """Lazy azure-servicebus subscription receiver. Not imported unless started."""
+
+    def __init__(self, connection_string: str, topic: str, subscription: str) -> None:
+        self._connection_string = connection_string
+        self._topic = topic
+        self._subscription = subscription
+        self._client = None
+        self._receiver = None
+
+    async def start(self) -> None:
+        try:
+            from azure.servicebus.aio import ServiceBusClient
+        except ImportError as exc:
+            raise RuntimeError(
+                "AZURE_SERVICE_BUS_CONNECTION_STRING is set but azure-servicebus "
+                "is not installed. Production images must include azure-servicebus."
+            ) from exc
+        self._client = ServiceBusClient.from_connection_string(self._connection_string)
+        await self._client.__aenter__()
+        self._receiver = self._client.get_subscription_receiver(
+            topic_name=self._topic,
+            subscription_name=self._subscription,
+        )
+        await self._receiver.__aenter__()
+
+    async def stop(self) -> None:
+        if self._receiver is not None:
+            await self._receiver.__aexit__(None, None, None)
+            self._receiver = None
+        if self._client is not None:
+            await self._client.__aexit__(None, None, None)
+            self._client = None
+
+    async def receive_json(self) -> list[str]:
+        if self._receiver is None:
+            raise RuntimeError("Service Bus receiver not started; call start() first")
+        messages = await self._receiver.receive_messages(max_wait_time=5, max_message_count=16)
+        bodies: list[str] = []
+        for message in messages:
+            bodies.append(str(message))
+            await self._receiver.complete_message(message)
+        return bodies
+
+
+class ServiceBusRoutingConsumer:
+    """Dispatch controlplane.events.v1 envelopes from a Service Bus receiver."""
+
+    def __init__(
+        self,
+        receiver: ServiceBusReceiver,
+        routes: dict[str, tuple[type[BaseModel], Handler]],
+        *,
+        topic: str = CONTROLPLANE_EVENTS_V1,
+    ) -> None:
+        self._receiver = receiver
+        self._routes = routes
+        self._topic = topic
+        self._task: asyncio.Task[None] | None = None
+        self._stop = asyncio.Event()
+
+    async def handle_body(self, body: str) -> None:
+        await dispatch_controlplane_envelope(body.encode("utf-8"), self._routes)
+
+    async def drain(self) -> int:
+        """Receive one in-process batch and dispatch. Tests use this; no live Azure."""
+
+        bodies = await self._receiver.receive_json()
+        for body in bodies:
+            await self.handle_body(body)
+        return len(bodies)
+
+    async def start(self) -> None:
+        start = getattr(self._receiver, "start", None)
+        if start is not None:
+            await start()
+        self._stop.clear()
+        self._task = asyncio.create_task(self._run_loop())
+        logger.info("Service Bus consumer started topic=%s", self._topic)
+
+    async def stop(self) -> None:
+        self._stop.set()
+        if self._task is not None:
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+            self._task = None
+        stop = getattr(self._receiver, "stop", None)
+        if stop is not None:
+            await stop()
+        logger.info("Service Bus consumer stopped topic=%s", self._topic)
+
+    async def _run_loop(self) -> None:
+        try:
+            while not self._stop.is_set():
+                try:
+                    await self.drain()
+                except Exception:
+                    logger.exception("Service Bus receive failed; continuing")
+                await asyncio.sleep(0.25)
+        except asyncio.CancelledError:
+            raise
 
 
 class ServiceBusTenantEventPublisher:

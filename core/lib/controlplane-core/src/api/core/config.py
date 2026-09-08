@@ -98,6 +98,14 @@ class Settings(BaseSettings):
             "over leftover local Kafka. Do not put prompt bodies on this bus."
         ),
     )
+    azure_service_bus_subscription: str | None = Field(
+        default=None,
+        validation_alias="AZURE_SERVICE_BUS_SUBSCRIPTION",
+        description=(
+            "Service Bus subscription on controlplane.events.v1. "
+            "Unset uses the service consumer group name."
+        ),
+    )
     service_name: str = Field(
         default="controlplane",
         validation_alias="SERVICE_NAME",
