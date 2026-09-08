@@ -1,9 +1,9 @@
 """Org / group portal controls on the existing membership tree.
 
 Public nouns are org and group. Groups are the existing Panopticon /
-Keycloak groups (host, renter, billing). Org admin is a role on that org,
-not a new object. Do not add workspace, team-as-a-fourth-object, or a
-Hypermesh-only membership tree.
+Keycloak groups (host, renter, billing, ir, ir_export). Org admin is a
+role on that org, not a new object. Do not add workspace,
+team-as-a-fourth-object, or a Hypermesh-only membership tree.
 
 Used by the portal and by api-keys mint/revoke. Completions do not import
 this module and do not hop to api-keys-service.
@@ -17,8 +17,12 @@ from typing import Iterable
 GROUP_HOST = "host"
 GROUP_RENTER = "renter"
 GROUP_BILLING = "billing"
+GROUP_IR = "ir"
+GROUP_IR_EXPORT = "ir_export"
 
-CANONICAL_GROUPS = frozenset({GROUP_HOST, GROUP_RENTER, GROUP_BILLING})
+CANONICAL_GROUPS = frozenset(
+    {GROUP_HOST, GROUP_RENTER, GROUP_BILLING, GROUP_IR, GROUP_IR_EXPORT}
+)
 
 ORG_ADMIN_ROLES = frozenset({"admin"})
 
@@ -29,6 +33,10 @@ ROLE_AS_GROUP = {
     "renter": GROUP_RENTER,
     "billing": GROUP_BILLING,
     "billing_manager": GROUP_BILLING,
+    "ir": GROUP_IR,
+    "ir_door": GROUP_IR,
+    "ir_export": GROUP_IR_EXPORT,
+    "ir_receipts": GROUP_IR_EXPORT,
 }
 
 def normalize_group_name(raw: str | None) -> str | None:
@@ -74,7 +82,7 @@ def is_org_admin(roles: Iterable[str] | None = None) -> bool:
 
 @dataclass(frozen=True, slots=True)
 class PortalControls:
-    """Who may use each slice-2 portal control."""
+    """Who may use each slice-2 portal control and slice-4 IR grants."""
 
     org_admin: bool
     groups: tuple[str, ...]
@@ -111,6 +119,8 @@ def evaluate_portal_controls(
     host = admin or GROUP_HOST in groups
     renter = admin or GROUP_RENTER in groups
     billing = admin or GROUP_BILLING in groups or renter
+    ir_door = admin or GROUP_IR in groups
+    ir_export = admin or GROUP_IR_EXPORT in groups
     return PortalControls(
         org_admin=admin,
         groups=groups,
@@ -120,6 +130,6 @@ def evaluate_portal_controls(
         can_checkout=renter,
         can_see_host_status=host,
         can_see_leases=renter,
-        can_use_ir_door=admin,
-        can_export_ir_receipts=admin,
+        can_use_ir_door=ir_door,
+        can_export_ir_receipts=ir_export,
     )
