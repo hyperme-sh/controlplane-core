@@ -84,12 +84,20 @@ class Settings(BaseSettings):
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
 
-    # Kafka (optional; unset = no-op publisher)
+    # Kafka (optional leftover local bus; unset = no-op unless Service Bus is set)
     kafka_bootstrap_servers: str | None = Field(
         default=None,
         validation_alias="KAFKA_BOOTSTRAP_SERVERS",
     )
     kafka_events_topic: str = CONTROLPLANE_EVENTS_V1
+    azure_service_bus_connection_string: str | None = Field(
+        default=None,
+        validation_alias="AZURE_SERVICE_BUS_CONNECTION_STRING",
+        description=(
+            "Production bus for controlplane.events.v1. When set, prefer Service Bus "
+            "over leftover local Kafka. Do not put prompt bodies on this bus."
+        ),
+    )
     service_name: str = Field(
         default="controlplane",
         validation_alias="SERVICE_NAME",
@@ -99,6 +107,13 @@ class Settings(BaseSettings):
     @field_validator("kafka_bootstrap_servers", mode="before")
     @classmethod
     def _empty_kafka_none(cls, v: object) -> object:
+        if v == "":
+            return None
+        return v
+
+    @field_validator("azure_service_bus_connection_string", mode="before")
+    @classmethod
+    def _empty_service_bus_none(cls, v: object) -> object:
         if v == "":
             return None
         return v
