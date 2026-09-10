@@ -145,14 +145,21 @@ class UserService:
         return existing
 
     async def create_user(self, user_data: CreateUserDto) -> uuid.UUID:
-        existing = await self.user_repository.single_or_none(email=user_data.email)
+        tid = parse_uuid(user_data.tenant_id) if user_data.tenant_id else None
+        if tid is None:
+            existing = await self.user_repository.single_or_none_platform_email_ci(
+                str(user_data.email)
+            )
+        else:
+            existing = await self.user_repository.single_or_none(
+                email=user_data.email, tenant_id=tid
+            )
         if existing is not None:
             raise EmailAlreadyExistsException(user_data.email)
         to_create = user_data.model_copy()
         if to_create.password is not None:
             to_create = to_create.model_copy(update={"password": hash_it(to_create.password)})
         user_id = await self.user_repository.create(to_create)
-        tid = parse_uuid(to_create.tenant_id) if to_create.tenant_id else None
         await get_tenant_event_publisher().publish(
             tenant_id=tid,
             event_type=USER_CREATED_V1,
