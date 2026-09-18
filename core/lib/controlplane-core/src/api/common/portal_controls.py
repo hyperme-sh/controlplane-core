@@ -1,9 +1,13 @@
 """Org / group portal controls on the existing membership tree.
 
 Public nouns are org and group. Groups are the existing Panopticon /
-Keycloak groups (host, renter, billing, ir, ir_export). Org admin is a
-role on that org, not a new object. Do not add workspace,
-team-as-a-fourth-object, or a Hypermesh-only membership tree.
+Keycloak groups (host, renter, billing, ir, ir_export). Portal / org
+admin is the existing ``admin`` role — customer-support, user/org
+invite and assign. It is not KC_BOOTSTRAP_ADMIN and it does not inherit
+renter (can_checkout) or host (can_see_host_status). Those grants come
+only from the renter and host groups (or the same-named realm roles).
+Do not add a leaser group, workspace, team-as-a-fourth-object, or a
+Hypermesh-only membership tree.
 
 Used by the portal and by api-keys mint/revoke. Completions do not import
 this module and do not hop to api-keys-service.
@@ -116,8 +120,8 @@ def evaluate_portal_controls(
 ) -> PortalControls:
     admin = is_org_admin(roles)
     groups = tuple(sorted(collect_groups(roles, group_names)))
-    host = admin or GROUP_HOST in groups
-    renter = admin or GROUP_RENTER in groups
+    host = GROUP_HOST in groups
+    renter = GROUP_RENTER in groups
     billing = admin or GROUP_BILLING in groups or renter
     ir_door = admin or GROUP_IR in groups
     ir_export = admin or GROUP_IR_EXPORT in groups
