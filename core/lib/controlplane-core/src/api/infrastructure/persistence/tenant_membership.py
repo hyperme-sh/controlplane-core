@@ -19,6 +19,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from controlplane_db.models import User
 
+# Existing Hypermesh marketplace tenant. Enrollment INSERTs the users row
+# here. Do not assume the row exists (seeded renter has none today).
+MARKETPLACE_TENANT_ID = uuid.UUID("8f8e8d8c-7b6a-4a59-8c3d-2e1f0a9b8c7d")
+
 
 async def get_tenant_membership_row(
     session: AsyncSession,
@@ -68,7 +72,11 @@ async def create_tenant_membership_row(
     is_active: bool = True,
     keycloak_sub: str | None = None,
 ) -> User:
-    """Insert the membership row. Caller is the service, not a renter JWT."""
+    """INSERT a membership row. Caller is the service, not a renter JWT.
+
+    Never assume a ``public.users`` row already exists for the identified
+    Keycloak person. Match later by email or ``keycloak_sub``.
+    """
     sub = keycloak_sub.strip() if keycloak_sub and keycloak_sub.strip() else None
     if sub is not None and not await _keycloak_sub_is_free(session, sub):
         sub = None
