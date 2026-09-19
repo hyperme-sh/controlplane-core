@@ -1,6 +1,6 @@
 """HTTP client for api-keys-service internal validation.
 
-Shared so the gateway and the hypermesh router run the same check. The
+Shared so the control-plane edge and the hypermesh gateway run the same check. The
 service rejects a key whose tenant does not match the requested one, so a
 truthy ``valid`` already implies the tenant bound to that key.
 """
