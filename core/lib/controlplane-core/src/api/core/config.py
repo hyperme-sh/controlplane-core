@@ -214,6 +214,23 @@ class Settings(BaseSettings):
         validation_alias="API_KEYS_INTERNAL_TOKEN",
         description="Shared secret for gateway → api-keys-service internal validate endpoint.",
     )
+    payment_internal_token: str = Field(
+        default="dev-payment-internal-token",
+        validation_alias="PAYMENT_INTERNAL_TOKEN",
+        description=(
+            "P0-D internal settle credential for payment-service undelivered / "
+            "refund hops. Not a browser JWT."
+        ),
+    )
+    hypermesh_internal_token: str = Field(
+        default="dev-hypermesh-internal-token",
+        validation_alias="HYPERMESH_INTERNAL_TOKEN",
+        description=(
+            "P0-D internal settle credential for Hypermesh "
+            "POST /internal/payment-succeeded and owner-or-internal complete/payout. "
+            "Not a browser JWT. Production consumes payment.succeeded.v1 from the bus."
+        ),
+    )
 
     acl_service_base_url: str | None = Field(
         default=None,
