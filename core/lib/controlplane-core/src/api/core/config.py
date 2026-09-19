@@ -215,15 +215,15 @@ class Settings(BaseSettings):
         description="Shared secret for gateway → api-keys-service internal validate endpoint.",
     )
     payment_internal_token: str = Field(
-        default="dev-payment-internal-token",
+        default="",
         validation_alias="PAYMENT_INTERNAL_TOKEN",
         description=(
             "P0-D internal settle credential for payment-service undelivered / "
-            "refund hops. Not a browser JWT."
+            "refund hops. Not a browser JWT. Empty fails closed."
         ),
     )
     hypermesh_internal_token: str = Field(
-        default="dev-hypermesh-internal-token",
+        default="",
         validation_alias="HYPERMESH_INTERNAL_TOKEN",
         description=(
             "P0-D internal settle credential for Hypermesh "
