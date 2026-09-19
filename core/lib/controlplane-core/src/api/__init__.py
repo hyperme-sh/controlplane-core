@@ -83,8 +83,8 @@ async def lifespan(app: FastAPI):
 
     async with AsyncExitStack() as stack:
         try:
-            from gateway.grpc_server import grpc_server_lifespan
-            from gateway.gateway_settings import GatewayCrossCuttingSettings
+            from controlplane_edge.grpc_server import grpc_server_lifespan
+            from controlplane_edge.edge_settings import GatewayCrossCuttingSettings
 
             gs = GatewayCrossCuttingSettings()
             await stack.enter_async_context(
@@ -95,7 +95,7 @@ async def lifespan(app: FastAPI):
                 )
             )
         except ImportError:
-            logger.debug("gateway.grpc_server not available; skipping gRPC")
+            logger.debug("controlplane_edge.grpc_server not available; skipping gRPC")
 
         yield
 
@@ -216,22 +216,22 @@ app.include_router(router)
 
 # Gateway: CORS, auth, rate limits, optional OTEL (before OpenAPI/GraphQL mounts).
 try:
-    from gateway.register_cross_cutting import register_gateway_cross_cutting
+    from controlplane_edge.register_cross_cutting import register_gateway_cross_cutting
 
     register_gateway_cross_cutting(app)
 except ImportError:
-    logger.debug("gateway.register_cross_cutting not available; skipping gateway middleware")
+    logger.debug("controlplane_edge.register_cross_cutting not available; skipping gateway middleware")
 
 # Phase 2: aggregated OpenAPI (HTTP merge from microservices). Must register before the catch-all route.
 try:
-    from gateway.aggregation import register_aggregation_routes
+    from controlplane_edge.aggregation import register_aggregation_routes
 
     register_aggregation_routes(app)
 except ImportError:
     logger.debug("gateway package not available; skipping OpenAPI aggregation routes")
 
 try:
-    from gateway.graphql.register import register_graphql_routes
+    from controlplane_edge.graphql.register import register_graphql_routes
 
     register_graphql_routes(app)
 except ImportError:
