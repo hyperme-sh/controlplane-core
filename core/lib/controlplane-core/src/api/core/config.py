@@ -244,7 +244,7 @@ class Settings(BaseSettings):
     acl_service_base_url: str | None = Field(
         default=None,
         validation_alias=AliasChoices("ACL_SERVICE_URL", "acl_service_base_url"),
-        description="Base URL for acl-service (POST /api/v1/acl/enforce). Empty = skip HTTP ACL (allow).",
+        description="Base URL for acl-service (POST /api/v1/acl/enforce). Empty fails closed (deny).",
     )
     payment_service_base_url: str | None = Field(
         default=None,
