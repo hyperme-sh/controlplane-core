@@ -23,8 +23,11 @@ async def validate_api_key_remote(
     timeout_s: float = 5.0,
 ) -> dict[str, Any] | None:
     """Return validation JSON dict or None on failure."""
+    token = settings.usable_api_keys_internal_token()
+    if not token:
+        return None
     url = base_url.rstrip("/") + "/api/v1/internal/validate"
-    headers = {"X-Internal-Token": settings.api_keys_internal_token}
+    headers = {"X-Internal-Token": token}
     payload = {"api_key": api_key, "tenant_id": str(tenant_id)}
     try:
         async with httpx.AsyncClient(timeout=timeout_s) as client:

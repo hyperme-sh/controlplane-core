@@ -214,14 +214,20 @@ class Settings(BaseSettings):
         description="If True, /auth/me rejects tokens unless MFA is indicated (amr/acr).",
     )
     api_key_exchange_jwt_secret: str = Field(
-        default="dev-api-key-exchange-secret-change-in-production-min-32-chars!!",
+        default="",
         validation_alias="API_KEY_EXCHANGE_JWT_SECRET",
-        description="HS256 secret for short-lived JWTs minted after API key validation (gateway + auth validate).",
+        description=(
+            "HS256 secret for short-lived JWTs minted after API key validation "
+            "(gateway + auth validate). Empty or a published default fails closed."
+        ),
     )
     api_keys_internal_token: str = Field(
-        default="dev-api-keys-internal-token",
+        default="",
         validation_alias="API_KEYS_INTERNAL_TOKEN",
-        description="Shared secret for gateway → api-keys-service internal validate endpoint.",
+        description=(
+            "Shared secret for gateway → api-keys-service internal validate. "
+            "Empty or a published default fails closed."
+        ),
     )
     payment_internal_token: str = Field(
         default="",
@@ -343,6 +349,12 @@ class Settings(BaseSettings):
         ids.update(self.keycloak_allowed_azp_set())
         return frozenset(ids)
 
+    def usable_api_key_exchange_secret(self) -> str | None:
+        return _usable_shared_secret(self.api_key_exchange_jwt_secret, _PUBLISHED_API_KEY_SECRETS)
+
+    def usable_api_keys_internal_token(self) -> str | None:
+        return _usable_shared_secret(self.api_keys_internal_token, _PUBLISHED_API_KEY_SECRETS)
+
     @field_validator(
         "keycloak_jwks_url",
         "keycloak_issuer",
@@ -367,6 +379,22 @@ class Settings(BaseSettings):
         if self.keycloak_issuer is None:
             self.keycloak_issuer = "http://localhost:8081/realms/controlplane"
         return self
+
+
+# Published compose/docs defaults. A leak of these is an any-tenant forgery.
+_PUBLISHED_API_KEY_SECRETS = frozenset(
+    {
+        "dev-api-keys-internal-token",
+        "dev-api-key-exchange-secret-change-in-production-min-32-chars!!",
+    }
+)
+
+
+def _usable_shared_secret(raw: str | None, banned: frozenset[str]) -> str | None:
+    value = (raw or "").strip()
+    if not value or value in banned:
+        return None
+    return value
 
 
 # Instantiate settings once
