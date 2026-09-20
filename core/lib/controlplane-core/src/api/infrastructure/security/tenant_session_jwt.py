@@ -70,19 +70,25 @@ def mint_tenant_session_jwt(
         payload["preferred_username"] = str(claims["preferred_username"])
     if claims.get("amr") is not None:
         payload["amr"] = claims["amr"]
+    secret = settings.usable_api_key_exchange_secret()
+    if not secret:
+        raise RuntimeError("API_KEY_EXCHANGE_JWT_SECRET is unset or is a published default")
     return jwt.encode(
         payload,
-        settings.api_key_exchange_jwt_secret,
+        secret,
         algorithm=ALG,
     )
 
 
 def try_decode_tenant_session_jwt(token: str) -> dict[str, Any] | None:
     """Return claims if token is a valid tenant-session JWT; else None."""
+    secret = settings.usable_api_key_exchange_secret()
+    if not secret:
+        return None
     try:
         payload = jwt.decode(
             token,
-            settings.api_key_exchange_jwt_secret,
+            secret,
             algorithms=[ALG],
             issuer=ISSUER,
             options={"require": ["exp", "sub", "iss"]},
