@@ -42,12 +42,16 @@ class KeycloakJWTValidator:
                 e,
             )
             raise
+        allowed_aud = settings.keycloak_allowed_audience_set()
+        if not allowed_aud:
+            raise InvalidTokenError("no allowed Keycloak audiences configured")
         payload = jwt.decode(
             token,
             signing_key.key,
             algorithms=["RS256"],
             issuer=self._issuer,
-            options={"verify_aud": False},
+            audience=list(allowed_aud),
+            options={"verify_aud": True},
         )
         azp = payload.get("azp")
         allowed = settings.keycloak_allowed_azp_set()

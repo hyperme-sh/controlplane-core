@@ -150,6 +150,15 @@ class Settings(BaseSettings):
         validation_alias="KEYCLOAK_ALLOWED_CLIENT_IDS",
         description="Comma-separated Keycloak client ids allowed in access-token azp (public + M2M).",
     )
+    keycloak_allowed_audiences: str = Field(
+        default="account",
+        validation_alias="KEYCLOAK_ALLOWED_AUDIENCES",
+        description=(
+            "Comma-separated JWT aud values accepted after signature verify. "
+            "Client ids from KEYCLOAK_ALLOWED_CLIENT_IDS are always included. "
+            "Default includes Keycloak's account resource."
+        ),
+    )
     # Optional Host header when fetching JWKS via an internal base URL (Keycloak hostname v2).
     keycloak_jwks_request_host: str | None = Field(
         default=None,
@@ -327,6 +336,11 @@ class Settings(BaseSettings):
         ids = {x.strip() for x in self.keycloak_allowed_client_ids.split(",") if x.strip()}
         if self.keycloak_client_id:
             ids.add(self.keycloak_client_id.strip())
+        return frozenset(ids)
+
+    def keycloak_allowed_audience_set(self) -> frozenset[str]:
+        ids = {x.strip() for x in self.keycloak_allowed_audiences.split(",") if x.strip()}
+        ids.update(self.keycloak_allowed_azp_set())
         return frozenset(ids)
 
     @field_validator(
