@@ -177,6 +177,35 @@ class Settings(BaseSettings):
         validation_alias="ENTRA_ADMIN_GROUP_IDS",
         description="Comma-separated Entra group object IDs; if access token 'groups' contains any, assign ADMIN.",
     )
+    operator_oidc_domain: str = Field(
+        default="",
+        validation_alias="OPERATOR_OIDC_DOMAIN",
+        description=(
+            "Email domain and hosted domain (hd) for this instance's operator "
+            "and owner population. Empty disables the map. Fyber example: "
+            "fyberlabs.com. Another instance sets its own domain."
+        ),
+    )
+    operator_oidc_group_map: str = Field(
+        default="",
+        validation_alias="OPERATOR_OIDC_GROUP_MAP",
+        description=(
+            "Inside OPERATOR_OIDC_DOMAIN, Keycloak groups mapped to claims. "
+            "Entries separated by ';'. Each entry is group=claim|claim. "
+            "Example: operator-support=operator:console|operator:support;"
+            "operator-program=operator:console|operator:program|operator:resolve. "
+            "Users outside the domain receive nothing from this map."
+        ),
+    )
+    operator_oidc_user_map: str = Field(
+        default="",
+        validation_alias="OPERATOR_OIDC_USER_MAP",
+        description=(
+            "Inside OPERATOR_OIDC_DOMAIN, emails mapped to claims. Same grammar "
+            "as OPERATOR_OIDC_GROUP_MAP. Owner is org:own, distinct from "
+            "operator:support. Example: owner@fyberlabs.com=org:own."
+        ),
+    )
     oidc_relax_email_verified: bool = Field(
         default=False,
         validation_alias="OIDC_RELAX_EMAIL_VERIFIED",
