@@ -4,6 +4,17 @@ from api.common.utils import get_logger, is_tenancy_enabled
 from api.core.container import get_role_service
 from api.domain.dtos.user_dto import UserDto
 from api.domain.enum.permission import Permission
+
+_OPERATOR_CLAIMS = frozenset(
+    {
+        Permission.OPERATOR_CONSOLE,
+        Permission.OPERATOR_SUPPORT,
+        Permission.OPERATOR_PROGRAM,
+        Permission.OPERATOR_RESOLVE,
+        Permission.ORG_MANAGE,
+        Permission.ORG_OWN,
+    }
+)
 from api.infrastructure.security.current_user import CurrentUser
 
 logger = get_logger(__name__)
@@ -68,16 +79,19 @@ class UserAccessManagement:
             logger.info(f"User permissions: {[p.value if hasattr(p, 'value') else str(p) for p in user_permissions]}")
             logger.info(f"Required permissions: {[p.value if hasattr(p, 'value') else str(p) for p in self.required_permissions]}")
 
-            if is_tenancy_enabled():
-                if Permission.HOST_MANAGE_TENANTS in user_permissions:
-                    logger.info("Host Permission detected - Granting all permissions")
+            requires_operator_claim = any(
+                p in _OPERATOR_CLAIMS for p in self.required_permissions
+            )
+            # host:manage_tenants and full:access do not imply operator claims.
+            if not requires_operator_claim:
+                if is_tenancy_enabled():
+                    if Permission.HOST_MANAGE_TENANTS in user_permissions:
+                        logger.info("Host Permission detected - Granting all permissions")
+                        return True
+
+                if Permission.FULL_ACCESS in user_permissions:
+                    logger.info("Full access granted - User has admin privileges")
                     return True
-
-
-            # Check for full access (admin override)
-            if Permission.FULL_ACCESS in user_permissions:
-                logger.info("Full access granted - User has admin privileges")
-                return True
             
             # Check for self-access permissions
             if (Permission.USER_SELF_READ_AND_WRITE_ONLY in user_permissions and 

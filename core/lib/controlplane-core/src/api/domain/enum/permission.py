@@ -30,3 +30,12 @@ class Permission(str, Enum):
 
     AUDIT_LOGS_VIEW_ONLY = "audit_logs:view_only"
     AUDIT_LOGS_DOWNLOAD = "audit_logs:download"
+
+    # Operator console. These claims are not implied by org admin, product
+    # groups, host:manage_tenants, or full:access.
+    OPERATOR_CONSOLE = "operator:console"
+    OPERATOR_SUPPORT = "operator:support"
+    OPERATOR_PROGRAM = "operator:program"
+    OPERATOR_RESOLVE = "operator:resolve"
+    ORG_MANAGE = "org:manage"
+    ORG_OWN = "org:own"

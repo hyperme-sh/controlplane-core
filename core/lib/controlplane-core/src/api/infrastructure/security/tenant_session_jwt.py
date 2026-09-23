@@ -26,6 +26,7 @@ def mint_tenant_session_jwt(
     claims: dict[str, Any],
     tenant_id: uuid.UUID,
     extra_roles: list[str] | None = None,
+    extra_permissions: list[str] | None = None,
 ) -> str:
     """Short-lived JWT so ``get_current_tenant`` sees tenant context."""
     now = int(time.time())
@@ -63,6 +64,16 @@ def mint_tenant_session_jwt(
         "groups": groups_out,
         "scope": str(claims.get("scope") or "openid"),
     }
+    permissions: list[str] = []
+    raw_permissions = claims.get("permissions")
+    if isinstance(raw_permissions, list):
+        permissions.extend(str(item).strip() for item in raw_permissions if str(item).strip())
+    for perm in extra_permissions or []:
+        name = str(perm).strip()
+        if name and name not in permissions:
+            permissions.append(name)
+    payload["permissions"] = permissions
+
     email = claims.get("email") or claims.get("preferred_username") or claims.get("username")
     if email:
         payload["email"] = str(email)
