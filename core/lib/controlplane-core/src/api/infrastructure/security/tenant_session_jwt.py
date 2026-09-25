@@ -81,6 +81,8 @@ def mint_tenant_session_jwt(
         payload["preferred_username"] = str(claims["preferred_username"])
     if claims.get("amr") is not None:
         payload["amr"] = claims["amr"]
+    if claims.get("hypermesh_smoke") is True:
+        payload["hypermesh_smoke"] = True
     secret = settings.usable_api_key_exchange_secret()
     if not secret:
         raise RuntimeError("API_KEY_EXCHANGE_JWT_SECRET is unset or is a published default")
