@@ -73,6 +73,9 @@ def mint_tenant_session_jwt(
         if name and name not in permissions:
             permissions.append(name)
     payload["permissions"] = permissions
+    host_org_id = claims.get("host_org_id")
+    if host_org_id is not None and str(host_org_id).strip():
+        payload["host_org_id"] = str(host_org_id)
 
     email = claims.get("email") or claims.get("preferred_username") or claims.get("username")
     if email:
