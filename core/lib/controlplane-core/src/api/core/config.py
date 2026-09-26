@@ -145,10 +145,14 @@ class Settings(BaseSettings):
     keycloak_allowed_client_ids: str = Field(
         default=(
             "controlplane-frontend,controlplane-mobile,controlplane-device,"
-            "controlplane-m2m,controlplane-api-key"
+            "controlplane-m2m,controlplane-api-key,hypermesh-native"
         ),
         validation_alias="KEYCLOAK_ALLOWED_CLIENT_IDS",
-        description="Comma-separated Keycloak client ids allowed in access-token azp (public + M2M).",
+        description=(
+            "Comma-separated Keycloak client ids allowed in access-token azp (public + M2M). "
+            "The default includes hypermesh-native. Set KEYCLOAK_ALLOWED_CLIENT_IDS without "
+            "that id to revoke the visor/CLI client. Application code does not add it back."
+        ),
     )
     keycloak_allowed_audiences: str = Field(
         default="account",
