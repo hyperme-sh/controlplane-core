@@ -28,6 +28,29 @@ def _sql_usable(url: str) -> bool:
     return True
 
 
+def _sync_database_url(url: str) -> str:
+    """Open the ban door with psycopg, not SQLAlchemy's default psycopg2.
+
+    The VM ``DATABASE_URL`` is a bare ``postgresql://`` URL. The async engine
+    rewrites that to ``+asyncpg`` before it connects. This door builds its own
+    sync engine. Replacing only ``+asyncpg`` leaves the bare URL alone, and
+    ``create_engine`` then imports ``psycopg2``, which this image does not
+    install. Lease create catches that as ``ModuleNotFoundError``.
+    """
+
+    if url.startswith("postgresql+psycopg://"):
+        return url
+    if "+asyncpg" in url:
+        return url.replace("+asyncpg", "+psycopg", 1)
+    if url.startswith("postgresql+psycopg2://"):
+        return "postgresql+psycopg://" + url.removeprefix("postgresql+psycopg2://")
+    if url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + url.removeprefix("postgresql://")
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg://" + url.removeprefix("postgres://")
+    return url
+
+
 def _sql_banned(tenant_id: uuid.UUID, subject_kind: str, subject_id: uuid.UUID) -> bool:
     url = _database_url()
     if not _sql_usable(url):
@@ -36,8 +59,7 @@ def _sql_banned(tenant_id: uuid.UUID, subject_kind: str, subject_id: uuid.UUID) 
     from sqlalchemy import create_engine, text
 
     if _engine is None:
-        sync = url.replace("+asyncpg", "+psycopg")
-        _engine = create_engine(sync, pool_pre_ping=True)
+        _engine = create_engine(_sync_database_url(url), pool_pre_ping=True)
     statement = text(
         """
         SELECT 1
