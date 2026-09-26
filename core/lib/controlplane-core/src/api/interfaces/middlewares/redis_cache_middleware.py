@@ -7,9 +7,11 @@ from api.common.utils import get_logger
 from api.core.config import settings
 
 from api.core.container import get_role_service, get_user_service, get_subscription_plan_service
+from api.infrastructure.metrics import register_cache
 from api.infrastructure.security.current_user import resolve_me_optional_from_token
 
 logger = get_logger(__name__)
+_http_cache = register_cache("redis_http")
 
 redis_cache_expiry = 300  # Cache expiry time in seconds (5 minutes)
 redis: Redis =  from_url(url=settings.redis_uri, decode_responses=True)
@@ -74,6 +76,7 @@ class RedisCacheMiddleware(BaseHTTPMiddleware):
         # --- Try reading from cache
         cached_value = await redis.get(cache_key)
         if cached_value:
+            _http_cache.hit()
             logger.debug(f"Cache hit for key: {cache_key}")
             cached = json.loads(cached_value)
             return Response(
@@ -84,6 +87,7 @@ class RedisCacheMiddleware(BaseHTTPMiddleware):
             )
 
         # --- Cache miss → execute route handler
+        _http_cache.miss()
         response = await call_next(request)
 
         # Read and rebuild response body

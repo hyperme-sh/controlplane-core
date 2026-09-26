@@ -219,6 +219,10 @@ except ImportError:
     logger.debug("gateway package not available; skipping GraphQL routes")
 
 
+from api.infrastructure.metrics import install_http_metrics
+
+install_http_metrics(app)
+
 # Catch-all route for React Router (only in production with static files)
 @app.get("/{full_path:path}", include_in_schema=False)
 async def react_router(full_path: str):
