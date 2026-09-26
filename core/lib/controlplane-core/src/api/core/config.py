@@ -96,8 +96,8 @@ class Settings(BaseSettings):
         default=None,
         validation_alias="AZURE_SERVICE_BUS_SUBSCRIPTION",
         description=(
-            "Service Bus subscription on controlplane.events.v1. "
-            "Unset uses the service consumer group name."
+            "Ignored. Each consumer's Service Bus subscription is its group id. "
+            "Do not set one shared AZURE_SERVICE_BUS_SUBSCRIPTION."
         ),
     )
     service_name: str = Field(

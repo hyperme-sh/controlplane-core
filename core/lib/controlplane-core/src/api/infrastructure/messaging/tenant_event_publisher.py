@@ -1,9 +1,13 @@
 """Tenant-scoped domain event publishing.
 
-Default bus: the Postgres ``controlplane_events`` table (migration 0045).
+Default bus: the Postgres ``controlplane_events`` table (migration 0046).
 Optional production transport: Azure Service Bus, same ``publish()`` protocol,
 selected when ``AZURE_SERVICE_BUS_CONNECTION_STRING`` is set. Service Bus is
-not required for local compose, the VM, or tests.
+not required for local compose, the VM, or tests. Prod images install it with
+the Docker build arg ``CONTROLPLANE_SERVICEBUS=1`` (the ``controlplane-core[servicebus]``
+extra). Each consumer uses its own subscription, defaulting to that consumer's
+group id. The subscription's max delivery count is what dead-letters a message;
+this process abandons on handler failure and does not complete it.
 
 MQTT is not this bus. It remains a future IoT edge bridge idea only.
 Never put prompt bodies, enroll tokens, or Stripe secrets on the bus.
@@ -154,6 +158,19 @@ class AzureServiceBusSender:
             )
 
 
+def _service_bus_body_text(message: Any) -> str:
+    """Read a Service Bus body as bytes. ``str(message)`` is not the payload."""
+
+    body = message.body
+    if isinstance(body, str):
+        return body
+    if isinstance(body, (bytes, bytearray)):
+        raw = bytes(body)
+    else:
+        raw = b"".join(body)
+    return raw.decode("utf-8")
+
+
 class _AzureServiceBusDelivery:
     def __init__(self, receiver: Any, raw: Any, body: str) -> None:
         self._receiver = receiver
@@ -173,7 +190,7 @@ class AzureServiceBusReceiver:
     def __init__(self, connection_string: str, topic: str, subscription: str) -> None:
         self._connection_string = connection_string
         self._topic = topic
-        self._subscription = subscription
+        self.subscription = subscription
         self._client = None
         self._receiver = None
 
@@ -189,7 +206,7 @@ class AzureServiceBusReceiver:
         await self._client.__aenter__()
         self._receiver = self._client.get_subscription_receiver(
             topic_name=self._topic,
-            subscription_name=self._subscription,
+            subscription_name=self.subscription,
         )
         await self._receiver.__aenter__()
 
@@ -206,7 +223,8 @@ class AzureServiceBusReceiver:
             raise RuntimeError("Service Bus receiver not started; call start() first")
         messages = await self._receiver.receive_messages(max_wait_time=1, max_message_count=16)
         return [
-            _AzureServiceBusDelivery(self._receiver, message, str(message)) for message in messages
+            _AzureServiceBusDelivery(self._receiver, message, _service_bus_body_text(message))
+            for message in messages
         ]
 
 
@@ -227,6 +245,7 @@ class ServiceBusRoutingConsumer:
         self._receiver = receiver
         self._routes = routes
         self._topic = topic
+        self.subscription = getattr(receiver, "subscription", None)
         self._task: asyncio.Task[None] | None = None
         self._stop = asyncio.Event()
 
