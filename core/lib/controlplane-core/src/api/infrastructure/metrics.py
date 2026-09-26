@@ -12,6 +12,7 @@ identifiers are not label values.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import threading
@@ -19,7 +20,6 @@ import time
 from collections.abc import Callable, Mapping
 from contextvars import ContextVar
 from typing import Protocol
-from wsgiref.simple_server import WSGIRequestHandler, make_server
 
 from prometheus_client import (
     REGISTRY,
@@ -28,10 +28,32 @@ from prometheus_client import (
     Gauge,
     Histogram,
     generate_latest,
+    start_http_server,
 )
 from prometheus_client.core import GaugeMetricFamily
-from prometheus_client.exposition import make_wsgi_app
+from prometheus_client.exposition import _SilentHandler
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+logger = logging.getLogger(__name__)
+
+# Idle scrape clients must not hold a worker thread. prometheus_client's
+# handler applies this to the accepted socket.
+_METRICS_REQUEST_TIMEOUT_S = 10.0
+# METRICS_ADDR=compose binds the compose NIC, not 0.0.0.0 and not WireGuard.
+_COMPOSE_ADDR = "compose"
+_SKIP_IFACE_PREFIXES = (
+    "lo",
+    "wg",
+    "tun",
+    "tap",
+    "tailscale",
+    "docker",
+    "br-",
+    "veth",
+    "virbr",
+    "sit",
+)
+_PREFERRED_IFACE_PREFIXES = ("eth", "ens", "enp", "eno")
 
 # Default histogram buckets for request latency, in seconds.
 _DURATION_BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
@@ -129,10 +151,14 @@ CACHE_LOOKUPS = Counter(
     ("cache", "result"),
 )
 
-_heartbeat_view: Callable[[], tuple[Mapping[str, float], int]] | None = None
+_heartbeat_lock = threading.Lock()
+# None until the fleet-health loop publishes. Absence is not a fresh count of 0.
+_heartbeat_snapshot: tuple[tuple[tuple[str, float], ...], int] | None = None
+_outbox_lock = threading.Lock()
 _outbox_probe: Callable[[], tuple[int, int]] | None = None
 _outbox_depth = 0
 _outbox_dead = 0
+_outbox_ready = False
 _collectors_ready = False
 _server_lock = threading.Lock()
 _server = None
@@ -165,16 +191,14 @@ class _CacheRecorder:
 
 
 class _HeartbeatCollector:
+    """Read the snapshot the fleet-health loop published. Do not touch the store."""
+
     def collect(self):
-        view = _heartbeat_view
-        ages: Mapping[str, float] = {}
-        fresh = 0
-        if view is not None:
-            try:
-                ages, fresh = view()
-            except Exception:
-                ages = {}
-                fresh = 0
+        with _heartbeat_lock:
+            snap = _heartbeat_snapshot
+        if snap is None:
+            return
+        ages, fresh = snap
         fresh_family = GaugeMetricFamily(
             "hypermesh_hosts_fresh",
             "Hosts whose last heartbeat is inside the stale window.",
@@ -186,31 +210,26 @@ class _HeartbeatCollector:
             "Seconds since the host's last heartbeat.",
             labels=("device_id",),
         )
-        for device_id, age in ages.items():
-            if not isinstance(device_id, str) or _DEVICE_ID.fullmatch(device_id) is None:
-                continue
-            try:
-                seconds = float(age)
-            except (TypeError, ValueError):
-                continue
-            if seconds < 0:
-                seconds = 0.0
+        for device_id, seconds in ages:
             age_family.add_metric([device_id], seconds)
         yield age_family
 
 
 class _OutboxCollector:
     def collect(self):
-        depth = _outbox_depth
-        dead = _outbox_dead
         probe = _outbox_probe
         if probe is not None:
             try:
                 depth, dead = probe()
-                _remember_outbox(depth, dead)
             except Exception:
-                depth = _outbox_depth
-                dead = _outbox_dead
+                logger.exception("event outbox metrics probe failed")
+            else:
+                _remember_outbox(depth, dead)
+        with _outbox_lock:
+            if not _outbox_ready:
+                return
+            depth = _outbox_depth
+            dead = _outbox_dead
         depth_family = GaugeMetricFamily(
             "controlplane_events_outbox_depth",
             "Event deliveries still pending or claimed.",
@@ -390,13 +409,38 @@ def record_pricing_round(*, failed: bool) -> None:
     PRICING_LAST_SUCCESS.set(time.time())
 
 
-def register_heartbeat_view(
-    view: Callable[[], tuple[Mapping[str, float], int]] | None,
-) -> None:
-    """Scrape reads ``(device_id -> age seconds, fresh host count)`` from ``view``."""
+def publish_heartbeat_snapshot(ages: Mapping[str, float], fresh: int) -> None:
+    """Publish an immutable heartbeat snapshot for the scrape thread.
 
-    global _heartbeat_view
-    _heartbeat_view = view
+    Call this from the fleet-health loop, on the thread that mutates the
+    store. The collector only reads the copy under ``_heartbeat_lock``.
+    Non-UUID device ids are dropped here. A later failed snapshot must not
+    call this with zeros; leave the previous copy in place.
+    """
+
+    frozen: list[tuple[str, float]] = []
+    for device_id, age in ages.items():
+        if not isinstance(device_id, str) or _DEVICE_ID.fullmatch(device_id) is None:
+            continue
+        try:
+            seconds = float(age)
+        except (TypeError, ValueError):
+            continue
+        if seconds < 0:
+            seconds = 0.0
+        frozen.append((device_id, seconds))
+    frozen.sort()
+    with _heartbeat_lock:
+        global _heartbeat_snapshot
+        _heartbeat_snapshot = (tuple(frozen), int(fresh))
+
+
+def clear_heartbeat_snapshot() -> None:
+    """Drop the published snapshot. The next scrape omits the heartbeat gauges."""
+
+    global _heartbeat_snapshot
+    with _heartbeat_lock:
+        _heartbeat_snapshot = None
 
 
 def register_cache(name: str) -> CacheObserver:
@@ -421,9 +465,11 @@ def register_outbox_probe(probe: Callable[[], tuple[int, int]] | None) -> None:
 
 
 def _remember_outbox(depth: int, dead: int) -> None:
-    global _outbox_depth, _outbox_dead
-    _outbox_depth = max(0, int(depth))
-    _outbox_dead = max(0, int(dead))
+    global _outbox_depth, _outbox_dead, _outbox_ready
+    with _outbox_lock:
+        _outbox_depth = max(0, int(depth))
+        _outbox_dead = max(0, int(dead))
+        _outbox_ready = True
 
 
 def _sync_postgres_url(url: str) -> str:
@@ -447,7 +493,9 @@ FROM controlplane_event_deliveries
 
 
 def _maybe_register_outbox_probe() -> None:
-    if os.environ.get("METRICS_OUTBOX_PROBE", "1") == "0":
+    """Opt in with ``METRICS_OUTBOX_PROBE=1`` on one service. Default is off."""
+
+    if os.environ.get("METRICS_OUTBOX_PROBE", "0") != "1":
         return
     if _outbox_probe is not None:
         return
@@ -470,28 +518,93 @@ def _database_outbox_probe(url: str) -> Callable[[], tuple[int, int]]:
                 pool_pre_ping=True,
                 pool_size=1,
                 max_overflow=0,
-                connect_args={"connect_timeout": 2},
+                connect_args={
+                    "connect_timeout": 2,
+                    "options": "-c statement_timeout=2000",
+                },
             )
             holder["engine"] = engine
             holder["sql"] = text(_OUTBOX_SQL)
+            holder["timeout"] = text("SET LOCAL statement_timeout = 2000")
         sql = holder["sql"]
         with engine.connect() as conn:  # type: ignore[union-attr]
+            conn.execute(holder["timeout"])  # type: ignore[arg-type]
             row = conn.execute(sql).one()
         return int(row.depth), int(row.dead)
 
     return probe
 
 
-class _QuietHandler(WSGIRequestHandler):
-    def log_message(self, format: str, *args: object) -> None:
-        return
+def _wg_gateway_ip() -> str | None:
+    raw = os.environ.get("HYPERMESH_WG_GATEWAY_ADDR", "10.77.0.1/24").strip()
+    ip = raw.split("/", 1)[0].strip()
+    return ip or None
+
+
+def _skipped_iface(name: str, addr: str, wg_ip: str | None) -> bool:
+    if any(name == prefix or name.startswith(prefix) for prefix in _SKIP_IFACE_PREFIXES):
+        return True
+    if addr.startswith("127."):
+        return True
+    return bool(wg_ip and addr == wg_ip)
+
+
+def _local_ipv4_by_iface() -> dict[str, str]:
+    import fcntl
+    import socket
+    import struct
+
+    try:
+        with open("/proc/net/dev", encoding="ascii") as handle:
+            names = [line.split(":", 1)[0].strip() for line in handle.readlines()[2:]]
+    except OSError as exc:
+        raise OSError("cannot list network interfaces") from exc
+    found: dict[str, str] = {}
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        for name in names:
+            try:
+                packed = fcntl.ioctl(
+                    sock.fileno(),
+                    0x8915,  # SIOCGIFADDR
+                    struct.pack("256s", name.encode("ascii")[:15]),
+                )
+            except OSError:
+                continue
+            found[name] = socket.inet_ntoa(packed[20:24])
+    finally:
+        sock.close()
+    return found
+
+
+def compose_network_ipv4(ifaces: Mapping[str, str] | None = None) -> str:
+    """IPv4 on the compose NIC. Skips loopback, WireGuard, and tunnel ifaces."""
+
+    found = dict(ifaces) if ifaces is not None else _local_ipv4_by_iface()
+    wg_ip = _wg_gateway_ip()
+    preferred: list[tuple[str, str]] = []
+    rest: list[tuple[str, str]] = []
+    for name, addr in found.items():
+        if _skipped_iface(name, addr, wg_ip):
+            continue
+        if name.startswith(_PREFERRED_IFACE_PREFIXES):
+            preferred.append((name, addr))
+        else:
+            rest.append((name, addr))
+    chosen = sorted(preferred) or sorted(rest)
+    if not chosen:
+        raise OSError("no compose-network IPv4 for the metrics bind")
+    return chosen[0][1]
 
 
 def start_metrics_server(port: int | None = None, addr: str | None = None) -> int:
-    """Serve ``GET /metrics`` on a daemon thread. Returns the bound port.
+    """Serve ``GET /metrics`` on a threaded daemon server. Returns the bound port.
 
     ``METRICS_ENABLED=0`` does not bind. A second call returns the port
-    already bound in this process.
+    already bound in this process. A bind failure is logged and returns
+    ``-1``; it does not propagate to ``main()``. ``METRICS_ADDR=compose``
+    binds the compose-network address so a WireGuard address on the same
+    netns is not a listener.
     """
 
     global _server
@@ -504,20 +617,23 @@ def start_metrics_server(port: int | None = None, addr: str | None = None) -> in
             port if port is not None else os.environ.get("METRICS_PORT", "9100")
         )
         bind_addr = addr if addr is not None else os.environ.get("METRICS_ADDR", "0.0.0.0")
-        httpd = make_server(
-            bind_addr,
-            bind_port,
-            make_wsgi_app(REGISTRY),
-            handler_class=_QuietHandler,
-        )
-        thread = threading.Thread(
-            target=httpd.serve_forever,
-            name="prometheus-metrics",
-            daemon=True,
-        )
-        thread.start()
-        _server = httpd
-        return int(httpd.server_address[1])
+        try:
+            if bind_addr == _COMPOSE_ADDR:
+                bind_addr = compose_network_ipv4()
+            _SilentHandler.timeout = _METRICS_REQUEST_TIMEOUT_S
+            started = start_http_server(bind_port, addr=bind_addr, registry=REGISTRY)
+            httpd = started[0] if isinstance(started, tuple) else started
+            if httpd is None:
+                raise OSError("metrics server did not return a socket")
+            _server = httpd
+            return int(httpd.server_address[1])
+        except Exception:
+            logger.exception(
+                "metrics server failed to bind %s:%s; continuing without /metrics",
+                bind_addr,
+                bind_port,
+            )
+            return -1
 
 
 def render_metrics(registry: CollectorRegistry = REGISTRY) -> bytes:

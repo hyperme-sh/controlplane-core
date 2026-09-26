@@ -2,24 +2,27 @@
 
 from __future__ import annotations
 
-import os
+import logging
 import uuid
 from pathlib import Path
+from socketserver import ThreadingMixIn
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from prometheus_client.exposition import _SilentHandler
 from prometheus_client.parser import text_string_to_metric_families
 
-os.environ["METRICS_OUTBOX_PROBE"] = "0"
-
-from api.infrastructure.metrics import (  # noqa: E402
+from api.infrastructure import metrics as metrics_mod
+from api.infrastructure.metrics import (
+    clear_heartbeat_snapshot,
+    compose_network_ipv4,
     finish_host_selection,
+    publish_heartbeat_snapshot,
     record_host_selection,
     record_lease,
     record_pricing_round,
     register_cache,
-    register_heartbeat_view,
     register_outbox_probe,
     render_metrics,
     report_outbox,
@@ -27,6 +30,14 @@ from api.infrastructure.metrics import (  # noqa: E402
 )
 
 REPO = Path(__file__).resolve().parents[4]
+
+@pytest.fixture(autouse=True)
+def _outbox_probe_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the DB probe off for the whole test. Do not set the env at import."""
+
+    monkeypatch.setenv("METRICS_OUTBOX_PROBE", "0")
+    register_outbox_probe(None)
+
 
 APP_METRICS_PORTS = {
     "controlplane-edge": 9100,
@@ -119,6 +130,8 @@ def test_metrics_endpoint_renders_red_and_process(monkeypatch: pytest.MonkeyPatc
         'git_sha="abc1234def"' in rendered and 'service="metrics-test"' in rendered
     )
     assert "process_cpu_seconds_total" in rendered or "process_resident_memory_bytes" in rendered
+    assert isinstance(metrics_mod._server, ThreadingMixIn)
+    assert _SilentHandler.timeout == 10.0
 
 
 def test_domain_metrics_increment_without_user_labels() -> None:
@@ -171,7 +184,9 @@ def test_domain_metrics_increment_without_user_labels() -> None:
         register_cache(email)
 
     device_id = str(uuid.uuid4())
-    register_heartbeat_view(lambda: ({device_id: 12.5, email: 9.0}, 3))
+    clear_heartbeat_snapshot()
+    assert "hypermesh_hosts_fresh" not in render_metrics().decode()
+    publish_heartbeat_snapshot({device_id: 12.5, email: 9.0}, 3)
     try:
         assert _sample("hypermesh_hosts_fresh", {}) == 3
         assert _sample(
@@ -179,7 +194,7 @@ def test_domain_metrics_increment_without_user_labels() -> None:
         ) == 12.5
         text = render_metrics().decode()
     finally:
-        register_heartbeat_view(None)
+        clear_heartbeat_snapshot()
     assert device_id in text
     assert email not in text
 
@@ -192,6 +207,55 @@ def test_domain_metrics_increment_without_user_labels() -> None:
     assert _sample("hypermesh_host_selection_total", {"outcome": "grace_wait"}) == grace_before + 1
 
 
+def test_bind_failure_logs_and_returns(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    monkeypatch.setattr(metrics_mod, "_server", None)
+
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise OSError(98, "address already in use")
+
+    monkeypatch.setattr(metrics_mod, "start_http_server", boom)
+    with caplog.at_level(logging.ERROR, logger="api.infrastructure.metrics"):
+        assert start_metrics_server(port=9100, addr="127.0.0.1") == -1
+    assert "continuing without /metrics" in caplog.text
+
+
+def test_compose_addr_skips_wireguard() -> None:
+    addr = compose_network_ipv4(
+        {"lo": "127.0.0.1", "wg-hm": "10.77.0.1", "eth0": "172.18.0.8"}
+    )
+    assert addr == "172.18.0.8"
+    with pytest.raises(OSError):
+        compose_network_ipv4({"lo": "127.0.0.1", "wg-hm": "10.77.0.1"})
+
+
+def test_outbox_probe_is_opt_in_with_statement_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DATABASE_URL", "postgresql://metrics:secret@postgres/controlplane")
+    metrics_mod._maybe_register_outbox_probe()
+    assert metrics_mod._outbox_probe is None
+
+    captured: dict[str, object] = {}
+
+    def fake_engine(url: str, **kwargs: object) -> object:
+        captured["url"] = url
+        captured["kwargs"] = kwargs
+        raise RuntimeError("stop before connect")
+
+    monkeypatch.setenv("METRICS_OUTBOX_PROBE", "1")
+    monkeypatch.setattr(metrics_mod, "_outbox_probe", None)
+    monkeypatch.setattr("sqlalchemy.create_engine", fake_engine)
+    metrics_mod._maybe_register_outbox_probe()
+    probe = metrics_mod._outbox_probe
+    assert probe is not None
+    with pytest.raises(RuntimeError, match="stop before connect"):
+        probe()
+    assert captured["url"] == "postgresql+psycopg://metrics:secret@postgres/controlplane"
+    kwargs = captured["kwargs"]
+    assert isinstance(kwargs, dict)
+    assert kwargs["connect_args"]["connect_timeout"] == 2
+    assert kwargs["connect_args"]["options"] == "-c statement_timeout=2000"
+    register_outbox_probe(None)
+
+
 def test_compose_documents_metrics_ports() -> None:
     dev = (REPO / "docker-compose.yaml").read_text()
     vm = (REPO / "docker-compose.vm.yaml").read_text()
@@ -202,6 +266,20 @@ def test_compose_documents_metrics_ports() -> None:
     for text in (dev, vm):
         assert "127.0.0.1:9000:9000" in text
         assert 'KC_METRICS_ENABLED: "true"' in text
-        assert "127.0.0.1:9187:9187" in text
-        assert "127.0.0.1:9121:9121" in text
         assert "docs/metrics.md" in text
+        assert text.count("METRICS_OUTBOX_PROBE:") == 1
+        assert 'METRICS_OUTBOX_PROBE: "1"' in text
+        assert text.count("METRICS_ADDR: compose") == 1
+        assert "<service>:9100" in text or "compose DNS" in (REPO / "docs/metrics.md").read_text()
+    assert "127.0.0.1:9187:9187" in dev
+    assert "127.0.0.1:9121:9121" in dev
+    assert "v1.67.0-alpine@sha256:ef9e3c9afa9072b8a4db8bc2b01471cd582a6a1db23760bc5fdb9e3c21842205" in dev
+    assert "v0.16.0@sha256:6999a7657e2f2fb0ca6ebf417213eebf6dc7d21b30708c622f6fcb11183a2bb0" in dev
+    assert "127.0.0.1:9187:9187" not in vm
+    assert "127.0.0.1:9121:9121" not in vm
+    assert vm.count('profiles: ["laptop-only"]') == 2
+    docs = (REPO / "docs/metrics.md").read_text()
+    assert "http://<service>:9100/metrics" in docs
+    assert "keycloak:9000" in docs
+    assert "debugging" in docs
+    assert "#253" in docs and "#251" in docs
