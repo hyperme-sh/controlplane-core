@@ -17,6 +17,7 @@ from api.infrastructure import metrics as metrics_mod
 from api.infrastructure.metrics import (
     clear_heartbeat_snapshot,
     compose_network_ipv4,
+    export_read_cache_samples,
     finish_host_selection,
     publish_heartbeat_snapshot,
     record_host_selection,
@@ -324,3 +325,39 @@ def test_compose_documents_metrics_ports() -> None:
     assert "keycloak:9000" in docs
     assert "debugging" in docs
     assert "#253" in docs and "#251" in docs
+
+
+def test_export_read_cache_samples_renders_absolute_counters() -> None:
+    class _Sample:
+        def __init__(
+            self,
+            name: str,
+            labels: tuple[tuple[str, str], ...],
+            value: int,
+        ) -> None:
+            self.name = name
+            self.labels = labels
+            self.value = value
+
+    class _Cache:
+        def samples(self) -> tuple[_Sample, ...]:
+            return (
+                _Sample("hypermesh_read_cache_hits_total", (("scope", "nodes"),), 3),
+                _Sample("hypermesh_read_cache_misses_total", (("scope", "catalog"),), 1),
+                _Sample("hypermesh_read_cache_invalidations_total", (), 2),
+                _Sample("hypermesh_read_cache_hits_total", (("scope", "tenant-flood"),), 9),
+                _Sample("other_total", (), 4),
+            )
+
+    export_read_cache_samples(_Cache())
+    try:
+        assert _sample("hypermesh_read_cache_hits_total", {"scope": "nodes"}) == 3
+        assert _sample("hypermesh_read_cache_misses_total", {"scope": "catalog"}) == 1
+        assert _sample("hypermesh_read_cache_invalidations_total", {}) == 2
+        assert _sample("hypermesh_read_cache_hits_total", {"scope": "tenant-flood"}) == 0
+        assert "other_total" not in render_metrics().decode()
+    finally:
+        export_read_cache_samples(None)
+    text = render_metrics().decode()
+    assert "hypermesh_read_cache_hits_total" not in text
+    assert "hypermesh_read_cache_invalidations_total" not in text
