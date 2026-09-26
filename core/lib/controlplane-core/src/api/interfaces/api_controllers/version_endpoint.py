@@ -1,8 +1,8 @@
 """Unauthenticated build identity for every service process.
 
-The payload is only the four fields callers need to see which image is
-running. It reads build args baked by ghcr-test.yml and the deploy pointer
-compose injects. It does not read tokens, database URLs, or product settings.
+The payload is only the fields callers need to see which image is running.
+It reads the git sha and build time baked into the image. It does not read
+the deploy tag, tokens, database URLs, or product settings.
 """
 
 from __future__ import annotations
@@ -44,20 +44,21 @@ def _digest(value: str) -> str:
 def version_payload(env: Mapping[str, str] | None = None) -> dict[str, str]:
     """Build identity for this process.
 
-    ``PANOPTICON_IMAGE_TAG`` is the sha ``deploy/test`` checked out. Carried
-    images keep the ``GIT_SHA`` of the commit that last built them, so a
-    full git sha in the deploy pointer wins. A mutable tag such as ``test``
-    does not hide the baked sha.
+    ``GIT_SHA`` is the commit that built this image. A carried image keeps
+    that value; retagging it onto a new deploy sha does not change it.
+    ``SOURCE_SHA`` and ``HYPERMESH_SOURCE_SHA`` cover images that only baked
+    the hypermesh source sha. Compose does not inject the deploy sha: that
+    value in every service's environment would change the rendered config
+    hash and recreate the plane on a docs-only move.
     """
 
     source = os.environ if env is None else env
-    baked = (
+    git_sha = (
         _git_sha(_env(source, "GIT_SHA"))
         or _git_sha(_env(source, "SOURCE_SHA"))
         or _git_sha(_env(source, "HYPERMESH_SOURCE_SHA"))
+        or "unknown"
     )
-    deployed = _git_sha(_env(source, "PANOPTICON_IMAGE_TAG"))
-    git_sha = deployed or baked or "unknown"
 
     service = _env(source, "SERVICE_NAME").lower()
     if not _SERVICE.fullmatch(service):
