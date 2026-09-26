@@ -41,12 +41,10 @@ from api.interfaces.api_controllers.branding_endpoint import router as branding_
 from api.common.logging import configure_logging
 from api.core.config import settings
 from api.infrastructure.messaging.tenant_event_publisher import (
-    KafkaTenantEventPublisher,
-    NoOpTenantEventPublisher,
-    set_tenant_event_publisher,
+    install_tenant_event_publisher,
+    shutdown_tenant_event_publisher,
 )
 from api.infrastructure.persistence.seeder import seed_initial_data
-from controlplane_events import AioKafkaEventProducer
 
 build_path = os.path.join(os.path.dirname(__file__), "ui")
 
@@ -64,22 +62,7 @@ async def lifespan(app: FastAPI):
     configure_session_maker(maker)
     await seed_initial_data()
 
-    kafka_producer: AioKafkaEventProducer | None = None
-    if settings.kafka_bootstrap_servers:
-        kafka_producer = AioKafkaEventProducer(
-            settings.kafka_bootstrap_servers,
-            client_id=f"{settings.service_name}-events",
-        )
-        await kafka_producer.start()
-        set_tenant_event_publisher(
-            KafkaTenantEventPublisher(
-                kafka_producer,
-                settings.kafka_events_topic,
-                settings.service_name,
-            )
-        )
-    else:
-        set_tenant_event_publisher(NoOpTenantEventPublisher())
+    await install_tenant_event_publisher(service_name=settings.service_name)
 
     async with AsyncExitStack() as stack:
         try:
@@ -99,9 +82,7 @@ async def lifespan(app: FastAPI):
 
         yield
 
-    set_tenant_event_publisher(None)
-    if kafka_producer is not None:
-        await kafka_producer.stop()
+    await shutdown_tenant_event_publisher()
     if _async_engine is not None:
         await _async_engine.dispose()
 

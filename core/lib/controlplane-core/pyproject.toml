@@ -39,6 +39,11 @@ dependencies = [
     "webauthn>=2.7.0",
 ]
 
+[project.optional-dependencies]
+servicebus = [
+    "azure-servicebus>=7.12.0",
+]
+
 [tool.uv.sources]
 controlplane-db = { workspace = true }
 controlplane-events = { workspace = true }
