@@ -25,6 +25,7 @@ from api.interfaces.api_controllers.permissions_endpoint import router as permis
 from api.interfaces.api_controllers.dashboard_endpoint import router as dashboard_router
 from api.interfaces.api_controllers.ai_endpoint import router as ai_router
 from api.interfaces.api_controllers.health_endpoint import router as health_router
+from api.interfaces.api_controllers.version_endpoint import router as version_router
 from api.interfaces.api_controllers.manage_security_endpoint import router as manage_security_router
 from api.interfaces.api_controllers.features_endpoint import router as features_router
 from api.interfaces.api_controllers.product_endpoint import router as product_router
@@ -194,6 +195,8 @@ router.include_router(sso_router)
 
 
 app.include_router(router)
+# Build identity. Registered before the catch-all so /version is not swallowed.
+app.include_router(version_router)
 
 # Gateway: CORS, auth, rate limits, optional OTEL (before OpenAPI/GraphQL mounts).
 try:
