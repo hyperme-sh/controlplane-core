@@ -148,7 +148,11 @@ class Settings(BaseSettings):
             "controlplane-m2m,controlplane-api-key,hypermesh-native"
         ),
         validation_alias="KEYCLOAK_ALLOWED_CLIENT_IDS",
-        description="Comma-separated Keycloak client ids allowed in access-token azp (public + M2M).",
+        description=(
+            "Comma-separated Keycloak client ids allowed in access-token azp (public + M2M). "
+            "The default includes hypermesh-native. Set KEYCLOAK_ALLOWED_CLIENT_IDS without "
+            "that id to revoke the visor/CLI client. Application code does not add it back."
+        ),
     )
     keycloak_allowed_audiences: str = Field(
         default="account",
@@ -371,8 +375,6 @@ class Settings(BaseSettings):
         ids = {x.strip() for x in self.keycloak_allowed_client_ids.split(",") if x.strip()}
         if self.keycloak_client_id:
             ids.add(self.keycloak_client_id.strip())
-        # Visor/CLI client. The test refresh script's env list can predate it.
-        ids.add("hypermesh-native")
         return frozenset(ids)
 
     def keycloak_allowed_audience_set(self) -> frozenset[str]:
