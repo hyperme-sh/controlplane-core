@@ -31,7 +31,7 @@ from prometheus_client import (
     start_http_server,
 )
 from prometheus_client import exposition as _exposition
-from prometheus_client.core import GaugeMetricFamily
+from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
@@ -152,6 +152,25 @@ CACHE_LOOKUPS = Counter(
 )
 
 _heartbeat_lock = threading.Lock()
+_read_cache_lock = threading.Lock()
+# None until hypermesh registers its in-process listing cache. Absence means
+# the read-cache series are omitted, not reported as zero.
+_read_cache_source: object | None = None
+_READ_CACHE_SCOPES = frozenset({"nodes", "hosts", "catalog", "classes"})
+_READ_CACHE_METRICS: dict[str, tuple[str, tuple[str, ...]]] = {
+    "hypermesh_read_cache_hits_total": (
+        "Public listing cache hits by scope.",
+        ("scope",),
+    ),
+    "hypermesh_read_cache_misses_total": (
+        "Public listing cache misses by scope.",
+        ("scope",),
+    ),
+    "hypermesh_read_cache_invalidations_total": (
+        "Public listing cache invalidations on this replica.",
+        (),
+    ),
+}
 # None until the fleet-health loop publishes. Each row is
 # (device_id, last_heartbeat_unix, stale_after_seconds). Absence is not a
 # fresh count of 0. Age is computed in collect(), not stored.
@@ -256,12 +275,82 @@ class _OutboxCollector:
         yield dead_family
 
 
+class _ReadCacheCollector:
+    """Export ``InProcessTtlCache.samples()`` without importing the cache.
+
+    Values are absolute counters from the cache, not increments. Scope labels
+    stay on the fixed public-listing set. An unregistered cache omits the series.
+    """
+
+    def collect(self):
+        with _read_cache_lock:
+            source = _read_cache_source
+        if source is None:
+            return
+        try:
+            samples = source.samples()
+        except Exception:
+            logger.exception("read cache metrics sample failed")
+            return
+        grouped: dict[str, dict[tuple[str, ...], float]] = {
+            name: {} for name in _READ_CACHE_METRICS
+        }
+        for sample in samples:
+            spec = _READ_CACHE_METRICS.get(getattr(sample, "name", ""))
+            if spec is None:
+                continue
+            label_names = spec[1]
+            raw_labels = tuple(getattr(sample, "labels", ()) or ())
+            if len(raw_labels) != len(label_names):
+                continue
+            names_match = all(
+                pair[0] == expected
+                for pair, expected in zip(raw_labels, label_names, strict=True)
+            )
+            if not names_match:
+                continue
+            values = tuple(pair[1] for pair in raw_labels)
+            if label_names == ("scope",) and values[0] not in _READ_CACHE_SCOPES:
+                continue
+            try:
+                value = float(sample.value)
+            except (TypeError, ValueError):
+                continue
+            if value < 0:
+                continue
+            grouped[sample.name][values] = value
+        for name, (help_text, label_names) in _READ_CACHE_METRICS.items():
+            rows = grouped[name]
+            if not rows:
+                continue
+            if label_names:
+                family = CounterMetricFamily(name, help_text, labels=label_names)
+            else:
+                family = CounterMetricFamily(name, help_text)
+            for label_values, value in sorted(rows.items()):
+                family.add_metric(list(label_values), value)
+            yield family
+
+
+def export_read_cache_samples(cache: object | None) -> None:
+    """Publish ``cache.samples()`` on the next scrape. ``None`` omits the series.
+
+    ``cache`` is the hypermesh in-process listing cache. This module does not
+    import it. A second call replaces the previous source.
+    """
+
+    global _read_cache_source
+    with _read_cache_lock:
+        _read_cache_source = cache
+
+
 def _ensure_collectors() -> None:
     global _collectors_ready
     if _collectors_ready:
         return
     REGISTRY.register(_HeartbeatCollector())
     REGISTRY.register(_OutboxCollector())
+    REGISTRY.register(_ReadCacheCollector())
     _collectors_ready = True
 
 
