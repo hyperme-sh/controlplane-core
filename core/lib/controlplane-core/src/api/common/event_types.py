@@ -1,4 +1,4 @@
-"""Versioned event_type strings for Kafka envelopes."""
+"""Versioned event_type strings for control-plane event envelopes."""
 
 TENANT_CREATED_V1 = "tenant.created.v1"
 USER_CREATED_V1 = "user.created.v1"

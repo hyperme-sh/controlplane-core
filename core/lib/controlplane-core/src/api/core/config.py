@@ -6,8 +6,6 @@ from dotenv import load_dotenv
 from pydantic import AliasChoices, EmailStr, ConfigDict, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
-from controlplane_events.topics import CONTROLPLANE_EVENTS_V1
-
 load_dotenv()
 
 class Settings(BaseSettings):
@@ -84,26 +82,22 @@ class Settings(BaseSettings):
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
 
-    # Kafka (optional leftover local bus; unset = no-op unless Service Bus is set)
-    kafka_bootstrap_servers: str | None = Field(
-        default=None,
-        validation_alias="KAFKA_BOOTSTRAP_SERVERS",
-    )
-    kafka_events_topic: str = CONTROLPLANE_EVENTS_V1
+    # Domain events default to the Postgres controlplane_events table.
+    # Service Bus is an optional Azure transport on the same publish() protocol.
     azure_service_bus_connection_string: str | None = Field(
         default=None,
         validation_alias="AZURE_SERVICE_BUS_CONNECTION_STRING",
         description=(
-            "Production bus for controlplane.events.v1. When set, prefer Service Bus "
-            "over leftover local Kafka. Do not put prompt bodies on this bus."
+            "Optional Azure Service Bus connection string for controlplane.events.v1. "
+            "Unset uses the Postgres events table. Do not put prompt bodies on this bus."
         ),
     )
     azure_service_bus_subscription: str | None = Field(
         default=None,
         validation_alias="AZURE_SERVICE_BUS_SUBSCRIPTION",
         description=(
-            "Service Bus subscription on controlplane.events.v1. "
-            "Unset uses the service consumer group name."
+            "Ignored. Each consumer's Service Bus subscription is its group id. "
+            "Do not set one shared AZURE_SERVICE_BUS_SUBSCRIPTION."
         ),
     )
     service_name: str = Field(
@@ -111,13 +105,6 @@ class Settings(BaseSettings):
         validation_alias="SERVICE_NAME",
         description="Identifies the process in event envelopes (gateway, user-service, …)",
     )
-
-    @field_validator("kafka_bootstrap_servers", mode="before")
-    @classmethod
-    def _empty_kafka_none(cls, v: object) -> object:
-        if v == "":
-            return None
-        return v
 
     @field_validator("azure_service_bus_connection_string", mode="before")
     @classmethod
