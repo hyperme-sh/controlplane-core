@@ -10,7 +10,7 @@ from socketserver import ThreadingMixIn
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from prometheus_client.exposition import _SilentHandler
+from prometheus_client import exposition as prometheus_exposition
 from prometheus_client.parser import text_string_to_metric_families
 
 from api.infrastructure import metrics as metrics_mod
@@ -131,7 +131,9 @@ def test_metrics_endpoint_renders_red_and_process(monkeypatch: pytest.MonkeyPatc
     )
     assert "process_cpu_seconds_total" in rendered or "process_resident_memory_bytes" in rendered
     assert isinstance(metrics_mod._server, ThreadingMixIn)
-    assert _SilentHandler.timeout == 10.0
+    handler = getattr(prometheus_exposition, "_SilentHandler", None)
+    assert handler is not None, "prometheus_client._SilentHandler missing; socket timeout cannot be set"
+    assert handler.timeout == 10.0
 
 
 def test_domain_metrics_increment_without_user_labels() -> None:
@@ -186,12 +188,14 @@ def test_domain_metrics_increment_without_user_labels() -> None:
     device_id = str(uuid.uuid4())
     clear_heartbeat_snapshot()
     assert "hypermesh_hosts_fresh" not in render_metrics().decode()
-    publish_heartbeat_snapshot({device_id: 12.5, email: 9.0}, 3)
+    seen = metrics_mod.time.time() - 12.5
+    publish_heartbeat_snapshot({device_id: (seen, 180.0), email: (seen, 180.0)})
     try:
-        assert _sample("hypermesh_hosts_fresh", {}) == 3
-        assert _sample(
+        assert _sample("hypermesh_hosts_fresh", {}) == 1
+        age = _sample(
             "hypermesh_host_heartbeat_age_seconds", {"device_id": device_id}
-        ) == 12.5
+        )
+        assert 12.5 <= age < 20
         text = render_metrics().decode()
     finally:
         clear_heartbeat_snapshot()
@@ -205,6 +209,43 @@ def test_domain_metrics_increment_without_user_labels() -> None:
     note_host_selection("grace_wait")
     finish_host_selection(409)
     assert _sample("hypermesh_host_selection_total", {"outcome": "grace_wait"}) == grace_before + 1
+
+
+def test_heartbeat_age_grows_at_scrape_without_a_new_publish(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stalled fleet-health loop still moves the age gauge past 180s."""
+
+    device_id = str(uuid.uuid4())
+    clear_heartbeat_snapshot()
+    seen = 1_700_000_000.0
+    clock = {"now": seen + 100.0}
+    monkeypatch.setattr(metrics_mod.time, "time", lambda: clock["now"])
+    publish_heartbeat_snapshot({device_id: (seen, 180.0)})
+    try:
+        assert _sample(
+            "hypermesh_host_heartbeat_age_seconds", {"device_id": device_id}
+        ) == 100.0
+        assert _sample("hypermesh_hosts_fresh", {}) == 1
+        clock["now"] = seen + 181.0
+        assert _sample(
+            "hypermesh_host_heartbeat_age_seconds", {"device_id": device_id}
+        ) == 181.0
+        assert _sample("hypermesh_hosts_fresh", {}) == 0
+    finally:
+        clear_heartbeat_snapshot()
+
+
+def test_missing_silent_handler_skips_the_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A prometheus_client release that drops the private handler must not raise."""
+
+    monkeypatch.delattr(prometheus_exposition, "_SilentHandler", raising=False)
+    with caplog.at_level(logging.WARNING, logger="api.infrastructure.metrics"):
+        metrics_mod._apply_handler_timeout()
+    assert "metrics socket timeout not set" in caplog.text
 
 
 def test_bind_failure_logs_and_returns(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:

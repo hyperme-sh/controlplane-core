@@ -30,8 +30,8 @@ from prometheus_client import (
     generate_latest,
     start_http_server,
 )
+from prometheus_client import exposition as _exposition
 from prometheus_client.core import GaugeMetricFamily
-from prometheus_client.exposition import _SilentHandler
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
@@ -152,8 +152,10 @@ CACHE_LOOKUPS = Counter(
 )
 
 _heartbeat_lock = threading.Lock()
-# None until the fleet-health loop publishes. Absence is not a fresh count of 0.
-_heartbeat_snapshot: tuple[tuple[tuple[str, float], ...], int] | None = None
+# None until the fleet-health loop publishes. Each row is
+# (device_id, last_heartbeat_unix, stale_after_seconds). Absence is not a
+# fresh count of 0. Age is computed in collect(), not stored.
+_heartbeat_snapshot: tuple[tuple[str, float, float], ...] | None = None
 _outbox_lock = threading.Lock()
 _outbox_probe: Callable[[], tuple[int, int]] | None = None
 _outbox_depth = 0
@@ -191,27 +193,37 @@ class _CacheRecorder:
 
 
 class _HeartbeatCollector:
-    """Read the snapshot the fleet-health loop published. Do not touch the store."""
+    """Read the snapshot the fleet-health loop published. Do not touch the store.
+
+    Age is ``now - last_heartbeat``. A stalled publisher still shows a growing
+    age, so the 180s alert can fire without another loop tick.
+    """
 
     def collect(self):
         with _heartbeat_lock:
             snap = _heartbeat_snapshot
         if snap is None:
             return
-        ages, fresh = snap
+        now = time.time()
+        fresh = 0
+        age_family = GaugeMetricFamily(
+            "hypermesh_host_heartbeat_age_seconds",
+            "Seconds since the host's last heartbeat.",
+            labels=("device_id",),
+        )
+        for device_id, seen_unix, stale_after_s in snap:
+            age = now - seen_unix
+            if age < 0:
+                age = 0.0
+            if age <= stale_after_s:
+                fresh += 1
+            age_family.add_metric([device_id], age)
         fresh_family = GaugeMetricFamily(
             "hypermesh_hosts_fresh",
             "Hosts whose last heartbeat is inside the stale window.",
         )
         fresh_family.add_metric([], float(fresh))
         yield fresh_family
-        age_family = GaugeMetricFamily(
-            "hypermesh_host_heartbeat_age_seconds",
-            "Seconds since the host's last heartbeat.",
-            labels=("device_id",),
-        )
-        for device_id, seconds in ages:
-            age_family.add_metric([device_id], seconds)
         yield age_family
 
 
@@ -409,30 +421,32 @@ def record_pricing_round(*, failed: bool) -> None:
     PRICING_LAST_SUCCESS.set(time.time())
 
 
-def publish_heartbeat_snapshot(ages: Mapping[str, float], fresh: int) -> None:
-    """Publish an immutable heartbeat snapshot for the scrape thread.
+def publish_heartbeat_snapshot(heartbeats: Mapping[str, tuple[float, float]]) -> None:
+    """Publish last-heartbeat timestamps for the scrape thread.
 
+    ``heartbeats`` maps a device id to ``(last_heartbeat_unix, stale_after_seconds)``.
     Call this from the fleet-health loop, on the thread that mutates the
-    store. The collector only reads the copy under ``_heartbeat_lock``.
-    Non-UUID device ids are dropped here. A later failed snapshot must not
-    call this with zeros; leave the previous copy in place.
+    store. The collector only reads the copy under ``_heartbeat_lock`` and
+    computes age at scrape time. Non-UUID device ids are dropped here. A
+    later failed snapshot must not call this; leave the previous copy in place.
     """
 
-    frozen: list[tuple[str, float]] = []
-    for device_id, age in ages.items():
+    frozen: list[tuple[str, float, float]] = []
+    for device_id, row in heartbeats.items():
         if not isinstance(device_id, str) or _DEVICE_ID.fullmatch(device_id) is None:
             continue
         try:
-            seconds = float(age)
-        except (TypeError, ValueError):
+            seen_unix = float(row[0])
+            stale_after_s = float(row[1])
+        except (TypeError, ValueError, IndexError):
             continue
-        if seconds < 0:
-            seconds = 0.0
-        frozen.append((device_id, seconds))
+        if stale_after_s < 0:
+            stale_after_s = 0.0
+        frozen.append((device_id, seen_unix, stale_after_s))
     frozen.sort()
     with _heartbeat_lock:
         global _heartbeat_snapshot
-        _heartbeat_snapshot = (tuple(frozen), int(fresh))
+        _heartbeat_snapshot = tuple(frozen)
 
 
 def clear_heartbeat_snapshot() -> None:
@@ -597,6 +611,25 @@ def compose_network_ipv4(ifaces: Mapping[str, str] | None = None) -> str:
     return chosen[0][1]
 
 
+def _apply_handler_timeout() -> None:
+    """Set a socket timeout on the library's silent handler when that class exists.
+
+    ``_SilentHandler`` is private. A release that drops it must not make this
+    module fail to import; scrapes then have no per-connection timeout.
+    """
+
+    handler = getattr(_exposition, "_SilentHandler", None)
+    if handler is None:
+        logger.warning(
+            "prometheus_client has no _SilentHandler; metrics socket timeout not set"
+        )
+        return
+    try:
+        handler.timeout = _METRICS_REQUEST_TIMEOUT_S
+    except Exception:
+        logger.exception("metrics handler timeout was not applied")
+
+
 def start_metrics_server(port: int | None = None, addr: str | None = None) -> int:
     """Serve ``GET /metrics`` on a threaded daemon server. Returns the bound port.
 
@@ -620,7 +653,7 @@ def start_metrics_server(port: int | None = None, addr: str | None = None) -> in
         try:
             if bind_addr == _COMPOSE_ADDR:
                 bind_addr = compose_network_ipv4()
-            _SilentHandler.timeout = _METRICS_REQUEST_TIMEOUT_S
+            _apply_handler_timeout()
             started = start_http_server(bind_port, addr=bind_addr, registry=REGISTRY)
             httpd = started[0] if isinstance(started, tuple) else started
             if httpd is None:
