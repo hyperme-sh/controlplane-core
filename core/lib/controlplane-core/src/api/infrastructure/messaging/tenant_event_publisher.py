@@ -30,6 +30,7 @@ from controlplane_events import (
 )
 from controlplane_events.routing_consumer import Handler
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 logger = logging.getLogger(__name__)
 
@@ -371,8 +372,14 @@ def build_routing_consumer(
     client_id: str,
     service_bus_connection_string: str | None = None,
     service_bus_subscription: str | None = None,
+    engine: AsyncEngine | None = None,
+    auto_offset_reset: str = "earliest",
 ) -> RoutingControlPlaneConsumer | ServiceBusRoutingConsumer:
-    """Postgres poller, or Service Bus when the connection string is set."""
+    """Postgres poller, or Service Bus when the connection string is set.
+
+    ``engine`` is the caller's pool. The Postgres consumer borrows it and
+    does not dispose it. Service Bus ignores the engine.
+    """
 
     if service_bus_connection_string:
         receiver = AzureServiceBusReceiver(
@@ -387,6 +394,8 @@ def build_routing_consumer(
         group_id,
         routes,
         client_id=client_id,
+        auto_offset_reset=auto_offset_reset,
+        engine=engine,
     )
 
 
