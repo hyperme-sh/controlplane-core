@@ -6,6 +6,18 @@ Shared API infrastructure, authentication, tenant context, persistence helpers, 
 ## Public interface
 The exact public Python modules are the `api` entries in [`scripts/import_boundaries.json`](../../../scripts/import_boundaries.json).
 The contract is exact-module based, not permission to import every descendant.
+Declared modules: `api.common.event_types`, `api.common.exceptions`, `api.common.internal_token`,
+`api.common.logging`, `api.common.person_bind`, `api.common.portal_controls`, `api.common.utils`,
+`api.core`, `api.core.config`, `api.domain.enum.permission`, `api.domain.operator.audit`,
+`api.domain.operator.bans`, `api.domain.operator.claims`, `api.domain.operator.doors`,
+`api.domain.operator.mail`, `api.domain.operator.plugins`,
+`api.infrastructure.externals.api_keys_client`, `api.infrastructure.messaging`,
+`api.infrastructure.messaging.tenant_event_publisher`, `api.infrastructure.metrics`,
+`api.infrastructure.persistence.db_session`, `api.infrastructure.persistence.tenant_guc`,
+`api.infrastructure.persistence.tenant_membership`, `api.infrastructure.security`,
+`api.infrastructure.security.api_key_exchange_jwt`, `api.infrastructure.security.keycloak_jwt`,
+`api.infrastructure.security.tenant_session_jwt`, `api.infrastructure.service_cors`,
+`api.interfaces.api_controllers.health_endpoint`, `api.interfaces.api_controllers.version_endpoint`.
 
 ## Source of truth
 Start with [../../../Design.md](../../../Design.md) and the package's source/tests. Repository dependency policy: [../../../AGENTS.md](../../../AGENTS.md).
