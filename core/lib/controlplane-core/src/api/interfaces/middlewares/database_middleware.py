@@ -30,6 +30,10 @@ logger = get_logger(__name__)
 
 
 def get_tenant_host(request: Request) -> Optional[str]:
+    # Health probes identify the service, not a tenant. HAProxy uses the
+    # container IP as Host; keep the normal DB session and readiness checks.
+    if request.url.path in {"/api/v1/health", "/api/v1/health/"}:
+        return None
     host = (
         request.headers.get(":authority")
         or request.headers.get("host")
