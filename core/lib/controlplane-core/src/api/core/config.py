@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     # Deployment declares the smoke identity and workflow; core owns verification.
     smoke_oidc_enable_env: str = "HYPERMESH_SMOKE_OIDC"
     smoke_session_route: str = "/hypermesh-smoke/session"
+    # Compatibility metadata only; smoke authorization always uses a fixed marker.
     smoke_session_claim: str = "hypermesh_smoke"
     smoke_session_username: str = "hypermesh-smoke"
     smoke_oidc_audience: str = "hypermesh-gateway-smoke"
