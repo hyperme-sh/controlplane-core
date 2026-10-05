@@ -132,7 +132,7 @@ class Settings(BaseSettings):
     keycloak_allowed_client_ids: str = Field(
         default=(
             "controlplane-frontend,controlplane-mobile,controlplane-device,"
-            "controlplane-m2m,controlplane-api-key,hypermesh-native"
+            "controlplane-m2m,controlplane-api-key,hypermesh-native,hypermesh-host-setup"
         ),
         validation_alias="KEYCLOAK_ALLOWED_CLIENT_IDS",
         description=(
