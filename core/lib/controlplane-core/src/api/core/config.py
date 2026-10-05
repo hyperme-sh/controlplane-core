@@ -14,9 +14,35 @@ class Settings(BaseSettings):
         env_file_encoding = "utf-8",
         extra="allow"
     )
+    @field_validator("smoke_session_claim")
+    @classmethod
+    def smoke_marker_is_a_separate_claim(cls, value: str) -> str:
+        reserved = {"sub", "iss", "aud", "exp", "iat", "nbf", "jti", "azp", "email",
+                    "preferred_username", "tenant_id", "permissions", "realm_access",
+                    "groups", "scope", "amr", "panopticon_auth", "purpose", "host_org_id",
+                    "https://panopticon.dev/tenant_id"}
+        if not value.strip() or value != value.strip() or value in reserved:
+            raise ValueError("Smoke session marker must be a separate nonempty claim")
+        return value
+
     database_url: str = (
         "postgresql+asyncpg://controlplane:controlplane123@localhost:5432/controlplane"
     )
+
+    # Deployment declares the smoke identity and workflow; core owns verification.
+    smoke_oidc_enable_env: str = "HYPERMESH_SMOKE_OIDC"
+    smoke_session_route: str = "/hypermesh-smoke/session"
+    smoke_session_claim: str = "hypermesh_smoke"
+    smoke_session_username: str = "hypermesh-smoke"
+    smoke_oidc_audience: str = "hypermesh-gateway-smoke"
+    smoke_oidc_repository: str = "FyberLabs/panopticon"
+    smoke_oidc_environment: str = "test"
+    smoke_oidc_subject: str = "repo:FyberLabs/panopticon:environment:test"
+    smoke_oidc_workflow_path: str = "FyberLabs/panopticon/.github/workflows/hypermesh-gateway-smoke.yml"
+    smoke_oidc_ref: str = "refs/heads/main"
+    smoke_session_email: str = "hypermesh-smoke@test.hyperme.sh"
+    smoke_session_subject: str = "c0ffee00-5a0e-4000-8000-0000000005a0"
+    hypermesh_url: str = "http://127.0.0.1:8010"
 
     jwt_secret: str = "dev-jwt-secret-change-me"
     access_token_expire_minutes: int = 15
