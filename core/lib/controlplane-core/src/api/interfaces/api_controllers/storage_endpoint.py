@@ -1,12 +1,12 @@
 from uuid import UUID
 from typing import List
 from fastapi import APIRouter, Depends, status
-from api.common.exceptions import NotFoundException
-from api.common.utils import get_logger
+from controlplane_api.exceptions import NotFoundException
+from controlplane_api.utils import get_logger
 from api.core.container import get_storage_settings_service
 from api.domain.dtos.storage_settings_dto import AvailableStorageProviderDto, StorageSettingsDto
 from api.domain.entities.storage_settings import StorageProvider
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.infrastructure.security.current_user import CurrentUser
 from api.interfaces.security.role_checker import check_permissions_for_current_role
 from api.usecases.storage_settings_service import StorageSettingsService

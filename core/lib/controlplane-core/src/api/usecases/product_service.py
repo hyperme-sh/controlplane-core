@@ -1,4 +1,4 @@
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.core.exceptions import ProductException, ProductNotFoundException
 from api.domain.dtos.product_dto import CreateProductDto, ProductDto, ProductListDto
 from api.domain.entities.stripe_settings import ScopeType

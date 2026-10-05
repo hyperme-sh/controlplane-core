@@ -3,10 +3,10 @@ from fastapi import APIRouter, Depends, status
 
 from api.common.dtos.download_dto import DownloadResponseDto
 from api.common.dtos.worker_dto import WorkerPayloadDto
-from api.common.exceptions import InvalidOperationException
+from controlplane_api.exceptions import InvalidOperationException
 from api.core.container import get_audit_logs_service
-from api.domain.dtos.audit_logs_dto import AuditActionType, AuditLogListDto, DownloadAuditRequestDto
-from api.domain.enum.permission import Permission
+from controlplane_api.dtos.audit import AuditActionType, AuditLogListDto, DownloadAuditRequestDto
+from controlplane_api.permissions import Permission
 from api.infrastructure.security.current_user import CurrentUser
 from api.interfaces.security.role_checker import check_permissions_for_current_role
 from api.usecases.audit_logs_service import AuditLogsService

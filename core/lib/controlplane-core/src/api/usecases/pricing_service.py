@@ -1,4 +1,4 @@
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.core.exceptions import PricingException
 from api.domain.dtos.pricing_dto import CreatePricingDto, PricingListDto, UpdatePricingDto
 from api.domain.entities.stripe_settings import ScopeType

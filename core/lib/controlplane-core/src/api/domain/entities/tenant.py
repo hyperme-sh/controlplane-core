@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from pydantic import AfterValidator, BaseModel
 from controlplane_db.models import Tenant
 
-from api.common.utils import get_host_main_domain_name
+from controlplane_api.utils import get_host_main_domain_name
 from api.core.exceptions import InvalidCustomDomainException, InvalidSubdomainException
 from api.domain.enum.feature import Feature as FeatureEnum
 

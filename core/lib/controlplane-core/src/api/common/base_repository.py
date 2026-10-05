@@ -6,7 +6,7 @@ from typing import Any, Dict, Generic, List, Optional, TypeVar
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.infrastructure.persistence.db_session import get_db_session
 
 logger = get_logger(__name__)

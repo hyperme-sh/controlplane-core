@@ -1,9 +1,9 @@
 from typing import List
 from fastapi import APIRouter, Depends, status
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.core.container import get_sso_settings_service
 from api.domain.dtos.sso_settings_dto import CreateSSOSettingsDto, ReadSSOSettingsDto, SSOSettingsListDto, SSOSettingsResponseDto, UpdateSSOSettingsDto
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.infrastructure.security.current_user import CurrentUser
 from api.interfaces.security.role_checker import check_permissions_for_current_role
 from api.usecases.sso_settings_service import SSOSettingsService

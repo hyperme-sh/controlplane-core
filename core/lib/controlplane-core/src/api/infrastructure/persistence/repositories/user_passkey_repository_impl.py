@@ -7,8 +7,8 @@ from typing import Any, Literal, Optional
 
 from api.common.audit_logs_repository import AuditLogRepository
 from api.common.base_repository import BaseRepository
-from api.common.utils import get_logger, get_utc_now
-from api.domain.dtos.audit_logs_dto import AuditLogDto
+from controlplane_api.utils import get_logger, get_utc_now
+from controlplane_api.dtos.audit import AuditLogDto
 from api.domain.entities.user_passkey import Challenges, UserPasskey
 from api.domain.serialization import parse_uuid
 

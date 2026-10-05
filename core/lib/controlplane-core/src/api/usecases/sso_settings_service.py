@@ -2,8 +2,8 @@ from typing import List
 
 from typing_extensions import get_args
 
-from api.common.exceptions import NotFoundException
-from api.common.utils import get_logger, get_sso_redirect_uri
+from controlplane_api.exceptions import NotFoundException
+from controlplane_api.utils import get_logger, get_sso_redirect_uri
 from api.domain.dtos.sso_settings_dto import (
     CreateSSOSettingsDto,
     ReadSSOSettingsDto,

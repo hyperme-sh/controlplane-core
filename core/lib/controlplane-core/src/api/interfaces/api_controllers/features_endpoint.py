@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Depends
 from api.domain.enum.feature import Feature as FeatureEnum
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.interfaces.security.role_checker import check_permissions_for_current_role
 
 router = APIRouter(prefix="/features")

@@ -2,9 +2,9 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from api.common.exceptions import InvalidOperationException, UnauthorizedException
+from controlplane_api.exceptions import InvalidOperationException, UnauthorizedException
 from api.common.security import bearer_token_optional, bearer_token_required
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.domain.dtos.auth_dto import MeResponseDto
 from api.domain.dtos.role_dto import role_from_row
 from api.domain.dtos.user_dto import user_from_row

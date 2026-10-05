@@ -1,5 +1,5 @@
 import stripe
-from api.core.config import settings
+from controlplane_api.config import settings
 
 from api.core.exceptions import StripeSettingsNotFoundException
 from api.domain.entities.stripe_settings import ScopeType

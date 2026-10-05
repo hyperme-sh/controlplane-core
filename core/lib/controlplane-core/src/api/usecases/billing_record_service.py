@@ -1,8 +1,8 @@
 import uuid
 from typing import Any, Literal, Optional
 
-from api.common.event_types import BILLING_RECORD_CREATED_V1
-from api.common.utils import get_logger
+from controlplane_api.event_types import BILLING_RECORD_CREATED_V1
+from controlplane_api.utils import get_logger
 from api.domain.serialization import parse_uuid
 from api.infrastructure.messaging.tenant_event_publisher import (
     get_tenant_event_publisher,

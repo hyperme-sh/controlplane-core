@@ -26,7 +26,7 @@ from webauthn.helpers.structs import (
 import base64
 
 from api.common.dtos.passkey_rep_dto import PasskeyRepDto
-from api.common.utils import get_logger, get_host_main_domain_name, get_app_title, get_utc_now
+from controlplane_api.utils import get_logger, get_host_main_domain_name, get_app_title, get_utc_now
 from api.core.exceptions import PassKeyException
 from api.domain.dtos.user_dto import UserDto
 from api.domain.entities.user_passkey import Credential

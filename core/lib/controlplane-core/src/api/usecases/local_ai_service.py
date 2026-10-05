@@ -5,7 +5,7 @@ from typing import List
 
 from sqlalchemy import desc, select
 
-from api.common.utils import get_logger, get_utc_now
+from controlplane_api.utils import get_logger, get_utc_now
 from api.domain.dtos.ai_dto import AIHistoriesDto, AISessionByUserIdDto
 from api.domain.entities.ai import ChatHistoryAI, ChatSessionAI
 from api.domain.serialization import serialize_chat_history, serialize_chat_session

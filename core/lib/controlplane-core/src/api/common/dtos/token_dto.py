@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, EmailStr, field_serializer
 
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.domain.dtos.role_dto import RoleDto
 
 logger = get_logger(__name__)

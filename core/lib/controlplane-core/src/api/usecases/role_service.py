@@ -1,7 +1,7 @@
 import uuid
 
 from sqlalchemy import select
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.core.exceptions import RoleAlreadyExistsException, RoleNotFoundException
 from api.domain.dtos.role_dto import CreateRoleDto, RoleListDto, UpdateRoleDto
 from api.domain.entities.role import Role

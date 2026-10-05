@@ -9,11 +9,11 @@ from sqlalchemy.exc import IntegrityError
 
 from api.common.audit_logs_repository import AuditLogRepository
 from api.common.base_repository import BaseRepository
-from api.common.utils import get_logger
-from api.domain.dtos.audit_logs_dto import AuditLogDto
+from controlplane_api.utils import get_logger
+from controlplane_api.dtos.audit import AuditLogDto
 from api.domain.dtos.role_dto import CreateRoleDto, RoleDto, RoleListDto, UpdateRoleDto
 from api.domain.entities.role import Role
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.domain.serialization import parse_uuid, serialize_role
 
 logger = get_logger(__name__)

@@ -5,7 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, status
 from fastapi.responses import StreamingResponse
 
 from api.common.dtos.new_session_dto import NewSessionResponseDto
-from api.common.exceptions import InvalidOperationException
+from controlplane_api.exceptions import InvalidOperationException
 from api.core.container import get_local_ai_service, get_user_preference_service
 from api.domain.dtos.ai_dto import AIAskRequestDto, AIModelInfoDto, AIHistoriesDto
 from api.infrastructure.security.current_user import CurrentUser

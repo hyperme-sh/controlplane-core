@@ -3,11 +3,11 @@ from redis.asyncio import Redis, from_url
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 from fastapi import Request
-from api.common.utils import get_logger
-from api.core.config import settings
+from controlplane_api.utils import get_logger
+from controlplane_api.config import settings
 
 from api.core.container import get_role_service, get_user_service, get_subscription_plan_service
-from api.infrastructure.metrics import register_cache
+from controlplane_api.metrics import register_cache
 from api.infrastructure.security.current_user import resolve_me_optional_from_token
 
 logger = get_logger(__name__)

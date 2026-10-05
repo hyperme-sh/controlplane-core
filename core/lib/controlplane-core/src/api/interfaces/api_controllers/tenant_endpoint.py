@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, status
 
 from api.common.dtos.worker_dto import WorkerPayloadDto
-from api.common.exceptions import ApiBaseException, InvalidOperationException
-from api.common.utils import get_host_main_domain_name, get_logger
+from controlplane_api.exceptions import ApiBaseException, InvalidOperationException
+from controlplane_api.utils import get_host_main_domain_name, get_logger
 from api.core.container import    get_billing_record_service, get_subscription_plan_service, get_tenant_service
 from api.core.exceptions import InvalidSubdomainException, TenantNotFoundException
 from api.domain.dtos.subcription_plan_dto import SubscriptionPlanDto
@@ -10,7 +10,7 @@ from api.domain.dtos.tenant_dto import CreateTenantResponseDto, FeatureDto, Subd
 from api.domain.dtos.user_dto import CreateUserDto
 from api.domain.entities.tenant import Subdomain, Tenant
 from api.domain.enum.feature import Feature
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.domain.security.feature_access_management import check_feature_access
 from api.infrastructure.security.current_user import CurrentUser
 from api.interfaces.security.role_checker import check_permissions_for_current_role

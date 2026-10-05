@@ -5,8 +5,8 @@ import uuid
 
 from api.common.audit_logs_repository import AuditLogRepository
 from api.common.base_repository import BaseRepository
-from api.common.utils import get_utc_now, get_logger
-from api.domain.dtos.audit_logs_dto import AuditLogDto
+from controlplane_api.utils import get_utc_now, get_logger
+from controlplane_api.dtos.audit import AuditLogDto
 from api.domain.entities.user_password_reset import UserPasswordReset
 from api.domain.serialization import parse_uuid
 

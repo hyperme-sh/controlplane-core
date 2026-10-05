@@ -1,7 +1,7 @@
 from typing import Annotated, List
 from fastapi import APIRouter, Depends, status
-from api.common.exceptions import InvalidOperationException
-from api.common.utils import get_logger
+from controlplane_api.exceptions import InvalidOperationException
+from controlplane_api.utils import get_logger
 from api.core.exceptions import RoleNotFoundException
 from api.domain.dtos.role_dto import (
     CreateRoleDto,
@@ -12,7 +12,7 @@ from api.domain.dtos.role_dto import (
     role_from_row,
 )
 from api.core.container import get_role_service, get_user_service
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.interfaces.security.role_checker import check_permissions_for_current_role
 from api.usecases.role_service import RoleService
 from api.usecases.user_service import UserService

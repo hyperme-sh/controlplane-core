@@ -4,9 +4,9 @@ import uuid
 
 from api.common.audit_logs_repository import AuditLogRepository
 from api.common.base_repository import BaseRepository
-from api.common.exceptions import ApiBaseException
-from api.common.utils import get_logger
-from api.domain.dtos.audit_logs_dto import AuditLogDto
+from controlplane_api.exceptions import ApiBaseException
+from controlplane_api.utils import get_logger
+from controlplane_api.dtos.audit import AuditLogDto
 from api.domain.entities.user_magic_link import UserMagicLink
 
 logger = get_logger(__name__)
@@ -31,7 +31,7 @@ class UserMagicLinkRepository(BaseRepository[UserMagicLink], AuditLogRepository)
                 )
             )
             raise ApiBaseException("Too many magic link requests. Please try again later.")
-        from api.common.utils import get_utc_now
+        from controlplane_api.utils import get_utc_now
         from datetime import timedelta
 
         res = await self.create(

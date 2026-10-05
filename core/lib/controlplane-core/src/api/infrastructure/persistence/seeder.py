@@ -3,12 +3,12 @@ from faker import Faker
 from api.common.enums.gender import Gender
 from api.common.security import hash_it
 from api.common.seeder_utils import get_seed_roles
-from api.common.utils import get_logger
-from api.core.config import settings
+from controlplane_api.utils import get_logger
+from controlplane_api.config import settings
 from api.core.container import get_role_service, get_user_service
 from api.domain.dtos.role_dto import UpdateRoleDto
 from api.domain.dtos.user_dto import CreateUserDto, UpdateUserDto
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.domain.enum.role import RoleType
 from api.infrastructure.persistence.repositories.role_repository_impl import \
     RoleRepository

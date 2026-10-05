@@ -3,7 +3,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 from api.domain.entities.role import Role
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.domain.serialization import serialize_role
 
 

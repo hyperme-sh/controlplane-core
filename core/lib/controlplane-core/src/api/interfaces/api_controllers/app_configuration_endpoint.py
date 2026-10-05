@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, status
 
 from api.common.dtos.app_configuration_dto import AppConfigurationDto
-from api.common.utils import get_host_main_domain_name, get_logger, get_tenancy_strategy, is_tenancy_enabled
+from controlplane_api.utils import get_host_main_domain_name, get_logger, get_tenancy_strategy, is_tenancy_enabled
 from api.core.container import   get_deps, get_passkey_service, get_sso_settings_service,  get_tenant_service, get_user_preference_service
 from api.core.exceptions import  TenantNotFoundException
 from api.domain.dtos.branding_dto import BrandingDto
@@ -17,7 +17,7 @@ from api.usecases.branding_service import BrandingService
 from api.usecases.sso_settings_service import SSOSettingsService
 from api.usecases.tenant_service import TenantService
 from api.usecases.user_preference_service import UserPreferenceService
-from api.core.config import settings
+from controlplane_api.config import settings
 
 logger = get_logger(__name__)
 

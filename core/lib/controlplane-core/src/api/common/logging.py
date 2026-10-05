@@ -1,36 +1,6 @@
-from logging.config import dictConfig
-
-def configure_logging() -> None:
-    dictConfig(
-        {
-            "version": 1,
-            "disable_existing_loggers": False,
-            "formatters": {
-                "console": {
-                    # "class": "logging.Formatter",
-                     "()": "colorlog.ColoredFormatter",
-                    "format": "%(log_color)s%(asctime)s -  %(name)s:%(lineno)d - %(levelname)s - %(message)s",
-                    "datefmt": "%Y-%m-%d %H:%M:%S",
-                    "log_colors": {
-                        "DEBUG": "cyan",
-                        "INFO": "green",
-                        "WARNING": "yellow",
-                        "ERROR": "red",
-                        "CRITICAL": "bold_red",
-                    },
-                }
-            },
-            "handlers": {
-                "default": {
-                    "class": "logging.StreamHandler",
-                    "formatter": "console",
-                    "level": "DEBUG"
-                }
-            },
-            "loggers": {
-                "uvicorn" : { "handlers": ["default"], "level": "INFO" },
-                "api": { "handlers": ["default"], "level": "DEBUG", "propagate": False },
-                "databases": { "handlers": ["default"], "level": "WARNING" }
-            }
-        }
-    )
+"""Compatibility alias for API scaffolding."""
+import sys
+import controlplane_api.logging as _implementation
+from controlplane_api.logging import configure_logging
+__all__ = ['configure_logging']
+sys.modules[__name__] = _implementation

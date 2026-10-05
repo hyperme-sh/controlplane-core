@@ -1,6 +1,6 @@
 import uuid
 
-from api.common.exceptions import InvalidOperationException
+from controlplane_api.exceptions import InvalidOperationException
 from api.domain.dtos.subcription_plan_dto import (
     CreateSubscriptionPlanDto,
     SubscriptionPlanDto,

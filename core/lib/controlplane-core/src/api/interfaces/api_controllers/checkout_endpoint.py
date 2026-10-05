@@ -1,17 +1,17 @@
 from fastapi import APIRouter, Depends, status
-from api.common.exceptions import InvalidOperationException
+from controlplane_api.exceptions import InvalidOperationException
 from api.core.container import get_billing_record_service, get_tenant_service
 from api.domain.dtos.billing_dto import BillingRecordListDto
 from api.domain.dtos.checkout_dto import CheckoutRequestDto, CheckoutResponseDto
 from api.domain.enum.feature import Feature
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.domain.security.feature_access_management import check_feature_access
 from api.infrastructure.security.current_user import CurrentUser
 from api.interfaces.security.role_checker import check_permissions_for_current_role
 from api.usecases.billing_record_service import BillingRecordService
 from api.usecases.tenant_service import TenantService
 
-from api.common.utils import get_host_main_domain_name, get_logger
+from controlplane_api.utils import get_host_main_domain_name, get_logger
 
 logger = get_logger(__name__)
 

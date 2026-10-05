@@ -1,10 +1,10 @@
 from typing import List, Literal
 
 from fastapi import UploadFile
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.domain.interfaces.email_service import IEmailService
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType, errors
-from api.core.config import settings
+from controlplane_api.config import settings
 
 logger = get_logger(__name__)
 

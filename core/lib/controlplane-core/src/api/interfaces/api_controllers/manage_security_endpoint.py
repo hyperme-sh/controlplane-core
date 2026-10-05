@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from api.core.container import get_audit_logs_service, get_passkey_service
-from api.domain.dtos.audit_logs_dto import AuditLogDto
+from controlplane_api.dtos.audit import AuditLogDto
 from api.domain.dtos.passkey_dto import RegisteredPasskeyCredentialsDto
 from api.infrastructure.security.current_user import CurrentUser
 from api.infrastructure.security.passkey_service import PasskeyService

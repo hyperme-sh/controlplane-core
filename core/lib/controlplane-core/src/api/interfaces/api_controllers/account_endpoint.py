@@ -3,8 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import EmailStr
 
-from api.common.exceptions import InvalidOperationException
-from api.common.utils import get_logger
+from controlplane_api.exceptions import InvalidOperationException
+from controlplane_api.utils import get_logger
 from api.core.container import get_auth_service
 from api.domain.dtos.auth_dto import ChangeEmailConfirmRequestDto, ChangeEmailRequestDto, ChangeEmailResponseDto, MeResponseDto
 from api.infrastructure.security.current_user import CurrentUser

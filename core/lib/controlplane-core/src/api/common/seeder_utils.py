@@ -2,7 +2,7 @@ from typing import List
 
 from pydantic import BaseModel, Field
 
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.domain.enum.role import RoleType
 
 

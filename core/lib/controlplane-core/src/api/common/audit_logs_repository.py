@@ -2,8 +2,8 @@ from collections import deque
 import glob
 import json
 from typing import List, Optional
-from api.common.utils import capture_audit_log, get_logger
-from api.domain.dtos.audit_logs_dto import AuditActionType, AuditLogDto, AuditLogListDto
+from controlplane_api.utils import capture_audit_log, get_logger
+from controlplane_api.dtos.audit import AuditActionType, AuditLogDto, AuditLogListDto
 
 logger = get_logger(__name__)
 

@@ -1,7 +1,7 @@
 from uuid import UUID
 from typing import Optional
-from api.common.exceptions import NotFoundException
-from api.common.utils import get_logger
+from controlplane_api.exceptions import NotFoundException
+from controlplane_api.utils import get_logger
 from api.domain.dtos.storage_settings_dto import AvailableStorageProviderDto, StorageSettingsDto
 from api.infrastructure.persistence.repositories.storage_settings_repository_impl import StorageSettingsRepository
 from api.domain.entities.storage_settings import StorageProvider, StorageSettings

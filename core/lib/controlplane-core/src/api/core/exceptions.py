@@ -1,6 +1,6 @@
 # Keep only domain-specific exceptions here
 
-from api.common.exceptions import AwsException, AzureException, InvalidOperationException, NotFoundException, ConflictException, ForbiddenException
+from controlplane_api.exceptions import AwsException, AzureException, InvalidOperationException, NotFoundException, ConflictException, ForbiddenException
 
 class UserNotFoundException(NotFoundException):
     def __init__(self, user_id: str):
