@@ -29,6 +29,8 @@ def mint_tenant_session_jwt(
     extra_permissions: list[str] | None = None,
 ) -> str:
     """Short-lived JWT so ``get_current_tenant`` sees tenant context."""
+    if claims.get("azp") == "hypermesh-host-setup":
+        raise ValueError("host setup requires a purpose-bound session")
     now = int(time.time())
     roles: list[str] = []
     ra = claims.get("realm_access")
@@ -111,6 +113,43 @@ def try_decode_tenant_session_jwt(token: str) -> dict[str, Any] | None:
         )
     except InvalidTokenError:
         return None
-    if payload.get("panopticon_auth") != PANOPTICON_AUTH:
+    if payload.get("azp") == "hypermesh-host-setup" or payload.get("panopticon_auth") != PANOPTICON_AUTH:
+        return None
+    return payload
+
+
+HOST_SETUP_ISSUER = "https://panopticon.internal/host-setup"
+HOST_SETUP_AUDIENCE = "hypermesh-host-setup"
+
+
+def mint_host_setup_session(*, claims: dict[str, Any], tenant_id: uuid.UUID) -> str:
+    """Identity and tenant only; never copy account roles or permissions."""
+    if claims.get("azp") != HOST_SETUP_AUDIENCE or not claims.get("sub"):
+        raise ValueError("host setup identity required")
+    secret = settings.usable_api_key_exchange_secret()
+    if not secret:
+        raise RuntimeError("host setup signing key unavailable")
+    now = int(time.time())
+    return jwt.encode({
+        "iss": HOST_SETUP_ISSUER, "aud": HOST_SETUP_AUDIENCE,
+        "azp": HOST_SETUP_AUDIENCE, "purpose": "host_setup",
+        "sub": str(claims["sub"]), "email": str(claims.get("email") or ""),
+        "tenant_id": str(tenant_id), "iat": now, "exp": now + TTL_SECONDS,
+    }, secret, algorithm=ALG)
+
+
+def try_decode_host_setup_session(token: str) -> dict[str, Any] | None:
+    secret = settings.usable_api_key_exchange_secret()
+    if not secret:
+        return None
+    try:
+        payload = jwt.decode(
+            token, secret, algorithms=[ALG], issuer=HOST_SETUP_ISSUER,
+            audience=HOST_SETUP_AUDIENCE,
+            options={"require": ["exp", "sub", "iss", "aud", "tenant_id"]},
+        )
+    except InvalidTokenError:
+        return None
+    if payload.get("purpose") != "host_setup" or payload.get("azp") != HOST_SETUP_AUDIENCE:
         return None
     return payload
