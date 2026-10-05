@@ -420,3 +420,7 @@ def _usable_shared_secret(raw: str | None, banned: frozenset[str]) -> str | None
 # Instantiate settings once
 settings = Settings()
 
+
+# Bind the shared identity library to this process's existing settings instance.
+from controlplane_identity.configuration import configure_identity
+configure_identity(settings)
