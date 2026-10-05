@@ -55,11 +55,28 @@ class KeycloakJWTValidator:
         )
         azp = payload.get("azp")
         allowed = settings.keycloak_allowed_azp_set()
-        if azp not in allowed:
+        if azp == "hypermesh-host-setup" or azp not in allowed:
             raise InvalidTokenError(
                 f"Invalid azp: {azp!r} not in allowed clients {sorted(allowed)!r}"
             )
         return payload
+
+    def validate_host_setup_sync(self, token: str) -> dict[str, object]:
+        """Validate the device client only for the dedicated setup exchange."""
+        signing_key = self._jwks_client.get_signing_key_from_jwt(token)
+        payload = jwt.decode(
+            token, signing_key.key, algorithms=["RS256"], issuer=self._issuer,
+            audience="hypermesh-host-setup",
+            options={"require": ["exp", "sub", "iss", "aud", "azp"]},
+        )
+        if payload.get("azp") != "hypermesh-host-setup" or not payload.get("sub"):
+            raise InvalidTokenError("host setup client required")
+        return payload
+
+    async def validate_host_setup(self, token: str) -> dict[str, object]:
+        return await asyncio.get_running_loop().run_in_executor(
+            None, self.validate_host_setup_sync, token,
+        )
 
     async def validate(self, token: str) -> dict[str, object]:
         loop = asyncio.get_running_loop()
