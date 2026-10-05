@@ -7,6 +7,8 @@ name = "controlplane-core"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
+    "controlplane-tenancy",
+    "controlplane-identity",
     "controlplane-db",
     "controlplane-events",
     "azure-storage-blob>=12.26.0",
@@ -46,11 +48,13 @@ servicebus = [
 ]
 
 [tool.uv.sources]
+controlplane-tenancy = { workspace = true }
+controlplane-identity = { workspace = true }
 controlplane-db = { workspace = true }
 controlplane-events = { workspace = true }
 
 [tool.hatch.build.targets.wheel]
-only-include = ["src/api"]
+packages = ["src/api"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src/api"]

@@ -1,67 +1,9 @@
-"""HS256 JWT minted by the gateway after API key validation (not Keycloak)."""
+"""Compatibility alias for controlplane_identity.security.api_key_exchange_jwt."""
+import sys
+from api.core.config import settings as _configured_settings
+from controlplane_identity.security import api_key_exchange_jwt as _implementation
+from controlplane_identity.security.api_key_exchange_jwt import ISSUER, ALG, TTL_SECONDS, mint_api_key_session_jwt, try_decode_api_key_session_jwt
 
-from __future__ import annotations
+__all__ = ['ISSUER', 'ALG', 'TTL_SECONDS', 'mint_api_key_session_jwt', 'try_decode_api_key_session_jwt']
 
-import time
-import uuid
-from typing import Any
-
-import jwt
-from jwt import InvalidTokenError
-
-from api.core.config import settings
-
-ISSUER = "https://panopticon.internal/api-key"
-ALG = "HS256"
-TTL_SECONDS = 300
-
-
-def mint_api_key_session_jwt(
-    *,
-    key_record_id: uuid.UUID,
-    tenant_id: uuid.UUID,
-    scopes: list[str],
-    purpose: str | None = None,
-) -> str:
-    """Short-lived JWT so downstream validate_access_token accepts API-key callers."""
-    now = int(time.time())
-    payload: dict[str, Any] = {
-        "sub": f"apikey:{key_record_id}",
-        "iss": ISSUER,
-        "azp": "controlplane-api-key",
-        "iat": now,
-        "exp": now + TTL_SECONDS,
-        "panopticon_auth": "api_key",
-        "https://panopticon.dev/tenant_id": str(tenant_id),
-        "scope": " ".join(scopes),
-    }
-    if purpose:
-        payload["purpose"] = purpose
-    secret = settings.usable_api_key_exchange_secret()
-    if not secret:
-        raise RuntimeError("API_KEY_EXCHANGE_JWT_SECRET is unset or is a published default")
-    return jwt.encode(
-        payload,
-        secret,
-        algorithm=ALG,
-    )
-
-
-def try_decode_api_key_session_jwt(token: str) -> dict[str, Any] | None:
-    """Return claims if token is a valid API-key exchange JWT; else None."""
-    secret = settings.usable_api_key_exchange_secret()
-    if not secret:
-        return None
-    try:
-        payload = jwt.decode(
-            token,
-            secret,
-            algorithms=[ALG],
-            issuer=ISSUER,
-            options={"require": ["exp", "sub", "iss"]},
-        )
-    except InvalidTokenError:
-        return None
-    if payload.get("panopticon_auth") != "api_key":
-        return None
-    return payload
+sys.modules[__name__] = _implementation
