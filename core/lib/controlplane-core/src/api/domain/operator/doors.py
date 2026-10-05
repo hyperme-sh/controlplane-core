@@ -15,7 +15,7 @@ _engine = None
 
 def _database_url() -> str:
     try:
-        from api.core.config import settings
+        from controlplane_api.config import settings
 
         return str(settings.database_url or "")
     except Exception:

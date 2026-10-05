@@ -4,7 +4,7 @@ from fastapi.params import Depends
 from api.core.container import get_pricing_service
 from api.domain.dtos.pricing_dto import CreatePricingDto, PricingListDto, UpdatePricingDto
 from api.domain.enum.feature import Feature
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.domain.security.feature_access_management import check_feature_access
 from api.infrastructure.security.current_user import CurrentUser
 from api.interfaces.security.role_checker import check_permissions_for_current_role

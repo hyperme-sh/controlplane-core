@@ -1,9 +1,9 @@
 from typing import List
-from api.common.exceptions import ForbiddenException
-from api.common.utils import get_logger, is_tenancy_enabled
+from controlplane_api.exceptions import ForbiddenException
+from controlplane_api.utils import get_logger, is_tenancy_enabled
 from api.core.container import get_role_service
 from api.domain.dtos.user_dto import UserDto
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 
 _OPERATOR_CLAIMS = frozenset(
     {

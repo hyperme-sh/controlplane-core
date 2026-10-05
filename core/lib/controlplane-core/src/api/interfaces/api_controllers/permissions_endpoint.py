@@ -1,9 +1,9 @@
 
 from fastapi import APIRouter
 
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.domain.dtos.permission_dto import PermissionDto
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.infrastructure.security.current_user import CurrentUser
 
 logger = get_logger(__name__)

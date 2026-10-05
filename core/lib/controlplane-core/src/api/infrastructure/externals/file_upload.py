@@ -1,11 +1,11 @@
 from fastapi import UploadFile
 
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.core.exceptions import StorageNotEnabledException
 from api.domain.entities.storage_settings import StorageProvider, StorageSettings
 from api.infrastructure.externals.azure_storage import AzureBlobStorage
 from api.infrastructure.externals.s3_storage import S3Storage
-from api.core.config import settings
+from controlplane_api.config import settings
 
 logger = get_logger(__name__)
 

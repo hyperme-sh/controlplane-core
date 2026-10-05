@@ -1,5 +1,5 @@
 from typing import Any
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.domain.entities.user_preference import UserPreference
 from api.infrastructure.persistence.repositories.user_preference_repository_impl import UserPreferenceRepository
 

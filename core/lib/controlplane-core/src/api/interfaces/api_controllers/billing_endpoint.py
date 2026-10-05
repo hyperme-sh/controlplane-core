@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status
 
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.core.container import get_billing_record_service
 from api.domain.dtos.billing_dto import CreatePlanDto,  PlanDto, PlanListDto, UpdatePlanDto
 from api.domain.enum.feature import Feature

@@ -6,7 +6,7 @@ from typing import Any
 
 from sqlalchemy import func, select
 
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.domain.dtos.billing_dto import BillingRecordDto, BillingRecordListDto
 from api.infrastructure.persistence.db_session import get_db_session
 

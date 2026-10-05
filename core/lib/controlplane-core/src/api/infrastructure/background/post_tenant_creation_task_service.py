@@ -1,5 +1,5 @@
 from api.common.seeder_utils import get_seed_roles
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.core.exceptions import EmailAlreadyExistsException, RoleNotFoundException, UserNotFoundException
 from api.domain.dtos.role_dto import CreateRoleDto, UpdateRoleDto
 from api.domain.dtos.user_dto import CreateUserDto, UpdateUserDto

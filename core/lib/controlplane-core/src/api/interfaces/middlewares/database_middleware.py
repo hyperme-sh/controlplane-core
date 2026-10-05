@@ -14,8 +14,8 @@ from typing import Annotated, Optional
 from fastapi import Depends, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from api.common.utils import get_host_main_domain_name, get_logger, is_subdomain, is_tenancy_enabled
-from api.core.config import settings
+from controlplane_api.utils import get_host_main_domain_name, get_logger, is_subdomain, is_tenancy_enabled
+from controlplane_api.config import settings
 from api.core.container import get_tenant_service
 from api.core.exceptions import TenantNotFoundException
 from api.infrastructure.persistence.db_session import (

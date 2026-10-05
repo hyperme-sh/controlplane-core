@@ -1,12 +1,12 @@
 from typing import Any
 
 import stripe
-from api.common.exceptions import InvalidOperationException
-from api.common.utils import get_logger
+from controlplane_api.exceptions import InvalidOperationException
+from controlplane_api.utils import get_logger
 from api.core.container import get_billing_record_service, get_stripe_setting_service
 from api.domain.dtos.stripe_setting_dto import CreateStripeSettingDto, StripeSettingDto
 from api.domain.enum.feature import Feature as FeatureEnum
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.domain.security.feature_access_management import check_feature_access
 from api.infrastructure.security.current_user import CurrentUser
 from api.interfaces.security.role_checker import check_permissions_for_current_role
@@ -14,7 +14,7 @@ from api.usecases.billing_record_service import BillingRecordService
 from api.usecases.stripe_setting_service import StripeSettingService
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
-from api.core.config import settings
+from controlplane_api.config import settings
 
 
 logger = get_logger(__name__)

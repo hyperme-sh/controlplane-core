@@ -1,10 +1,10 @@
 from fastapi import Request
 from api.core.container import get_tenant_service
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.core.exceptions import  FeatureNotEnabledException
 from api.domain.dtos.role_dto import RoleDto
 from api.domain.enum.feature import Feature as FeatureEnum
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.infrastructure.security.current_user import CurrentUser
 
 logger = get_logger(__name__)

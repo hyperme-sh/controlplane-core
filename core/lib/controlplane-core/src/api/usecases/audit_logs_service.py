@@ -3,8 +3,8 @@ from typing import List, Optional
 
 from fastapi import UploadFile
 from api.common.audit_logs_repository import AuditLogRepository
-from api.common.utils import get_logger
-from api.domain.dtos.audit_logs_dto import AuditActionType, AuditLogDto, AuditLogListDto
+from controlplane_api.utils import get_logger
+from controlplane_api.dtos.audit import AuditActionType, AuditLogDto, AuditLogListDto
 from api.domain.interfaces.email_service import IEmailService
 from api.interfaces.email_templates.download_template_html import download_template
 

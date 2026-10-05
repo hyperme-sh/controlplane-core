@@ -3,10 +3,10 @@
 
 import httpx
 
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.core.exceptions import CoolifyIntegrationException
 from api.domain.dtos.coolify_app_dto import CoolifyAppDto, UpdateDomainDto
-from api.core.config import settings
+from controlplane_api.config import settings
 logger = get_logger(__name__)
 
 class CoolifyApp:

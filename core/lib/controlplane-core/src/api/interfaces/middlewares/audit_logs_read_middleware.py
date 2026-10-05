@@ -1,9 +1,9 @@
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from api.common.utils import capture_audit_log, get_logger
+from controlplane_api.utils import capture_audit_log, get_logger
 from api.core.container import get_role_service, get_subscription_plan_service, get_user_service
-from api.domain.dtos.audit_logs_dto import AuditLogDto
+from controlplane_api.dtos.audit import AuditLogDto
 from api.infrastructure.security.current_user import resolve_me_optional_from_token
 
 logger = get_logger(__name__)

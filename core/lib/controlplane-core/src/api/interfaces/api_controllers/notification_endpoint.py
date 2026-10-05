@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 
 from api.core.container import get_notification_banner_service
 from api.domain.dtos.notification_settings_dto import CreateNotificationBannerSettingDto, NotificationBannerSettingDto
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.infrastructure.security.current_user import CurrentUser
 from api.interfaces.security.role_checker import check_permissions_for_current_role
 from api.usecases.notification_banner_service import NotificationBannerService

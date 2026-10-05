@@ -8,9 +8,9 @@ from sqlalchemy.exc import IntegrityError
 
 from api.common.audit_logs_repository import AuditLogRepository
 from api.common.base_repository import BaseRepository
-from api.common.exceptions import ConflictException
-from api.common.utils import get_logger
-from api.domain.dtos.audit_logs_dto import AuditLogDto
+from controlplane_api.exceptions import ConflictException
+from controlplane_api.utils import get_logger
+from controlplane_api.dtos.audit import AuditLogDto
 from api.domain.dtos.tenant_dto import (
     CreateTenantDto,
     FeatureDto,

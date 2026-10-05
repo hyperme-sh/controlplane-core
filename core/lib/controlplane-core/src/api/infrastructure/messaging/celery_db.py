@@ -8,7 +8,7 @@ from typing import TypeVar
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 
-from api.core.config import settings
+from controlplane_api.config import settings
 from api.infrastructure.persistence.db_session import (
     configure_session_maker,
     reset_db_session,

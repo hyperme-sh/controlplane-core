@@ -406,7 +406,7 @@ def get_tenant_event_publisher() -> TenantEventPublisher:
 async def install_tenant_event_publisher(*, service_name: str) -> TenantEventPublisher:
     """Wire the process publisher. Postgres unless Service Bus is configured."""
 
-    from api.core.config import settings
+    from controlplane_api.config import settings
 
     publisher = resolve_event_publisher(
         service_name=service_name,

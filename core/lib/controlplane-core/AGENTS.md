@@ -1,7 +1,7 @@
 # controlplane-core package context
 
 ## Ownership
-Shared legacy API infrastructure and common controllers. Python import name: `api`. Identity and tenancy implementations now live in controlplane-identity and controlplane-tenancy; the listed legacy identity/persistence modules alias their implementations.
+Shared legacy API infrastructure and common controllers. Python import name: `api`. API scaffolding, identity and tenancy implementations now live in controlplane-api, controlplane-identity and controlplane-tenancy; the corresponding legacy modules alias their implementations.
 
 ## Public interface
 The exact public Python modules are the `api` entries in [`scripts/import_boundaries.json`](../../../scripts/import_boundaries.json).

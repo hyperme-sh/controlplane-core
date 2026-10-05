@@ -1,4 +1,4 @@
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.core.exceptions import BrandingException
 from api.domain.dtos.branding_dto import BrandingDto, UpdateBrandingDto
 from api.domain.entities.branding import Branding, ThemeConfig

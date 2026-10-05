@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from typing import Any, Iterable
 
-from api.core.config import settings
-from api.domain.enum.permission import Permission
+from controlplane_api.config import settings
+from controlplane_api.permissions import Permission
 from api.domain.operator.claims import (
     CONSOLE,
     ORG_MANAGE,

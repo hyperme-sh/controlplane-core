@@ -1,6 +1,6 @@
 # Factory methods for common permission patterns
 from typing import List
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.domain.security.user_access_management import UserAccessManagement
 
 

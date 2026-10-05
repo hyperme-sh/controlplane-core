@@ -1,6 +1,6 @@
 import dns.resolver
 
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.core.exceptions import InvalidCustomDomainException
 from api.domain.dtos.user_dto import UserDto
 from api.domain.interfaces.email_service import IEmailService

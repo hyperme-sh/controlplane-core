@@ -1,19 +1,6 @@
-"""Versioned event_type strings for control-plane event envelopes."""
-
-TENANT_CREATED_V1 = "tenant.created.v1"
-USER_CREATED_V1 = "user.created.v1"
-GROUP_MEMBER_ADDED_V1 = "group.member.added.v1"
-GROUP_MEMBER_REMOVED_V1 = "group.member.removed.v1"
-BILLING_RECORD_CREATED_V1 = "billing.record.created.v1"
-PAYMENT_SUCCEEDED_V1 = "payment.succeeded.v1"
-BUDGET_ALLOCATED_V1 = "budget.allocated.v1"
-AUTH_TOKEN_ISSUED_V1 = "auth.token.issued.v1"
-AUTH_LOGIN_SUCCESS_V1 = "auth.login.success.v1"
-ACL_POLICY_UPDATED_V1 = "acl.policy.updated.v1"
-SOCIACL_SHARE_CREATED_V1 = "sociacl.share.created.v1"
-SOCIACL_SHARE_RESOLVED_V1 = "sociacl.share.resolved.v1"
-SOCIACL_ACCESS_DECIDED_V1 = "sociacl.access.decided.v1"
-SOCIACL_RECOVERY_SESSION_STARTED_V1 = "sociacl.recovery.session.started.v1"
-LISTING_CREATED_V1 = "listing.created.v1"
-PURCHASE_COMPLETED_V1 = "purchase.completed.v1"
-TOKENS_USED_V1 = "tokens.used.v1"
+"""Compatibility alias for API scaffolding."""
+import sys
+import controlplane_api.event_types as _implementation
+from controlplane_api.event_types import TENANT_CREATED_V1, USER_CREATED_V1, GROUP_MEMBER_ADDED_V1, GROUP_MEMBER_REMOVED_V1, BILLING_RECORD_CREATED_V1, PAYMENT_SUCCEEDED_V1, BUDGET_ALLOCATED_V1, AUTH_TOKEN_ISSUED_V1, AUTH_LOGIN_SUCCESS_V1, ACL_POLICY_UPDATED_V1, SOCIACL_SHARE_CREATED_V1, SOCIACL_SHARE_RESOLVED_V1, SOCIACL_ACCESS_DECIDED_V1, SOCIACL_RECOVERY_SESSION_STARTED_V1, LISTING_CREATED_V1, PURCHASE_COMPLETED_V1, TOKENS_USED_V1
+__all__ = ['TENANT_CREATED_V1', 'USER_CREATED_V1', 'GROUP_MEMBER_ADDED_V1', 'GROUP_MEMBER_REMOVED_V1', 'BILLING_RECORD_CREATED_V1', 'PAYMENT_SUCCEEDED_V1', 'BUDGET_ALLOCATED_V1', 'AUTH_TOKEN_ISSUED_V1', 'AUTH_LOGIN_SUCCESS_V1', 'ACL_POLICY_UPDATED_V1', 'SOCIACL_SHARE_CREATED_V1', 'SOCIACL_SHARE_RESOLVED_V1', 'SOCIACL_ACCESS_DECIDED_V1', 'SOCIACL_RECOVERY_SESSION_STARTED_V1', 'LISTING_CREATED_V1', 'PURCHASE_COMPLETED_V1', 'TOKENS_USED_V1']
+sys.modules[__name__] = _implementation

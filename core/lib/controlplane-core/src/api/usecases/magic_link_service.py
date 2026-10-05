@@ -1,7 +1,7 @@
 from uuid import UUID
 from fastapi_mail import MessageType
-from api.common.exceptions import ApiBaseException
-from api.common.utils import get_email_sharing_link, get_host_main_domain_name
+from controlplane_api.exceptions import ApiBaseException
+from controlplane_api.utils import get_email_sharing_link, get_host_main_domain_name
 from api.domain.dtos.user_dto import UserDto
 from api.domain.interfaces.email_service import IEmailService
 from api.infrastructure.persistence.repositories.user_magic_link_repository_impl import UserMagicLinkRepository

@@ -4,8 +4,8 @@ from fastapi import Depends
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from passlib.hash import pbkdf2_sha256
 
-from api.common.exceptions import UnauthorizedException
-from api.core.config import settings
+from controlplane_api.exceptions import UnauthorizedException
+from controlplane_api.config import settings
 
 JWT_SECRET = settings.jwt_secret
 

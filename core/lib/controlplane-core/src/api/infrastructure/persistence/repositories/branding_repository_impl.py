@@ -1,5 +1,5 @@
 from api.common.base_repository import BaseRepository
-from api.common.utils import get_logger, get_utc_now
+from controlplane_api.utils import get_logger, get_utc_now
 from api.domain.entities.branding import Branding, ThemeConfig
 
 logger = get_logger(__name__)

@@ -2,9 +2,9 @@ from fastapi_mail import MessageType
 from pydantic import EmailStr
 
 from api.common.dtos.token_dto import ActivationTokenPayloadDto
-from api.common.exceptions import InvalidOperationException
-from api.common.utils import get_email_sharing_link, get_logger
-from api.domain.dtos.audit_logs_dto import AuditLogDto
+from controlplane_api.exceptions import InvalidOperationException
+from controlplane_api.utils import get_email_sharing_link, get_logger
+from controlplane_api.dtos.audit import AuditLogDto
 from api.domain.dtos.user_dto import UpdateUserDto
 from api.domain.entities.user import User
 from api.domain.interfaces.email_service import IEmailService

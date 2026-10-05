@@ -5,8 +5,8 @@ from fastapi import FastAPI, APIRouter, Request, status
 
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from api.common.exceptions import ApiBaseException, ConflictException, InvalidOperationException, NotFoundException, UnauthorizedException
-from api.common.utils import get_logger, is_tenancy_enabled
+from controlplane_api.exceptions import ApiBaseException, ConflictException, InvalidOperationException, NotFoundException, UnauthorizedException
+from controlplane_api.utils import get_logger, is_tenancy_enabled
 from api.core.container import container
 from api.core.exceptions import InvalidSubdomainException, TenantNotFoundException
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -24,8 +24,8 @@ from api.interfaces.api_controllers.storage_endpoint import router as storage_ro
 from api.interfaces.api_controllers.permissions_endpoint import router as permissions_router
 from api.interfaces.api_controllers.dashboard_endpoint import router as dashboard_router
 from api.interfaces.api_controllers.ai_endpoint import router as ai_router
-from api.interfaces.api_controllers.health_endpoint import router as health_router
-from api.interfaces.api_controllers.version_endpoint import router as version_router
+from controlplane_api.health import router as health_router
+from controlplane_api.version import router as version_router
 from api.interfaces.api_controllers.manage_security_endpoint import router as manage_security_router
 from api.interfaces.api_controllers.features_endpoint import router as features_router
 from api.interfaces.api_controllers.product_endpoint import router as product_router
@@ -39,8 +39,8 @@ from api.interfaces.api_controllers.audit_logs_endpoint import router as audit_l
 from api.interfaces.api_controllers.sso_settings_endpoint import router as sso_router
 from api.interfaces.api_controllers.branding_endpoint import router as branding_router
 
-from api.common.logging import configure_logging
-from api.core.config import settings
+from controlplane_api.logging import configure_logging
+from controlplane_api.config import settings
 from api.infrastructure.messaging.tenant_event_publisher import (
     install_tenant_event_publisher,
     shutdown_tenant_event_publisher,
@@ -222,7 +222,7 @@ except ImportError:
     logger.debug("gateway package not available; skipping GraphQL routes")
 
 
-from api.infrastructure.metrics import install_http_metrics
+from controlplane_api.metrics import install_http_metrics
 
 install_http_metrics(app)
 

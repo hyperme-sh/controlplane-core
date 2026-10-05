@@ -6,11 +6,11 @@ from typing import Any
 from pydantic import EmailStr, TypeAdapter
 
 from api.common.enums.gender import Gender
-from api.common.event_types import USER_CREATED_V1
-from api.common.exceptions import InvalidOperationException, UnauthorizedException
-from api.core.config import settings
+from controlplane_api.event_types import USER_CREATED_V1
+from controlplane_api.exceptions import InvalidOperationException, UnauthorizedException
+from controlplane_api.config import settings
 from api.common.security import hash_it
-from api.common.utils import get_logger
+from controlplane_api.utils import get_logger
 from api.core.exceptions import EmailAlreadyExistsException, UserNotFoundException
 from api.domain.dtos.dashboard_dto import TimeSeriesDto
 from api.domain.dtos.user_dto import CreateUserDto, UpdateUserDto, UserDto, UserListDto

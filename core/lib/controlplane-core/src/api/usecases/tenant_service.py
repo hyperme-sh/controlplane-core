@@ -1,8 +1,8 @@
 from typing import Any, List
 from uuid import UUID
 
-from api.common.event_types import TENANT_CREATED_V1
-from api.common.utils import get_logger, validate_password
+from controlplane_api.event_types import TENANT_CREATED_V1
+from controlplane_api.utils import get_logger, validate_password
 from api.infrastructure.messaging.tenant_event_publisher import (
     get_tenant_event_publisher,
 )

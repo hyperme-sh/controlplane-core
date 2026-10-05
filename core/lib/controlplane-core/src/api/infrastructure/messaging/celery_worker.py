@@ -6,7 +6,7 @@ from typing import Dict
 from celery import Celery
 
 from api.common.dtos.worker_dto import WorkerPayloadDto
-from api.common.utils import get_host_main_domain_name, get_logger, get_utc_now
+from controlplane_api.utils import get_host_main_domain_name, get_logger, get_utc_now
 from api.core.container import (
     get_audit_logs_service,
     get_coolify_app_service,

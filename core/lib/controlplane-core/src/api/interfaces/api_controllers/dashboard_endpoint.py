@@ -1,7 +1,7 @@
 from typing import Literal
 
 from fastapi import Depends, Query, APIRouter
-from api.common.utils import get_date_range
+from controlplane_api.utils import get_date_range
 from api.core.container import get_user_service
 from api.domain.dtos.dashboard_dto import DashboardMetricsDto
 from api.infrastructure.security.current_user import CurrentUser

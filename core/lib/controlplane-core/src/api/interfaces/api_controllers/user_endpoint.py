@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, File, UploadFile, status
-from api.common.exceptions import InvalidOperationException
-from api.common.utils import get_logger
+from controlplane_api.exceptions import InvalidOperationException
+from controlplane_api.utils import get_logger
 from api.domain.dtos.user_dto import (
     CreateUserDto,
     CreateUserResponseDto,
@@ -11,7 +11,7 @@ from api.domain.dtos.user_dto import (
     UserRoleUpdateRequestDto,
     user_from_row,
 )
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 from api.interfaces.security.role_checker import check_permissions_for_current_role
 from api.usecases.file_service import FileService
 from api.usecases.user_service import UserService

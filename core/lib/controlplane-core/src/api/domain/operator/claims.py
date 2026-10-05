@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Iterable
 
-from api.domain.enum.permission import Permission
+from controlplane_api.permissions import Permission
 
 CONSOLE = Permission.OPERATOR_CONSOLE.value
 SUPPORT = Permission.OPERATOR_SUPPORT.value
