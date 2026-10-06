@@ -2,8 +2,8 @@
 
 Two sources, kept separate:
 
-* The pan-test admin seed (``admin@test.hyperme.sh``) always receives the
-  four operator claims. That seed is not an org owner, so it does not
+* The explicitly provisioned pan-test operator role carries the
+  four operator claims. Email alone grants nothing. That seed is not an org owner, so it does not
   receive ``org:own`` or ``org:manage``.
 * Production OIDC mapping is config. ``OPERATOR_OIDC_DOMAIN`` is this
   instance's operator and owner population (email domain or hosted
@@ -127,13 +127,6 @@ def hosted_domains_from_claims(claims: dict[str, Any] | None) -> list[str]:
     return found
 
 
-def seeded_admin_operator_claims(email: str | None) -> tuple[str, ...]:
-    address = str(email or "").strip().lower()
-    if address == SEEDED_TEST_ADMIN_EMAIL:
-        return SEEDED_TEST_ADMIN_OPERATOR_CLAIMS
-    return ()
-
-
 def mapped_oidc_claims(
     email: str | None,
     groups: Iterable[str] | None = None,
@@ -168,16 +161,13 @@ def tenant_session_permissions(
     groups: Iterable[str] | None = None,
     hosted_domains: Iterable[str] | None = None,
 ) -> list[str]:
-    """Role permissions, then the seeded admin grant, then the OIDC map."""
+    """Role permissions and the OIDC map; email alone never seeds an operator."""
 
     out: list[str] = []
     for perm in role_permissions or ():
         name = str(perm).strip()
         if name and name not in out:
             out.append(name)
-    for claim in seeded_admin_operator_claims(email):
-        if claim not in out:
-            out.append(claim)
     for claim in mapped_oidc_claims(email, groups, hosted_domains):
         if claim not in out:
             out.append(claim)
