@@ -9,6 +9,7 @@ from __future__ import annotations
 import uuid
 
 from api.domain.operator.bans import ban_book
+from operator_ban_store import subject_banned_sync
 
 _engine = None
 
@@ -60,31 +61,13 @@ def _sql_banned(tenant_id: uuid.UUID, subject_kind: str, subject_id: uuid.UUID) 
 
     if _engine is None:
         _engine = create_engine(_sync_database_url(url), pool_pre_ping=True)
-    statement = text(
-        """
-        SELECT 1
-        FROM operator_bans
-        WHERE tenant_id = :tenant_id
-          AND subject_kind = :subject_kind
-          AND subject_id = :subject_id
-          AND lifted_at IS NULL
-        """
-    )
     try:
         with _engine.connect() as conn:
             conn.execute(
                 text("SELECT set_config('app.current_tenant_id', :tid, true)"),
                 {"tid": str(tenant_id)},
             )
-            row = conn.execute(
-                statement,
-                {
-                    "tenant_id": tenant_id,
-                    "subject_kind": subject_kind,
-                    "subject_id": subject_id,
-                },
-            ).first()
-            return row is not None
+            return subject_banned_sync(conn, tenant_id, subject_kind, subject_id)
     except Exception:
         # A ban the door cannot read is not a ban. Fail closed.
         return True
