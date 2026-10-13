@@ -361,3 +361,37 @@ def test_export_read_cache_samples_renders_absolute_counters() -> None:
     text = render_metrics().decode()
     assert "hypermesh_read_cache_hits_total" not in text
     assert "hypermesh_read_cache_invalidations_total" not in text
+
+
+def test_outbox_probe_delegates_to_event_owner_and_reuses_engine(monkeypatch):
+    from contextlib import contextmanager
+
+    calls = []
+    class Connection:
+        def execute(self, sql):
+            calls.append(str(sql))
+
+    connection = Connection()
+
+    class Engine:
+        @contextmanager
+        def connect(self):
+            yield connection
+
+    def create_engine(url, **kwargs):
+        calls.append("engine")
+        return Engine()
+
+    def counts(conn):
+        assert conn is connection
+        calls.append("owner")
+        return (3, 1)
+
+    monkeypatch.setattr("sqlalchemy.create_engine", create_engine)
+    monkeypatch.setattr("controlplane_events.store.delivery_counts_sync", counts)
+    probe = metrics_mod._database_outbox_probe("postgresql://postgres/controlplane")
+    assert calls == []  # Lazy: installing metrics opens no database connection.
+    assert probe() == (3, 1)
+    assert probe() == (3, 1)
+    assert calls == ["engine", "SET LOCAL statement_timeout = 2000", "owner",
+                     "SET LOCAL statement_timeout = 2000", "owner"]
