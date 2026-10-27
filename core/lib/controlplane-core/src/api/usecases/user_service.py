@@ -204,7 +204,11 @@ class UserService:
         if claims.get("email_verified") is False and not settings.oidc_relax_email_verified:
             raise UnauthorizedException("Email not verified at identity provider")
 
-        row = await self.user_repository.single_or_none(keycloak_sub=sub)
+        # The issuer authenticates a platform identity. Tenant-local user rows
+        # may share its subject; membership resolution is a separate boundary.
+        row = await self.user_repository.single_or_none(
+            keycloak_sub=sub, tenant_id=None
+        )
         if row:
             await self._maybe_promote_oidc_admin(str(row.id), email, claims)
             updated = await self.user_repository.get(str(row.id))
