@@ -1,0 +1,73 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "controlplane-core"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "operator-ban-store",
+    "controlplane-api",
+    "controlplane-tenancy",
+    "controlplane-identity",
+    "controlplane-db",
+    "controlplane-events",
+    "azure-storage-blob>=12.26.0",
+    "boto3>=1.40.32",
+    "celery[redis]>=5.3.1",
+    "colorlog>=6.9.0",
+    "faker>=37.8.0",
+    "fastapi-mail>=1.5.0",
+    "python-keycloak>=5.1.0",
+    "fastapi[standard]>=0.135.0",
+    "flower>=2.0.1",
+    "httpx>=0.28.1",
+    "langchain>=0.3.27",
+    "langchain-ollama>=0.3.8",
+    "langchain-openai>=0.3.33",
+    "openpyxl>=3.1.5",
+    "passlib>=1.7.4",
+    "punq>=0.7.0",
+    "pydantic>=2.12.0",
+    "pydantic-settings>=2.6.0",
+    "prometheus-client>=0.21.1",
+    "pyjwt>=2.10.1",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
+    "python-dotenv>=1.1.1",
+    "redis>=6.4.0",
+    "starlette>=0.48.0",
+    "streamlit>=1.49.1",
+    "stripe>=13.0.1",
+    "uvicorn>=0.37.0",
+    "webauthn>=2.7.0",
+]
+
+[project.optional-dependencies]
+servicebus = [
+    "azure-servicebus>=7.12.0",
+]
+
+[tool.uv.sources]
+operator-ban-store = { workspace = true }
+controlplane-api = { workspace = true }
+controlplane-tenancy = { workspace = true }
+controlplane-identity = { workspace = true }
+controlplane-db = { workspace = true }
+controlplane-events = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/api"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/api"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+pythonpath = [
+    "src",
+    "../controlplane-db/src",
+    "../../events/src",
+]
