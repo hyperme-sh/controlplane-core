@@ -1,0 +1,104 @@
+
+from datetime import datetime
+from fastapi import APIRouter, Depends, status
+
+from api.common.dtos.app_configuration_dto import AppConfigurationDto
+from controlplane_api.utils import get_host_main_domain_name, get_logger, get_tenancy_strategy, is_tenancy_enabled
+from api.core.container import   get_deps, get_passkey_service, get_sso_settings_service,  get_tenant_service, get_user_preference_service
+from api.core.exceptions import  TenantNotFoundException
+from api.domain.dtos.branding_dto import BrandingDto
+from api.domain.dtos.tenant_dto import TenantDto, tenant_from_row
+from api.domain.entities.tenant import Tenant
+from api.domain.serialization import serialize_user_preference
+from api.infrastructure.security.current_user import  CurrentUserOptional
+from api.infrastructure.security.passkey_service import PasskeyService
+from api.interfaces.middlewares.database_middleware import get_tenant_id
+from api.usecases.branding_service import BrandingService
+from api.usecases.sso_settings_service import SSOSettingsService
+from api.usecases.tenant_service import TenantService
+from api.usecases.user_preference_service import UserPreferenceService
+from controlplane_api.config import settings
+
+logger = get_logger(__name__)
+
+router = APIRouter(prefix="/app_configuration")
+router.tags = ["App Configuration"]
+
+async def get_tenant(service: TenantService, tenant_id: str | None) -> Tenant | None:
+    if not tenant_id:
+        return None
+    logger.debug(f"Fetching tenant with ID: {tenant_id}")
+    try:
+        return await service.get_tenant_by_id(tenant_id)
+    except TenantNotFoundException:
+        logger.warning(f"Tenant with ID {tenant_id} not found for current user.")
+        return None
+
+@router.get("/", response_model=AppConfigurationDto, status_code=status.HTTP_200_OK)
+async def get_app_configuration(
+    current_user: CurrentUserOptional,
+    tenant_id =  Depends(get_tenant_id),
+    user_pref_service: UserPreferenceService = Depends(get_user_preference_service),
+    tenant_service: TenantService = Depends(get_tenant_service),
+    passkey_service: PasskeyService = Depends(get_passkey_service),
+    sso_settings_service: SSOSettingsService = Depends(get_sso_settings_service),
+    branding_service: BrandingService = Depends(get_deps(BrandingService))
+):
+    user_pref_doc = None
+    current_tenant = None
+    is_user_logged_in = False
+    if current_user is not None:
+        user_preferences = await user_pref_service.get_preferences(user_id=current_user.id)
+        user_pref_doc = (
+            serialize_user_preference(user_preferences)
+            if user_preferences is not None
+            else None
+        )
+        is_user_logged_in = True
+        passkey_enabled = await passkey_service.has_passkeys(email=current_user.email)
+        if user_pref_doc is not None:
+            user_pref_doc.setdefault("preferences", {})["passkey_enabled"] = passkey_enabled
+
+    resolved_tenant_id: str | None = None
+    if current_user and current_user.tenant_id:
+        resolved_tenant_id = str(current_user.tenant_id)
+    elif tenant_id is not None:
+        resolved_tenant_id = str(tenant_id)
+
+    t = await get_tenant(tenant_service, resolved_tenant_id)
+    current_tenant = tenant_from_row(t) if t else None
+
+    enabled_sso_provider = await sso_settings_service.get_only_enabled_providers()
+    enabled_sso_provider_names = [str(sso.provider) for sso in enabled_sso_provider.items]
+    
+    branding = await branding_service.get_branding()
+    if not branding:
+        # If no branding is found, return a default branding configuration with default theme settings
+        branding_theme_default = await branding_service.default_theme_config()
+        branding = BrandingDto(
+            id="unknown",
+            tenant_id=resolved_tenant_id if resolved_tenant_id else "",
+            app_name=current_tenant.name if current_tenant else "",
+            logo_url=None,
+            logo_type=None,
+            contact_info=None,
+            favicon_url=None,
+            theme_config=branding_theme_default,
+            created_at=datetime.now().isoformat(),
+            updated_at=datetime.now().isoformat()
+        )
+
+
+    return AppConfigurationDto(
+        is_multi_tenant_enabled=is_tenancy_enabled(),
+        multi_tenancy_strategy=get_tenancy_strategy(),
+        host_main_domain=get_host_main_domain_name(),
+        is_user_logged_in=is_user_logged_in,
+        user_preferences=user_pref_doc,
+        current_tenant=current_tenant,
+        environment = settings.fastapi_env,
+        enabled_sso_providers=enabled_sso_provider_names,
+        branding=branding
+        
+    )
+

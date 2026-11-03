@@ -1,0 +1,122 @@
+import json
+from redis.asyncio import Redis, from_url
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+from fastapi import Request
+from controlplane_api.utils import get_logger
+from controlplane_api.config import settings
+
+from api.core.container import get_role_service, get_user_service, get_subscription_plan_service
+from controlplane_api.metrics import register_cache
+from api.infrastructure.security.current_user import resolve_me_optional_from_token
+
+logger = get_logger(__name__)
+_http_cache = register_cache("redis_http")
+
+redis_cache_expiry = 300  # Cache expiry time in seconds (5 minutes)
+redis: Redis =  from_url(url=settings.redis_uri, decode_responses=True)
+
+not_allowed_cache_paths = [
+    "/api/v1/account/logout",
+    "/api/v1/app_configuration/",
+    "/api/v1/security/passkeys",
+    "/api/v1/configurations/stripe/webhooks",
+    "/version",
+    "/versions",
+]
+
+
+class RedisCacheMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, expiry: int = redis_cache_expiry):
+        super().__init__(app)
+        self.expiry = expiry
+
+    async def _clear_cache(self, user_id: str, tenant_id: str):
+        async for key in redis.scan_iter(f"cache:cu{user_id}:ct{tenant_id}:*"):
+            await redis.delete(key)
+
+    async def dispatch(self, request: Request, call_next):
+        token = None
+        if "authorization" in request.headers:
+            token = request.headers["authorization"].replace("Bearer ", "")
+
+        if any(request.url.path.endswith(path) for path in not_allowed_cache_paths) or token is None:
+            logger.debug(f"Bypassing cache for path: {request.url.path}")
+            return await call_next(request)
+            
+        try:
+            
+            user_service = get_user_service()
+            role_service = get_role_service()
+            subscription_service = get_subscription_plan_service()
+
+            current_user = await resolve_me_optional_from_token(
+                token,
+                user_service=user_service,
+                role_service=role_service,
+                subscription_service=subscription_service,
+            )
+        except Exception as e:
+            logger.debug(f"Could not resolve current_user in middleware: {e}")
+            current_user = None
+
+        user_id = getattr(current_user, "id", "anonymous")
+        tenant_id = getattr(current_user, "tenant_id", "default")
+        cache_base = f"cu{user_id}:ct{tenant_id}:{request.url.path}?{request.url.query}"
+        logger.debug(f"Cache base string: {cache_base}")
+        cache_key = f"cache:{cache_base}"
+
+        logger.debug(request.method + " " + request.url.path + "?" + request.url.query)
+        # Only cache GET requests
+        if request.method != "GET":
+            logger.debug(f"Clearing cache for key: {cache_key}")
+            await self._clear_cache(user_id, tenant_id)
+            logger.debug("Cache cleared for non-GET request.")
+            return await call_next(request)
+           
+
+        # --- Try reading from cache
+        cached_value = await redis.get(cache_key)
+        if cached_value:
+            _http_cache.hit()
+            logger.debug(f"Cache hit for key: {cache_key}")
+            cached = json.loads(cached_value)
+            return Response(
+                content=cached["body"],
+                status_code=cached["status"],
+                media_type=cached["media_type"],
+                headers=cached.get("headers", {}),
+            )
+
+        # --- Cache miss → execute route handler
+        _http_cache.miss()
+        response = await call_next(request)
+
+        # Read and rebuild response body
+        body = b"".join([chunk async for chunk in response.body_iterator])
+        body_text = body.decode()
+        content_type = response.headers.get("content-type", "")
+
+        # Cache only 200 OK + JSON responses
+        if response.status_code == 200  and "application/json" in content_type:
+            to_cache = json.dumps({
+                "body": body_text,
+                "status": response.status_code,
+                "media_type": content_type,
+            })
+            await redis.set(cache_key, to_cache, ex=self.expiry)
+            logger.debug(f"Cache set for key: {cache_key}")
+
+        if response.status_code == 401 and "application/json" in content_type and request.url.path not in not_allowed_cache_paths:
+            logger.debug(f"Response status {response.status_code} not cached.")
+            await self._clear_cache(user_id, tenant_id)
+            logger.debug(f"Cleared cache for user: {user_id}, tenant: {tenant_id}")
+            # Body already consumed above; do not call call_next again (would yield "No response returned").
+
+        # Return new Response (since body_iterator is consumed)
+        return Response(
+            content=body_text,
+            status_code=response.status_code,
+            headers=dict(response.headers),
+            media_type=content_type,
+        )
