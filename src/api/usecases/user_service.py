@@ -215,8 +215,6 @@ class UserService:
             return updated or row
 
         row = await self.user_repository.single_or_none_platform_email_ci(email)
-        if row is None:
-            row = await self.user_repository.single_or_none(email=email)
         if row:
             link_updates = UpdateUserDto(keycloak_sub=sub)
             if _oidc_claims_want_admin(email, claims):

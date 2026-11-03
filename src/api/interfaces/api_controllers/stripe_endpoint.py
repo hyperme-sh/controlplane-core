@@ -20,21 +20,17 @@ from controlplane_api.config import settings
 logger = get_logger(__name__)
 
 
-router = APIRouter(
-    prefix="/configurations",
-    dependencies=[
-        Depends(
-            check_permissions_for_current_role(
-                required_permissions=[Permission.MANAGE_PAYMENTS_SETTINGS]
-            )
-        ),
-        Depends(check_feature_access(FeatureEnum.STRIPE)),
-    ],
-)
+configuration_dependencies = [
+    Depends(check_permissions_for_current_role(
+        required_permissions=[Permission.MANAGE_PAYMENTS_SETTINGS]
+    )),
+    Depends(check_feature_access(FeatureEnum.STRIPE)),
+]
+router = APIRouter(prefix="/configurations")
 router.tags = ["Stripe"]
 
 
-@router.post("/stripe", status_code=status.HTTP_201_CREATED)
+@router.post("/stripe", status_code=status.HTTP_201_CREATED, dependencies=configuration_dependencies)
 async def configure_stripe_setting(
     configuration: CreateStripeSettingDto,
     current_user: CurrentUser,
@@ -51,7 +47,7 @@ async def configure_stripe_setting(
     return status.HTTP_201_CREATED
 
 
-@router.get("/stripe", response_model=StripeSettingDto, status_code=status.HTTP_200_OK)
+@router.get("/stripe", response_model=StripeSettingDto, status_code=status.HTTP_200_OK, dependencies=configuration_dependencies)
 async def get_stripe_settings(
     current_user: CurrentUser,
     stripe_setting_service: StripeSettingService = Depends(get_stripe_setting_service),

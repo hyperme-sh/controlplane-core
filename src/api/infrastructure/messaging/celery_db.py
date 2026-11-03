@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
 from sqlalchemy import text
+from sqlalchemy.pool import NullPool
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 
 from controlplane_api.config import settings
@@ -24,7 +25,9 @@ _engine: AsyncEngine | None = None
 def _engine_singleton() -> AsyncEngine:
     global _engine
     if _engine is None:
-        _engine = create_async_engine(normalize_database_url(settings.database_url))
+        _engine = create_async_engine(
+            normalize_database_url(settings.database_url), poolclass=NullPool
+        )
     return _engine
 
 
