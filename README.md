@@ -14,7 +14,7 @@ contract is installed from its owning user-service repository subdirectory.
 
 ```sh
 uv sync --frozen
-bash scripts/check-package.sh
+TEST_DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:PORT/postgres bash scripts/check-package.sh
 ```
 
 Checks validate compatibility aliases and dependency boundaries from source,
@@ -24,3 +24,8 @@ service integration, provider behavior or deployment readiness.
 
 Actions remains disabled pending scoped private dependency read authority and
 hosted-worker policy. Do not copy deployment credentials or use shared runners.
+
+Use only a disposable PostgreSQL server with database-creation permission. The
+OIDC regression creates and drops a unique database. Metrics and tenant-host
+regressions run in all package contexts. The deployment metrics check remains
+under integration/ and needs PANOPTICON_CHECKOUT pointing to the owning monorepo.

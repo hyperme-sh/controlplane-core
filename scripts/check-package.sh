@@ -2,6 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 unset PYTHONPATH UV_NO_SYNC
+: "${TEST_DATABASE_URL:?Disposable PostgreSQL is required}"
 uv lock --check
 uv sync --frozen
 uv run --frozen pytest
