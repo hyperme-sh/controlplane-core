@@ -144,7 +144,7 @@ def prepare_password_reset(*, email: str, action_url: str) -> PreparedMessage:
     return PreparedMessage(
         kind="password_reset",
         to_email=email,
-        subject="Reset your (s)panopticon password",
+        subject="Reset your spanopticon password",
         text=(
             "A support operator requested a password reset. "
             f"Open this link to choose a new password: {action_url}"
@@ -156,10 +156,10 @@ def prepare_ban_notice(*, email: str, lifted: bool) -> PreparedMessage:
     kind = "lift" if lifted else "ban"
     if lifted:
         text = "An operator lifted the ban on your access to this tenant."
-        subject = "(s)panopticon access restored"
+        subject = "spanopticon access restored"
     else:
         text = "An operator banned your access to this tenant until the ban is lifted."
-        subject = "(s)panopticon access banned"
+        subject = "spanopticon access banned"
     return PreparedMessage(kind=kind, to_email=email, subject=subject, text=text)
 
 

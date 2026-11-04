@@ -1,4 +1,4 @@
-"""Requires the (s)panopticon deployment checkout; excluded from package tests."""
+"""Requires the spanopticon deployment checkout; excluded from package tests."""
 import os
 from pathlib import Path
 REPO = Path(os.environ["SPANOPTICON_CHECKOUT"])

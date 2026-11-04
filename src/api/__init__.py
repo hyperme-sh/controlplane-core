@@ -89,7 +89,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     lifespan=lifespan,
-    title="(s)panopticon Control Plane API",
+    title="spanopticon Control Plane API",
     description="Multi-tenant FastAPI backend (PostgreSQL + RLS).",
     version="1.0.0",
 )
