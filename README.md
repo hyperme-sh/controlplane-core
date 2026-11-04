@@ -23,7 +23,7 @@ Both wheel payloads must match runtime bytes. These checks do not establish full
 service integration, provider behavior or deployment readiness.
 
 Actions remains disabled pending scoped private dependency read authority and
-hosted-worker policy. Do not copy deployment credentials or use shared runners.
+shared-runner qualification. Do not copy deployment credentials. Use the approved shared-local runner group.
 
 Use only a disposable PostgreSQL server with database-creation permission. The
 OIDC regression creates and drops a unique database. Metrics and tenant-host
