@@ -1,7 +1,7 @@
-"""Requires the Panopticon deployment checkout; excluded from package tests."""
+"""Requires the (s)panopticon deployment checkout; excluded from package tests."""
 import os
 from pathlib import Path
-REPO = Path(os.environ["PANOPTICON_CHECKOUT"])
+REPO = Path(os.environ["SPANOPTICON_CHECKOUT"])
 APP_METRICS_PORTS = {
     "controlplane-edge": 9100,
     "auth-service": 9101,

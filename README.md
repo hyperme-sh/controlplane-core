@@ -28,4 +28,4 @@ hosted-worker policy. Do not copy deployment credentials or use shared runners.
 Use only a disposable PostgreSQL server with database-creation permission. The
 OIDC regression creates and drops a unique database. Metrics and tenant-host
 regressions run in all package contexts. The deployment metrics check remains
-under integration/ and needs PANOPTICON_CHECKOUT pointing to the owning monorepo.
+under integration/ and needs SPANOPTICON_CHECKOUT pointing to the owning monorepo.
