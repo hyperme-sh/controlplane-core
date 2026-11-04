@@ -786,7 +786,7 @@ requires-dist = [
     { name = "controlplane-db", git = "https://github.com/hyperme-sh/controlplane-db.git?rev=d241123db7b706d4400d68b7b8b4ff38b2a75dd4" },
     { name = "controlplane-events", git = "https://github.com/hyperme-sh/controlplane-events.git?rev=d8bc887460c08f30c6a1dcb951bac042bad326a7" },
     { name = "controlplane-identity", git = "https://github.com/hyperme-sh/controlplane-identity.git?rev=fbdeb1c11f17fa192b7505355c64d1f0af1234dc" },
-    { name = "controlplane-tenancy", git = "https://github.com/hyperme-sh/controlplane-tenancy.git?rev=257d5ab8c1fe269b73e6a2e4fd264923e7bada23" },
+    { name = "controlplane-tenancy", git = "https://github.com/hyperme-sh/controlplane-tenancy.git?rev=13c0029d8d7766d03013e59433d20b7d314342a4" },
     { name = "faker", specifier = ">=37.8.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.135.0" },
     { name = "fastapi-mail", specifier = ">=1.5.0" },
@@ -857,7 +857,7 @@ dependencies = [
 [[package]]
 name = "controlplane-tenancy"
 version = "0.14.0"
-source = { git = "https://github.com/hyperme-sh/controlplane-tenancy.git?rev=257d5ab8c1fe269b73e6a2e4fd264923e7bada23#257d5ab8c1fe269b73e6a2e4fd264923e7bada23" }
+source = { git = "https://github.com/hyperme-sh/controlplane-tenancy.git?rev=13c0029d8d7766d03013e59433d20b7d314342a4#13c0029d8d7766d03013e59433d20b7d314342a4" }
 dependencies = [
     { name = "controlplane-db" },
     { name = "sqlalchemy" },

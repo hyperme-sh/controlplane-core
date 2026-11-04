@@ -9,7 +9,7 @@ requires-python = ">=3.13"
 dependencies = [
     "operator-ban-store @ git+https://github.com/hyperme-sh/user-service.git@895b8621dec17cf55a060f028ad65ad81e6bb81e#subdirectory=core/user-service/contracts",
     "controlplane-api @ git+https://github.com/hyperme-sh/controlplane-api.git@6bef00ce7fc630df5523dcd254f85d40d13d135e",
-    "controlplane-tenancy @ git+https://github.com/hyperme-sh/controlplane-tenancy.git@257d5ab8c1fe269b73e6a2e4fd264923e7bada23",
+    "controlplane-tenancy @ git+https://github.com/hyperme-sh/controlplane-tenancy.git@13c0029d8d7766d03013e59433d20b7d314342a4",
     "controlplane-identity @ git+https://github.com/hyperme-sh/controlplane-identity.git@fbdeb1c11f17fa192b7505355c64d1f0af1234dc",
     "controlplane-db @ git+https://github.com/hyperme-sh/controlplane-db.git@d241123db7b706d4400d68b7b8b4ff38b2a75dd4",
     "controlplane-events @ git+https://github.com/hyperme-sh/controlplane-events.git@d8bc887460c08f30c6a1dcb951bac042bad326a7",
