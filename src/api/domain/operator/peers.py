@@ -1,4 +1,4 @@
-"""Peer (s)panopticon rows on this plane's Postgres, plus a health ping.
+"""Peer spanopticon rows on this plane's Postgres, plus a health ping.
 
 v1 does not enroll a host, copy a device secret, or write a chain store.
 """
