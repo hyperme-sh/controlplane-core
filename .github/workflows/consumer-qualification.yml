@@ -5,7 +5,7 @@ permissions:
   contents: read
 jobs:
   package:
-    runs-on: [self-hosted, linux, x64, debrunner]
+    runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64", "debrunner"]') || 'ubuntu-24.04' }}
     timeout-minutes: 15
     services:
       postgres:
@@ -20,6 +20,8 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
+      - name: Prepare test evidence directory
+        run: echo "TEST_EVIDENCE_DIR=$RUNNER_TEMP/package-test-results" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
@@ -30,3 +32,10 @@ jobs:
       - run: bash scripts/check-package.sh --fixtures
         env:
           TEST_DATABASE_URL: postgresql+psycopg://postgres:package-test-only@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres
+      - name: Retain matching package test inventories
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: package-test-results
+          path: ${{ runner.temp }}/package-test-results/*.xml
+          if-no-files-found: error
+          retention-days: 90

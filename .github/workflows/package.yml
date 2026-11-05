@@ -8,9 +8,7 @@ permissions:
 jobs:
   package:
     if: github.ref == 'refs/heads/main'
-    runs-on:
-      group: shared-local
-      labels: [self-hosted, linux, x64, debrunner]
+    runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64", "debrunner"]') || 'ubuntu-24.04' }}
     timeout-minutes: 15
     services:
       postgres:
@@ -26,6 +24,8 @@ jobs:
           --health-retries 10
     environment: controlplane-libs-read
     steps:
+      - name: Prepare test evidence directory
+        run: echo "TEST_EVIDENCE_DIR=$RUNNER_TEMP/package-test-results" >> "$GITHUB_ENV"
       - name: Mint repository-scoped dependency token
         id: dependency-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
@@ -84,3 +84,10 @@ jobs:
           if-no-files-found: error
           retention-days: 90
           compression-level: 0
+      - name: Retain matching package test inventories
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: package-test-results
+          path: ${{ runner.temp }}/package-test-results/*.xml
+          if-no-files-found: error
+          retention-days: 90
