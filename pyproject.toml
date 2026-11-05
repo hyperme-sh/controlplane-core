@@ -4,10 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "controlplane-core"
-version = "0.1.0"
+version = "1.0.0"
 requires-python = ">=3.13"
 dependencies = [
-    "operator-ban-store @ git+https://github.com/hyperme-sh/user-service.git@895b8621dec17cf55a060f028ad65ad81e6bb81e#subdirectory=core/user-service/contracts",
+    "operator-ban-store @ git+https://github.com/hyperme-sh/user-service.git@344d8c14cffcdffe5d07b9fa29da33837092a3c7#subdirectory=core/user-service/contracts",
     "controlplane-api @ git+https://github.com/hyperme-sh/controlplane-api.git@ba971e08bcbf6ec45ec8e6f0ae26220378aa7cdb",
     "controlplane-tenancy @ git+https://github.com/hyperme-sh/controlplane-tenancy.git@9528e2e58463c44fd0affa58089d6fb1215da605",
     "controlplane-identity @ git+https://github.com/hyperme-sh/controlplane-identity.git@797bb4303075e3e7fb54dd42a1451bfe3fd089fa",

@@ -730,7 +730,7 @@ dependencies = [
 
 [[package]]
 name = "controlplane-core"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "azure-storage-blob" },
@@ -796,7 +796,7 @@ requires-dist = [
     { name = "langchain-ollama", specifier = ">=0.3.8" },
     { name = "langchain-openai", specifier = ">=0.3.33" },
     { name = "openpyxl", specifier = ">=3.1.5" },
-    { name = "operator-ban-store", git = "https://github.com/hyperme-sh/user-service.git?subdirectory=core%2Fuser-service%2Fcontracts&rev=895b8621dec17cf55a060f028ad65ad81e6bb81e" },
+    { name = "operator-ban-store", git = "https://github.com/hyperme-sh/user-service.git?subdirectory=core%2Fuser-service%2Fcontracts&rev=344d8c14cffcdffe5d07b9fa29da33837092a3c7" },
     { name = "passlib", specifier = ">=1.7.4" },
     { name = "prometheus-client", specifier = ">=0.21.1" },
     { name = "punq", specifier = ">=0.7.0" },
@@ -2407,8 +2407,8 @@ wheels = [
 
 [[package]]
 name = "operator-ban-store"
-version = "0.1.0"
-source = { git = "https://github.com/hyperme-sh/user-service.git?subdirectory=core%2Fuser-service%2Fcontracts&rev=895b8621dec17cf55a060f028ad65ad81e6bb81e#895b8621dec17cf55a060f028ad65ad81e6bb81e" }
+version = "0.24.0"
+source = { git = "https://github.com/hyperme-sh/user-service.git?subdirectory=core%2Fuser-service%2Fcontracts&rev=344d8c14cffcdffe5d07b9fa29da33837092a3c7#344d8c14cffcdffe5d07b9fa29da33837092a3c7" }
 dependencies = [
     { name = "sqlalchemy" },
 ]
