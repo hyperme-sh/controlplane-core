@@ -26,7 +26,7 @@ def test_shared_session_context_resets():
 
 def test_nested_contract_pin_is_standard_metadata():
     dep, = [d for d in requires('controlplane-core') if d.startswith('operator-ban-store ')]
-    assert dep == 'operator-ban-store @ git+https://github.com/hyperme-sh/user-service.git@344d8c14cffcdffe5d07b9fa29da33837092a3c7#subdirectory=core/user-service/contracts'
+    assert dep == 'operator-ban-store @ git+https://github.com/hyperme-sh/user-service.git@4bac0ba16e029df058498b1926d57c10b9d66e16#subdirectory=core/user-service/contracts'
 
 
 def test_health_and_version_aliases_http(monkeypatch):
