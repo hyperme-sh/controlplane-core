@@ -108,7 +108,7 @@
     "api/infrastructure/persistence/repositories/role_repository_impl.py": "4907e8c871b8278b9ba16b811c1867b23310818d8ff530a494905a48cacb15b6",
     "api/infrastructure/persistence/repositories/sso_settings_provider_respository_impl.py": "524c3e4286286a2595ab03234b38eaa93701ec7b26abbedf2a6c8505e1c0da69",
     "api/infrastructure/persistence/repositories/storage_settings_repository_impl.py": "919ab150d9d4f8c91a64271aae4a903f44f886debee5991940844ffdd9cbe971",
-    "api/infrastructure/persistence/repositories/subscription_plan_repository_impl.py": "c9001c6707ffaccd8c2297eec8e29598eaa5847c348dee9ee6cae47e006497f3",
+    "api/infrastructure/persistence/repositories/subscription_plan_repository_impl.py": "16287aeabc21c3437ac23dc63a08b46e963fd24770d44269ce145e144b33ee9c",
     "api/infrastructure/persistence/repositories/tenant_repository_impl.py": "dd4d6edab80ae6a74aad9a58b11a65f2cff08791275130660cd854837bc7ff11",
     "api/infrastructure/persistence/repositories/user_magic_link_repository_impl.py": "98412461b424214d691bb432febc76752b254cf066e97d20544672ad1e309045",
     "api/infrastructure/persistence/repositories/user_passkey_repository_impl.py": "704901ec98692593f608c37dab94e1c4f2575137255ef6a9941df65e10e74865",

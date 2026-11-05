@@ -1,7 +1,7 @@
 # controlplane-core
 
 Shared legacy API infrastructure under the Python import name `api`, version
-0.24.0. Compatibility modules alias the independently installed API, identity and
+1.0.0. Compatibility modules alias the independently installed API, identity and
 tenancy implementations to preserve shared settings, session context and registries.
 
 ## Development
@@ -59,3 +59,16 @@ The release candidate binds the exact wheel digest and complete packaged `api`
 runtime inventory. Source, installed-wheel and rebuilt-sdist consumers must pass;
 real database tests remain mandatory. This does not establish live service/provider
 acceptance or installer/dependency metadata patch compatibility.
+
+## Closure dependency adoption
+
+This 1.0.0 candidate preserves the closure audit attribution fix while adopting
+merged API 0.24.1 and identity 1.0.0 revisions. The conservative full-runtime
+contract differs from accepted 0.24.0, so the existing policy requires a major
+release. Accepted baseline files and policy checks are unchanged.
+
+DB and tenancy closure revisions are still pending owner PRs. Their exact Git
+archive builds are explicitly marked as unpublished fixtures in the dependency
+manifest; API, identity, events and operator-ban fixtures are published artifacts.
+Fixture qualification does not claim release or deployment acceptance for those
+pending owners. They must merge and be requalified before coordinated cutover.
