@@ -65,3 +65,19 @@ def test_webhook_has_signature_auth_without_user_login(monkeypatch):
     assert len(config_routes)==2 and all(len(r.dependencies)==2 for r in config_routes)
 
 from test_oidc_platform_subject import database
+
+
+@pytest.mark.asyncio
+async def test_subscription_audit_uses_persisted_creator_after_database_fence(monkeypatch):
+    import uuid
+    from api.infrastructure.persistence.repositories.subscription_plan_repository_impl import SubscriptionPlanRepository
+    from api.domain.dtos.subcription_plan_dto import CreateSubscriptionPlanDto
+    repository = SubscriptionPlanRepository()
+    # The database may clear a retired creator during insertion. The request's
+    # historical user ID must not be restored in the resulting audit record.
+    repository.create = AsyncMock(return_value=SimpleNamespace(id=uuid.uuid4(), user_id=None))
+    repository.add_audit_log = AsyncMock()
+    await repository.create_subscription_plan(CreateSubscriptionPlanDto(
+        tenant_id=str(uuid.uuid4()), user_id=str(uuid.uuid4()), plan_id='paid',
+        is_trial=False, actor='payment', plan_level={'premium': 2}))
+    assert repository.add_audit_log.await_args.args[0].user_id is None

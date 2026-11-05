@@ -49,9 +49,7 @@ class SubscriptionPlanRepository(BaseRepository[SubscriptionPlan], AuditLogRepos
             AuditLogDto(
                 action="create",
                 entity="SubscriptionPlan",
-                user_id=str(subscription_plan.user_id)
-                if subscription_plan.user_id
-                else None,
+                user_id=str(result.user_id) if result.user_id else None,
                 changes={
                     "Info": "Created new subscription plan with id " + str(result.id)
                 },
