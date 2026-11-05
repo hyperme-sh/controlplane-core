@@ -91,3 +91,8 @@ publisher independently verifies a real immutable stable baseline and refuses
 qualification snapshots, even if a caller job reports success. Existing valid
 stable records are retained; no release, version change, deployment or human
 approval prerequisite is introduced by this correction.
+
+## License
+
+This package is licensed under [Apache-2.0](LICENSE). Dependencies retain their
+own licenses; this declaration does not relicense bundled third-party material.

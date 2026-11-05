@@ -6,6 +6,8 @@ build-backend = "hatchling.build"
 name = "controlplane-core"
 version = "0.1.0"
 requires-python = ">=3.13"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 dependencies = [
     "operator-ban-store @ git+https://github.com/hyperme-sh/user-service.git@8abb59070b9a9f269e39c1955459cead88c7f6c6#subdirectory=core/user-service/contracts",
     "controlplane-api @ git+https://github.com/hyperme-sh/controlplane-api.git@0f9dbf4e63b86b692936e6f91d4eda832cbf19ad",
@@ -53,7 +55,7 @@ servicebus = [
 packages = ["src/api"]
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/integration", "/tests", "/scripts", "/pyproject.toml", "/uv.lock", "/README.md"]
+include = ["LICENSE", "/src", "/integration", "/tests", "/scripts", "/pyproject.toml", "/uv.lock", "/README.md"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
