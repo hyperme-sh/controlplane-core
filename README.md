@@ -1,7 +1,16 @@
 # controlplane-core
 
+## Current version authority
+
+Current development version: `0.1.0`. The services remain before the unreleased
+0.24.0 milestone. Earlier 0.24/1.0 preparation and publication notes below are
+historical and do not authorize those versions. Existing tags and historical
+artifacts remain untouched. Development uses exact source pins and rebuilt
+artifacts; no prior release is required. Version changes, tags and publication
+require the owner's explicit authorization to the agent.
+
 Shared legacy API infrastructure under the Python import name `api`, version
-1.0.0. Compatibility modules alias the independently installed API, identity and
+0.1.0. Compatibility modules alias the independently installed API, identity and
 tenancy implementations to preserve shared settings, session context and registries.
 
 ## Development
@@ -64,10 +73,9 @@ Stable promotion retains the shared live provenance checks.
 
 ## Closure dependency adoption
 
-This 1.0.0 candidate preserves the closure audit attribution fix while adopting
-merged API 0.24.1 and identity 1.0.0 revisions. The conservative full-runtime
-contract differs from the qualified 0.24.0 snapshot, so the existing policy requires a major
-release. Accepted baseline files and policy checks are unchanged.
+This development candidate preserves closure audit attribution and uses the
+corrected exact-source API and identity dependencies. Compatibility differences
+are qualification findings, not authorization for a major release.
 
 DB and tenancy closure revisions are still pending owner PRs. Their exact Git
 archive builds are explicitly marked as unpublished fixtures in the dependency
