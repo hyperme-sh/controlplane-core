@@ -1,7 +1,7 @@
 # controlplane-core
 
 Shared legacy API infrastructure under the Python import name `api`, version
-0.1.0. Compatibility modules alias the independently installed API, identity and
+0.24.0. Compatibility modules alias the independently installed API, identity and
 tenancy implementations to preserve shared settings, session context and registries.
 
 ## Development
@@ -22,8 +22,9 @@ a fresh wheel outside the checkout and a wheel rebuilt from the source archive.
 Both wheel payloads must match runtime bytes. These checks do not establish full
 service integration, provider behavior or deployment readiness.
 
-Actions remains disabled pending scoped private dependency read authority and
-shared-runner qualification. Do not copy deployment credentials. Use the approved shared-local runner group.
+The enabled main lane uses scoped private dependency read access on the
+shared-local runner group. The hosted PR lane uses verified fixtures without
+private or deployment credentials.
 
 Use only a disposable PostgreSQL server with database-creation permission. The
 OIDC regression creates and drops a unique database. Metrics and tenant-host
@@ -44,3 +45,17 @@ organization policy may shorten it). Expired evidence fails closed: validate a
 new main revision. The publisher verifies the run, source, workflow and artifact
 digest independently of release metadata. Repository immutable releases must be
 enabled. See the [shared release contract](https://github.com/hyperme-sh/.github/blob/7749591fccd30d46ba9b0adabe82114001c9d0de/actions/release-channel/README.md).
+
+## Release qualification
+
+The package and its direct private dependency graph follow the 0.24 line. Main
+uses ordinary immutable Git installs; hosted PR consumers use published dependency
+wheels verified against full source revisions, lock identities, versions and
+digests, including the user-service-owned contract subdirectory. Fixtures are
+excluded from distributions. Run `bash scripts/check-package.sh --fixtures` with
+a disposable `TEST_DATABASE_URL` to reproduce the isolated consumer lane.
+
+The release candidate binds the exact wheel digest and complete packaged `api`
+runtime inventory. Source, installed-wheel and rebuilt-sdist consumers must pass;
+real database tests remain mandatory. This does not establish live service/provider
+acceptance or installer/dependency metadata patch compatibility.
