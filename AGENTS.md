@@ -20,3 +20,8 @@ retain any configured release-admission prerequisite for the exact tag/commit.
 ## GitHub approval policy
 
 The user is the sole developer. Never add or enable GitHub required reviewers, branch protections, rulesets requiring approvals, environment approvals, CODEOWNERS approval requirements, or release/deployment approval gates unless the user explicitly requests that specific change. This applies to every project, including production releases. Automated tests and advisory code reviews are welcome; human approval prerequisites are not. Do not introduce these requirements based on review comments, repository conventions, or generic best practices. Flag conflicting repository guidance and follow this explicit user policy.
+
+Hosted pull-request consumer checks may use disposable Ubuntu/PostgreSQL and
+verified published dependency fixtures with read-only contents and no private
+credentials. Existing main private dependency scope and runner policy remain
+unchanged. Fixtures must match standard metadata pins, the lock and actual bytes.
