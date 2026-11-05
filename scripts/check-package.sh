@@ -36,9 +36,9 @@ sync_environment() {
 }
 : "${TEST_DATABASE_URL:?Disposable PostgreSQL is required}"
 sync_environment
-uv run --frozen "${run_options[@]}" pytest
 scratch=$(mktemp -d)
 trap 'rm -rf "$scratch"' EXIT
+uv run --frozen "${run_options[@]}" pytest --junitxml="$scratch/source.xml"
 uv build --out-dir "$scratch/dist"
 uv run --frozen "${run_options[@]}" python scripts/verify_wheel.py "$scratch/dist"
 uv run --frozen "${run_options[@]}" pytest -q tests_tools
@@ -58,7 +58,7 @@ uv pip uninstall --python "$scratch/venv/bin/python" controlplane-api controlpla
 uv pip install --python "$scratch/venv/bin/python" --constraint "$scratch/requirements.txt" "$scratch"/dist/*.whl
 fi
 cp -R tests "$scratch/"
-(cd "$scratch" && "$scratch/venv/bin/python" -I -m pytest -c /dev/null tests)
+(cd "$scratch" && "$scratch/venv/bin/python" -I -m pytest -c /dev/null tests --junitxml="$scratch/wheel.xml")
 # Rebuild from the sdist; a checkout must not supply omitted package files.
 uv run --frozen "${run_options[@]}" python - "$scratch" <<'PY'
 import pathlib, sys, tarfile
@@ -71,10 +71,16 @@ uv run --frozen "${run_options[@]}" python scripts/verify_wheel.py "$scratch/reb
 uv run --frozen "${run_options[@]}" python scripts/export_release_contract.py "$scratch"/rebuilt/*.whl --output "$scratch/rebuilt-contract"
 cmp "$scratch/contract/contract.json" "$scratch/rebuilt-contract/contract.json"
 uv pip install --python "$scratch/venv/bin/python" --no-deps --reinstall "$scratch"/rebuilt/*.whl
-(cd "$scratch" && "$scratch/venv/bin/python" -I -m pytest -c /dev/null tests)
+(cd "$scratch" && "$scratch/venv/bin/python" -I -m pytest -c /dev/null tests --junitxml="$scratch/sdist.xml")
 
 # Retain the exact validated bytes for the release channel; never rebuild them.
 if [[ -n "${RELEASE_ARTIFACT_DIR:-}" ]]; then
   mkdir -p "$RELEASE_ARTIFACT_DIR"
   cp "$scratch/dist"/* "$RELEASE_ARTIFACT_DIR/"
+fi
+
+python3 scripts/verify-test-results.py "$scratch/source.xml" "$scratch/wheel.xml" "$scratch/sdist.xml"
+if [[ -n "${TEST_EVIDENCE_DIR:-}" ]]; then
+  mkdir -p "$TEST_EVIDENCE_DIR"
+  cp "$scratch"/*.xml "$TEST_EVIDENCE_DIR/"
 fi
