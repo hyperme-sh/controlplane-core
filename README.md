@@ -59,3 +59,7 @@ The release candidate binds the exact wheel digest and complete packaged `api`
 runtime inventory. Source, installed-wheel and rebuilt-sdist consumers must pass;
 real database tests remain mandatory. This does not establish live service/provider
 acceptance or installer/dependency metadata patch compatibility.
+
+Development snapshot evidence is retained in `releases/qualification`. A test
+prerelease does not establish an accepted stable baseline or reserve a version.
+Stable promotion retains the shared live provenance checks.
