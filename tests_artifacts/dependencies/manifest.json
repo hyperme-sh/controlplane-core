@@ -14,12 +14,12 @@
     },
     {
       "distribution": "controlplane-tenancy",
-      "version": "0.14.0",
-      "dependency_revision": "9528e2e58463c44fd0affa58089d6fb1215da605",
-      "artifact_revision": "9528e2e58463c44fd0affa58089d6fb1215da605",
-      "wheel": "controlplane_tenancy-0.14.0-py3-none-any.whl",
-      "sha256": "553f3adef35b427667d10da656ebd297f475f510a503089ba6f7a33f40873e18",
-      "source_url": "https://github.com/hyperme-sh/controlplane-tenancy/tree/9528e2e58463c44fd0affa58089d6fb1215da605",
+      "version": "1.0.0",
+      "dependency_revision": "26c6207cfa446e819992baaa0df53f3b694f6ced",
+      "artifact_revision": "26c6207cfa446e819992baaa0df53f3b694f6ced",
+      "wheel": "controlplane_tenancy-1.0.0-py3-none-any.whl",
+      "sha256": "baf203d5c64eeac1dc07d11d3aad3570edf3287c1a175fa658a790e38a23e2a9",
+      "source_url": "https://github.com/hyperme-sh/controlplane-tenancy/tree/26c6207cfa446e819992baaa0df53f3b694f6ced",
       "qualification": "Built locally from exact Git archive for pending owner adoption; not a published release"
     },
     {
@@ -35,12 +35,12 @@
     },
     {
       "distribution": "controlplane-db",
-      "version": "0.1.0",
-      "dependency_revision": "a14a4a35b5dbb45b7b9050ad35fcc65b4ef8fc79",
-      "artifact_revision": "a14a4a35b5dbb45b7b9050ad35fcc65b4ef8fc79",
-      "wheel": "controlplane_db-0.1.0-py3-none-any.whl",
-      "sha256": "c24f752aebf4154a202351135e5c40cb2c096254c3782cc72dda50ec92f9d7f8",
-      "source_url": "https://github.com/hyperme-sh/controlplane-db/tree/a14a4a35b5dbb45b7b9050ad35fcc65b4ef8fc79",
+      "version": "1.0.0",
+      "dependency_revision": "482943cbcd78ffd1a3d2ad4e1088ed7ed0cdeaea",
+      "artifact_revision": "482943cbcd78ffd1a3d2ad4e1088ed7ed0cdeaea",
+      "wheel": "controlplane_db-1.0.0-py3-none-any.whl",
+      "sha256": "914292d7efefa4c0d8fddfde7dcad16b2167be4fbb61d78524bda37aa94c00e0",
+      "source_url": "https://github.com/hyperme-sh/controlplane-db/tree/482943cbcd78ffd1a3d2ad4e1088ed7ed0cdeaea",
       "qualification": "Built locally from exact Git archive for pending owner adoption; not a published release"
     },
     {
