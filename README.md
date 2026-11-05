@@ -1,122 +1,252 @@
 # controlplane-core
 
-## Current version authority
+`controlplane-core` 0.1.0 is the shared Python library behind the Spanopticon
+control-plane HTTP application. Its import name is `api`. It assembles the
+FastAPI process (tenants, accounts, billing, operator console, and domain
+events) and keeps the historical `api.*` modules pointed at the current
+[controlplane-api](https://github.com/hyperme-sh/controlplane-api),
+[controlplane-identity](https://github.com/hyperme-sh/controlplane-identity),
+and [controlplane-tenancy](https://github.com/hyperme-sh/controlplane-tenancy)
+packages.
 
-Current development version: `0.1.0`. The services remain before the unreleased
-0.24.0 milestone. Earlier 0.24/1.0 preparation and publication notes below are
-historical and do not authorize those versions. Existing tags and historical
-artifacts remain untouched. Development uses exact source pins and rebuilt
-artifacts; no prior release is required. Version changes, tags and publication
-require the owner's explicit authorization to the agent.
+## Why
 
-Shared legacy API infrastructure under the Python import name `api`, version
-0.1.0. Compatibility modules alias the independently installed API, identity and
-tenancy implementations to preserve shared settings, session context and registries.
+Spanopticon services and Hypermesh callers share one settings object, one
+request-scoped database session, and one tenant context. Auth, API keys, ACL,
+and the edge each run their own process, and each of those processes has to
+resolve the same Keycloak token, the same Postgres row-level security setting,
+and the same domain-event envelope. This library is that shared surface. The
+`api` import name is what those services already call, so a settings or session
+change stays in one module object instead of drifting across copies.
 
-## Development
+## How it works
 
-Use Python 3.13 and uv 0.11.26 with read access to the private hyperme-sh
-controlplane-api, controlplane-tenancy, controlplane-identity, controlplane-db,
-controlplane-events and user-service repositories. Full dependency commit pins
-are included in ordinary distribution metadata and uv.lock. The operator ban
-contract is installed from its owning user-service repository subdirectory.
+The wheel installs the `api` package. A compatibility module replaces itself
+with the installed implementation, so `import api.core.config` and
+`import controlplane_api.config` are the same module in one process. The same
+pattern covers identity and tenancy:
+
+| Legacy import | Implementation |
+| --- | --- |
+| `api.core.config`, logging, exceptions, health, version, metrics, permissions | `controlplane-api` 0.23.0 |
+| `api.infrastructure.security.keycloak_jwt`, tenant-session JWT, API-key exchange JWT, internal tokens, portal controls | `controlplane-identity` 0.15.0 |
+| `api.infrastructure.persistence.db_session`, tenant GUC, tenant membership | `controlplane-tenancy` 0.14.0 |
+
+Code that still lives in this repository is the application around those
+libraries:
+
+- `api.app` is the FastAPI application. On startup it opens an async SQLAlchemy
+  engine through `controlplane-db`, installs the request session, seeds platform
+  roles, and starts the tenant event publisher.
+- HTTP routes are mounted at `/api/v1`: health, tenants, features, branding,
+  app configuration, account, security, dashboard, roles, permissions, storage,
+  AI, products, prices, billing, Stripe, invoices, notifications, audit logs,
+  and SSO. `GET /version` is registered on the application itself.
+  Interactive docs are at `/docs`. Authenticated routes expect a Keycloak
+  access token for the `controlplane` realm.
+- Each request gets a database session and, when tenancy is enabled, the
+  Postgres `app.current_tenant_id` setting. Health probes
+  (`/api/v1/health` and `/api/v1/health/`) skip tenant resolution so a container
+  IP in the `Host` header still returns readiness.
+- The operator console domain (`api.domain.operator`) holds bans, claim checks,
+  operator mail, peer-plane rows, and the operator population map. Console
+  access requires an explicit `operator:console` permission. Host and renter
+  product groups are recorded separately and do not open the console.
+- Domain events go through `api.infrastructure.messaging.tenant_event_publisher`.
+  The default bus is the Postgres `controlplane_events` table from
+  [controlplane-events](https://github.com/hyperme-sh/controlplane-events) 0.1.0.
+  Set `AZURE_SERVICE_BUS_CONNECTION_STRING` and install the
+  `controlplane-core[servicebus]` extra (`azure-servicebus>=7.12.0`) to use
+  Azure Service Bus with the same `publish()` protocol. Each consumer uses its
+  own subscription, named by that consumer's group id.
+- Schema migrations stay in
+  [controlplane-db](https://github.com/hyperme-sh/controlplane-db) 0.1.0.
+  The operator ban contract is
+  `operator-ban-store` 0.1.0 from
+  [user-service](https://github.com/hyperme-sh/user-service)
+  (`core/user-service/contracts`).
+- When [controlplane-edge](https://github.com/hyperme-sh/controlplane-edge) is
+  installed in the same environment, startup also runs its gRPC server and
+  registers gateway middleware, aggregated OpenAPI, and GraphQL.
+  `python -m controlplane_edge.main` starts the Prometheus metrics server and
+  then serves this `api.app`. User, group, and organization HTTP is forwarded
+  by that edge to user-service; those prefixes are left unmounted here.
+
+`GET /api/v1/health/` returns `{"status":"Ok"}`. The edge process sets
+`CPEDGE_HYPERMESH_SERVICE_URL`. With that variable set, the same route probes
+`{url}/api/v1/hypermesh/catalog` and answers `503` with
+`{"status":"hypermesh unreachable"}` when hypermesh-service does not answer.
+
+## Practical use
+
+Python 3.13 and [uv](https://docs.astral.sh/uv/) 0.11.26. Dependency revisions
+are pinned in `pyproject.toml` and `uv.lock`. The pinned repositories are
+public.
 
 ```sh
 uv sync --frozen
-TEST_DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:PORT/postgres bash scripts/check-package.sh
 ```
 
-Checks validate compatibility aliases and dependency boundaries from source,
-a fresh wheel outside the checkout and a wheel rebuilt from the source archive.
-Both wheel payloads must match runtime bytes. These checks do not establish full
-service integration, provider behavior or deployment readiness.
+Apply the controlplane-db migrations to the database before the process starts.
+Startup seeds platform roles and expects those tables to exist. Settings load
+from the environment and from `.env` (`api.core.config`, a
+`pydantic-settings` model). Replace the development token secrets before any
+shared deployment.
 
-The enabled main lane uses scoped private dependency read access on the
-shared-local runner group. The hosted PR lane uses verified fixtures without
-private or deployment credentials.
+```sh
+export DATABASE_URL='postgresql+asyncpg://controlplane:controlplane@127.0.0.1:5432/controlplane'
+export REDIS_URL='redis://127.0.0.1:6379/0'
+export SERVICE_NAME='controlplane'
+export FASTAPI_ENV='development'
+export KEYCLOAK_ISSUER='http://127.0.0.1:8081/realms/controlplane'
+export KEYCLOAK_JWKS_URL='http://127.0.0.1:8081/realms/controlplane/protocol/openid-connect/certs'
+uv run uvicorn api:app --host 127.0.0.1 --port 8000
+```
 
-Use only a disposable PostgreSQL server with database-creation permission. The
-OIDC regression creates and drops a unique database. Metrics and tenant-host
-regressions run in all package contexts. The deployment metrics check remains
-under integration/ and needs SPANOPTICON_CHECKOUT pointing to the owning monorepo.
+`REDIS_URL` overrides the cache middleware (the built-in default is
+`redis://localhost:6372`). `GET /api/v1/health/` and `GET /version` do not
+require a bearer token. Account, tenant, and billing routes do.
 
-## Release channels
+```sh
+curl -sS http://127.0.0.1:8000/api/v1/health/
+curl -sS http://127.0.0.1:8000/version
+```
 
-Main validation retains its exact qualified files in Actions artifacts. It does
-not create GitHub releases or tags. Historical `test-<commit>` prereleases remain
-qualification evidence and do not establish an accepted stable release.
+`GET /version` reports `service` from `SERVICE_NAME`, plus `git_sha` (`GIT_SHA`,
+then `SOURCE_SHA`, then `HYPERMESH_SOURCE_SHA`) and `built_at`.
 
-Stable publication requires an explicit `vMAJOR.MINOR.PATCH` tag, the exact
-successful main validation artifact, compatible declared contracts and an actual
-immutable stable baseline. The publisher independently verifies that evidence;
-successful caller jobs alone cannot establish acceptance. Missing evidence and
-first-stable bootstrap remain closed. Package qualification, coordinated consumer
-acceptance and runtime deployment remain separate.
+With the edge package installed in the same environment:
 
-## Release qualification
+```sh
+export PORT=8000
+uv run python -m controlplane_edge.main
+```
 
-The package and its direct private dependency graph follow the 0.24 line. Main
-uses ordinary immutable Git installs; hosted PR consumers use published dependency
-wheels verified against full source revisions, lock identities, versions and
-digests, including the user-service-owned contract subdirectory. Fixtures are
-excluded from distributions. Run `bash scripts/check-package.sh --fixtures` with
-a disposable `TEST_DATABASE_URL` to reproduce the isolated consumer lane.
+That launcher binds Prometheus on `METRICS_PORT` (default `9100`) unless
+`METRICS_ENABLED=0`. `uvicorn api:app` installs the in-process HTTP metrics
+middleware and does not bind that port by itself.
 
-The release candidate binds the exact wheel digest and complete packaged `api`
-runtime inventory. Source, installed-wheel and rebuilt-sdist consumers must pass;
-real database tests remain mandatory. This does not establish live service/provider
-acceptance or installer/dependency metadata patch compatibility.
+## How Hypermesh uses it
 
-Development snapshot evidence is retained in `releases/qualification`. A test
-prerelease does not establish an accepted stable baseline or reserve a version.
-Stable promotion retains the shared live provenance checks.
+Hypermesh lease, ticket, and tunnel HTTP is served by hypermesh-service.
+This library is the shared control-plane code on that path: settings, identity
+aliases, the operator ban book, and process metrics. Callers below are the
+current public services that depend on `controlplane-core`.
 
-## Closure dependency adoption
+**Renter keys and chat.** [api-keys-service](https://github.com/hyperme-sh/api-keys-service)
+reads `HYPERMESH_INTERNAL_TOKEN` from the shared settings object
+(`api.core.config.settings`). On mint it `POST`s the key's SHA-256 fingerprint
+to `{HYPERMESH_CONTROL_PLANE_URL}/api/v1/hypermesh/internal/renter-key-fingerprints`
+with `X-Internal-Token` and `X-Tenant-ID`. Revoke uses
+`.../renter-key-fingerprints/revoke` (and the IR revoke path for an IR key).
+Lookup of the tenant's active lease is
+`GET .../api/v1/hypermesh/internal/mapped-lease`.
+[hypermesh-gateway](https://github.com/hyperme-sh/hypermesh-gateway) pulls the
+cross-tenant fingerprint index with the same token:
 
-This development candidate preserves closure audit attribution and uses the
-corrected exact-source API and identity dependencies. Compatibility differences
-are qualification findings, not authorization for a major release.
+`GET {HYPERMESH_CONTROL_PLANE_URL}/api/v1/hypermesh/internal/renter-key-index`
 
-DB and tenancy closure revisions are still pending owner PRs. Their exact Git
-archive builds are explicitly marked as unpublished fixtures in the dependency
-manifest; API, identity, events and operator-ban fixtures are published artifacts.
-Fixture qualification does not claim release or deployment acceptance for those
-pending owners. They must merge and be requalified before coordinated cutover.
+The gateway default base URL is `http://hypermesh-service:8000`. Renter chat
+on the gateway verifies a portal JWT or an API-key-exchange JWT locally
+through `api.infrastructure.security.api_key_exchange_jwt`. After a ticket is
+issued, that chat path uses the cached signed ticket and the standing
+WireGuard peer.
 
-### Actions qualification and stable publication
+**Gateway control-plane hop.** The gateway's other plane calls use a service
+bearer (`HYPERMESH_GATEWAY_SERVICE_SECRET`, prefix `hm_gw_`) and
+`X-Tenant-ID`, still against hypermesh-service:
 
-Main merges and workflow completion do not publish GitHub test releases. Exact
-qualification files remain in Actions artifacts with finite retention. The pinned
-publisher independently verifies a real immutable stable baseline and refuses
-qualification snapshots, even if a caller job reports success. Existing valid
-stable records are retained; no release, version change, deployment or human
-approval prerequisite is introduced by this correction.
+- `GET /api/v1/hypermesh/gateway/tunnels`
+- `GET /api/v1/hypermesh/gateway/tickets`
+- `POST /api/v1/hypermesh/gateway/metrics` (byte counts and handshakes)
+- `POST /api/v1/hypermesh/gateway/safety-flags`
+
+**Host setup.** [auth-service](https://github.com/hyperme-sh/auth-service)
+validates the host-setup Keycloak token through
+`api.infrastructure.security.keycloak_jwt`, refuses a banned member with
+`api.domain.operator.bans.ban_book().user_may_enter`, and mints a host-setup
+tenant-session JWT (`mint_host_setup_session`, client id
+`hypermesh-host-setup`) on `POST /host-setup/session`. The same ban check
+runs on connect-session and enrollment. An active device ban makes
+`device_may_take_lease`, `device_may_enroll`, and `device_may_schedule`
+return false. Image and firmware actions stay on the host; this book records
+posture verbs only.
+
+**Catalog readiness and metrics.** When the edge sets
+`CPEDGE_HYPERMESH_SERVICE_URL`, public readiness includes the hypermesh
+catalog probe described above. Lease, host-selection, pricing-round,
+heartbeat, and read-cache series are recorded through
+`api.infrastructure.metrics` (`hypermesh_leases_total`,
+`hypermesh_host_selection_total`, `hypermesh_pricing_rounds_total`,
+`hypermesh_hosts_fresh`, `hypermesh_host_heartbeat_age_seconds`, and the
+`hypermesh_read_cache_*` series). In the Spanopticon Compose layout,
+hypermesh-service metrics are published on host port `9110` and
+hypermesh-gateway on `9111`, both mapped to container port `9100`.
+
+**Interactive clients.** The default Keycloak `azp` allow-list includes
+`hypermesh-native` (visor and CLI) together with `controlplane-frontend`,
+`controlplane-mobile`, `controlplane-device`, `controlplane-m2m`, and
+`controlplane-api-key`. Interactive human tokens need an age-confirmation
+timestamp. `controlplane-m2m` and tokens with `account_type=service` are
+exempt. Remove `hypermesh-native` from `KEYCLOAK_ALLOWED_CLIENT_IDS` to
+refuse that client.
+
+**Other Spanopticon services on this library.** auth-service and
+api-keys-service configure the shared async session
+(`api.infrastructure.persistence.db_session`) and set the tenant GUC on their
+own requests. auth-service publishes login and token events with
+`install_tenant_event_publisher`. api-keys-service checks internal tokens and
+portal-control allowlists through `api.common`. acl-service consumes the
+shared event type constants (`USER_CREATED_V1`, `ACL_POLICY_UPDATED_V1`) and
+the same publisher. The edge serves `api.app` as the aggregated control-plane
+process and mounts this package's health and version routes.
+
+## Develop and test
+
+```sh
+uv sync --frozen
+TEST_DATABASE_URL='postgresql+psycopg://USER:PASSWORD@127.0.0.1:5432/postgres' \
+  bash scripts/check-package.sh
+```
+
+Point `TEST_DATABASE_URL` at a disposable PostgreSQL server that can create
+databases. The OIDC regression creates and drops a database of its own.
+`scripts/check-package.sh` runs the suite from the source tree, from a fresh
+wheel installed outside the checkout, and from a wheel rebuilt from the
+source archive. The two wheel payloads must match. It also runs `tests_tools`
+and exports the packaged `api` runtime contract.
+
+```sh
+TEST_DATABASE_URL='postgresql+psycopg://USER:PASSWORD@127.0.0.1:5432/postgres' \
+  bash scripts/check-package.sh --fixtures
+```
+
+`--fixtures` installs the verified wheels in
+`tests_artifacts/dependencies/manifest.json` (built from the pinned git
+revisions) and does not fetch those dependencies from git. That is the
+pull-request lane.
+
+These checks cover this package. They do not decide live Hypermesh provider
+behavior or a full plane deployment. `integration/test_metrics_deployment.py`
+reads a Spanopticon deployment checkout from `SPANOPTICON_CHECKOUT` and is
+outside the package suite.
+
+Release channels, test bundles, and stable tags are described in
+[docs/releasing.md](docs/releasing.md). Compatibility rules for the shared
+line are in [docs/release-policy.md](docs/release-policy.md).
+
+## Release and versioning
+
+The distribution version is **0.1.0** (`pyproject.toml`). Development uses the
+exact git pins in that file and in `uv.lock`; a previous GitHub release is not
+required to build or test. Pushes to `main` retain the tested wheel and sdist
+as the `tested-dist` Actions artifact and can publish an immutable
+`0.24.0-test.N` bundle of those bytes. A stable package is an explicit
+`vMAJOR.MINOR.PATCH` tag, checked against an accepted baseline. Details,
+including what a test bundle does and does not change, are in
+[docs/releasing.md](docs/releasing.md).
 
 ## License
 
-This package is licensed under [Apache-2.0](LICENSE). Dependencies retain their
-own licenses; this declaration does not relicense bundled third-party material.
-
-## Coordinated test bundles
-
-This service opts into the `next: 0.24.0` train through
-[.github/test-channel.json](.github/test-channel.json). Successful main validation
-publishes its exact retained `tested-dist` files as immutable `0.24.0-test.N`
-prerelease bundles. The pinned publisher verifies the run, source revision,
-configuration and original Actions artifact digest without executing caller code
-or receiving private dependency credentials. PRs validate without publication.
-
-This test-channel authorization supersedes the older main-publication restriction
-above. Package versions, dependency pins and accepted package baselines stay
-unchanged; existing stable package admission remains separate. Coordinated
-consumer/deployment selection must bind exact component commits and artifact
-digests, not matching repository-local counters. No stable promotion is automatic.
-Private jobs use debrunners and public jobs use hosted Ubuntu; no approval gates
-are introduced. Missing original evidence or publication collisions fail closed.
-
-## Interactive identity policy adoption
-
-The exact identity and API pins include ordinary JWT age-confirmation enforcement.
-Seven consumer regressions exercise core legacy aliases in source, wheel and
-rebuilt-sdist contexts, including machine and service exemptions. This qualification
-does not establish live provider or complete self-hosted acceptance.
+This package is licensed under [Apache-2.0](LICENSE). Dependencies keep their
+own licenses.
