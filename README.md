@@ -60,11 +60,15 @@ runtime inventory. Source, installed-wheel and rebuilt-sdist consumers must pass
 real database tests remain mandatory. This does not establish live service/provider
 acceptance or installer/dependency metadata patch compatibility.
 
+Development snapshot evidence is retained in `releases/qualification`. A test
+prerelease does not establish an accepted stable baseline or reserve a version.
+Stable promotion retains the shared live provenance checks.
+
 ## Closure dependency adoption
 
 This 1.0.0 candidate preserves the closure audit attribution fix while adopting
 merged API 0.24.1 and identity 1.0.0 revisions. The conservative full-runtime
-contract differs from accepted 0.24.0, so the existing policy requires a major
+contract differs from the qualified 0.24.0 snapshot, so the existing policy requires a major
 release. Accepted baseline files and policy checks are unchanged.
 
 DB and tenancy closure revisions are still pending owner PRs. Their exact Git
