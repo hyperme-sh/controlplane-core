@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Exact release version (for example 0.24.1)
+        description: Exact release version (for example 1.0.0)
         required: true
         type: string
 permissions:
@@ -15,6 +15,6 @@ jobs:
   release-admission:
     uses: hyperme-sh/spanopticon/.github/workflows/component-release.yml@60e605ff39923c61bccc6c732181f82e557be35a
     with:
-      release-line: '0.24'
+      release-line: '1.0'
       baseline-ref: ${{ vars.SPANOPTICON_RELEASE_BASELINE_SHA }}
       requested-version: ${{ github.ref_type == 'tag' && github.ref_name || inputs.version || '' }}
