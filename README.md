@@ -113,3 +113,10 @@ consumer/deployment selection must bind exact component commits and artifact
 digests, not matching repository-local counters. No stable promotion is automatic.
 Private jobs use debrunners and public jobs use hosted Ubuntu; no approval gates
 are introduced. Missing original evidence or publication collisions fail closed.
+
+## Interactive identity policy adoption
+
+The exact identity and API pins include ordinary JWT age-confirmation enforcement.
+Seven consumer regressions exercise core legacy aliases in source, wheel and
+rebuilt-sdist contexts, including machine and service exemptions. This qualification
+does not establish live provider or complete self-hosted acceptance.
