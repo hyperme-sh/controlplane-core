@@ -25,3 +25,11 @@ Hosted pull-request consumer checks may use disposable Ubuntu/PostgreSQL and
 verified published dependency fixtures with read-only contents and no private
 credentials. Existing main private dependency scope and runner policy remain
 unchanged. Fixtures must match standard metadata pins, the lock and actual bytes.
+
+## Private CI runner policy
+
+Private repository jobs use `[self-hosted, linux, x64, debrunner]`, including
+preparation, package validation and release jobs. This supersedes earlier hosted
+runner exceptions in this file. Keep dedicated infrastructure-convergence and
+trusted payment-smoke jobs on their existing specialized selectors. Reusable
+workflows must route private callers to debrunners. Do not add approval gates.
