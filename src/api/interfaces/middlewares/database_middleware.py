@@ -32,7 +32,7 @@ logger = get_logger(__name__)
 def get_tenant_host(request: Request) -> Optional[str]:
     # Health probes identify the service, not a tenant. HAProxy uses the
     # container IP as Host; keep the normal DB session and readiness checks.
-    if request.url.path in {"/api/v1/health", "/api/v1/health/"}:
+    if request.url.path in {"/api/v1/health", "/api/v1/health/"} or request.url.path.startswith("/api/v1/internal/"):
         return None
     host = (
         request.headers.get(":authority")
@@ -63,14 +63,10 @@ class DbSessionMiddleware(BaseHTTPMiddleware):
 
                 tenant_uuid: uuid.UUID | None = None
                 tenant_host = get_tenant_host(request) if is_tenancy_enabled() else None
-                tenant_service = get_tenant_service()
                 if tenant_host:
                     try:
-                        if is_subdomain(tenant_host):
-                            tenant = await tenant_service.find_by_subdomain(tenant_host)
-                        else:
-                            tenant = await tenant_service.find_by_custom_domain(tenant_host)
-                        tenant_uuid = tenant.id  # type: ignore[assignment]
+                        from api.infrastructure.persistence.tenant_owner import resolve_host
+                        tenant_uuid = await resolve_host(tenant_host)
                         request.state.frontend_host = tenant_host
                     except TenantNotFoundException as e:
                         logger.warning(f"Tenant resolve failed for host '{tenant_host}': {e}")

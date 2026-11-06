@@ -1,4 +1,4 @@
-# Subscription plans in our DB (not Stripe API objects directly).
+# Subscription plans in our DB (not processor API objects).
 
 from __future__ import annotations
 

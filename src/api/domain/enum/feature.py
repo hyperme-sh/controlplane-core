@@ -7,4 +7,3 @@ class Feature(str, Enum):
     ANALYTICS = "analytics"
     ORGANIZATION = "organization"
     TEAMS = "teams"
-    STRIPE = "stripe"

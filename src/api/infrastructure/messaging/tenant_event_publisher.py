@@ -1,6 +1,6 @@
 """Tenant-scoped domain event publishing.
 
-Default bus: the Postgres ``controlplane_events`` table (migration 0046).
+Default transport: the service-owned Postgres outbox with an HTTP relay.
 Optional production transport: Azure Service Bus, same ``publish()`` protocol,
 selected when ``AZURE_SERVICE_BUS_CONNECTION_STRING`` is set. Service Bus is
 not required for local compose, the VM, or tests. Prod images install it with
@@ -10,7 +10,7 @@ group id. The subscription's max delivery count is what dead-letters a message;
 this process abandons on handler failure and does not complete it.
 
 MQTT is not this bus. It remains a future IoT edge bridge idea only.
-Never put prompt bodies, enroll tokens, or Stripe secrets on the bus.
+Never put prompt bodies, enroll tokens, or provider credentials on the bus.
 """
 
 from __future__ import annotations
@@ -23,12 +23,12 @@ from typing import Any, Protocol, runtime_checkable
 from controlplane_events import (
     CONTROLPLANE_EVENTS_V1,
     ControlPlaneEventEnvelope,
-    PostgresEventPublisher,
     RoutingControlPlaneConsumer,
     dispatch_controlplane_envelope,
     refuse_forbidden_payload,
 )
 from controlplane_events.routing_consumer import Handler
+from controlplane_events.publisher import OwnedOutboxPublisher
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -359,7 +359,7 @@ def resolve_event_publisher(
         sender = service_bus_sender or AzureServiceBusSender(service_bus_connection_string or "")
         return ServiceBusTenantEventPublisher(sender, CONTROLPLANE_EVENTS_V1, service_name)
     if database_url:
-        return PostgresEventPublisher(database_url, service_name)
+        return OwnedOutboxPublisher(database_url, service_name)
     return NoOpTenantEventPublisher()
 
 
@@ -372,7 +372,7 @@ def build_routing_consumer(
     service_bus_connection_string: str | None = None,
     service_bus_subscription: str | None = None,
 ) -> RoutingControlPlaneConsumer | ServiceBusRoutingConsumer:
-    """Postgres poller, or Service Bus when the connection string is set."""
+    """Owner HTTP inbox, or an explicitly configured Service Bus receiver."""
 
     if service_bus_connection_string:
         receiver = AzureServiceBusReceiver(
@@ -381,13 +381,18 @@ def build_routing_consumer(
             service_bus_subscription or group_id,
         )
         return ServiceBusRoutingConsumer(receiver, routes, topic=CONTROLPLANE_EVENTS_V1)
-    return RoutingControlPlaneConsumer(
-        database_url,
-        [CONTROLPLANE_EVENTS_V1],
-        group_id,
-        routes,
-        client_id=client_id,
-    )
+    from controlplane_events.http_consumer import HttpRoutingConsumer
+    def adapt(handler):
+        async def deliver(envelope, payload, event_id):
+            # The HTTP inbox owns receipt identity. Preserve the established
+            # two-argument application handler contract across transports.
+            await handler(envelope, payload)
+        return deliver
+    return HttpRoutingConsumer(database_url, {
+        event_type: (model, adapt(handler))
+        for event_type, (model, handler) in routes.items()
+    })
+
 
 
 _publisher: TenantEventPublisher | None = None
