@@ -713,7 +713,7 @@ wheels = [
 [[package]]
 name = "controlplane-api"
 version = "0.23.0"
-source = { git = "https://github.com/hyperme-sh/controlplane-api.git?rev=732256a5207ee502d7bf70cb171cf2eea1803b87#732256a5207ee502d7bf70cb171cf2eea1803b87" }
+source = { git = "https://github.com/hyperme-sh/controlplane-api.git?rev=294899f4ef12afc76ffd99978eceb9e4671f613f#294899f4ef12afc76ffd99978eceb9e4671f613f" }
 dependencies = [
     { name = "colorlog" },
     { name = "controlplane-events" },
@@ -782,9 +782,9 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.40.32" },
     { name = "celery", extras = ["redis"], specifier = ">=5.3.1" },
     { name = "colorlog", specifier = ">=6.9.0" },
-    { name = "controlplane-api", git = "https://github.com/hyperme-sh/controlplane-api.git?rev=732256a5207ee502d7bf70cb171cf2eea1803b87" },
+    { name = "controlplane-api", git = "https://github.com/hyperme-sh/controlplane-api.git?rev=294899f4ef12afc76ffd99978eceb9e4671f613f" },
     { name = "controlplane-db", git = "https://github.com/hyperme-sh/controlplane-db.git?rev=af4ea84ced32ed886ea31dba2c712081c67a9465" },
-    { name = "controlplane-events", git = "https://github.com/hyperme-sh/controlplane-events.git?rev=2a49f9af5f6c4dc9d6c4ddebc83c41d6331e2c87" },
+    { name = "controlplane-events", git = "https://github.com/hyperme-sh/controlplane-events.git?rev=76750a7c620950c8d0b911664ef4e605bc4d9188" },
     { name = "controlplane-identity", git = "https://github.com/hyperme-sh/controlplane-identity.git?rev=5aeff3d2c00568f39ca6e8b75c7e63883d3a510b" },
     { name = "controlplane-tenancy", git = "https://github.com/hyperme-sh/controlplane-tenancy.git?rev=f7db5bfdca59347bfa35584165bcfbc509a537b1" },
     { name = "faker", specifier = ">=37.8.0" },
@@ -831,7 +831,7 @@ dependencies = [
 [[package]]
 name = "controlplane-events"
 version = "0.1.0"
-source = { git = "https://github.com/hyperme-sh/controlplane-events.git?rev=2a49f9af5f6c4dc9d6c4ddebc83c41d6331e2c87#2a49f9af5f6c4dc9d6c4ddebc83c41d6331e2c87" }
+source = { git = "https://github.com/hyperme-sh/controlplane-events.git?rev=76750a7c620950c8d0b911664ef4e605bc4d9188#76750a7c620950c8d0b911664ef4e605bc4d9188" }
 dependencies = [
     { name = "asyncpg" },
     { name = "greenlet" },
