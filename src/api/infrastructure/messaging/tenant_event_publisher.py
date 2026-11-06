@@ -1,6 +1,6 @@
 """Tenant-scoped domain event publishing.
 
-Default bus: the Postgres ``controlplane_events`` table (migration 0046).
+Default transport: the service-owned Postgres outbox with an HTTP relay.
 Optional production transport: Azure Service Bus, same ``publish()`` protocol,
 selected when ``AZURE_SERVICE_BUS_CONNECTION_STRING`` is set. Service Bus is
 not required for local compose, the VM, or tests. Prod images install it with
@@ -23,12 +23,12 @@ from typing import Any, Protocol, runtime_checkable
 from controlplane_events import (
     CONTROLPLANE_EVENTS_V1,
     ControlPlaneEventEnvelope,
-    PostgresEventPublisher,
     RoutingControlPlaneConsumer,
     dispatch_controlplane_envelope,
     refuse_forbidden_payload,
 )
 from controlplane_events.routing_consumer import Handler
+from controlplane_events.publisher import OwnedOutboxPublisher
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -359,7 +359,7 @@ def resolve_event_publisher(
         sender = service_bus_sender or AzureServiceBusSender(service_bus_connection_string or "")
         return ServiceBusTenantEventPublisher(sender, CONTROLPLANE_EVENTS_V1, service_name)
     if database_url:
-        return PostgresEventPublisher(database_url, service_name)
+        return OwnedOutboxPublisher(database_url, service_name)
     return NoOpTenantEventPublisher()
 
 
@@ -381,13 +381,9 @@ def build_routing_consumer(
             service_bus_subscription or group_id,
         )
         return ServiceBusRoutingConsumer(receiver, routes, topic=CONTROLPLANE_EVENTS_V1)
-    return RoutingControlPlaneConsumer(
-        database_url,
-        [CONTROLPLANE_EVENTS_V1],
-        group_id,
-        routes,
-        client_id=client_id,
-    )
+    from controlplane_events.http_consumer import HttpRoutingConsumer
+    return HttpRoutingConsumer(database_url, routes)
+
 
 
 _publisher: TenantEventPublisher | None = None
