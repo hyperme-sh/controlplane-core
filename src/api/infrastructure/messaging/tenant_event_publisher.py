@@ -372,7 +372,7 @@ def build_routing_consumer(
     service_bus_connection_string: str | None = None,
     service_bus_subscription: str | None = None,
 ) -> RoutingControlPlaneConsumer | ServiceBusRoutingConsumer:
-    """Postgres poller, or Service Bus when the connection string is set."""
+    """Owner HTTP inbox, or an explicitly configured Service Bus receiver."""
 
     if service_bus_connection_string:
         receiver = AzureServiceBusReceiver(
@@ -382,7 +382,16 @@ def build_routing_consumer(
         )
         return ServiceBusRoutingConsumer(receiver, routes, topic=CONTROLPLANE_EVENTS_V1)
     from controlplane_events.http_consumer import HttpRoutingConsumer
-    return HttpRoutingConsumer(database_url, routes)
+    def adapt(handler):
+        async def deliver(envelope, payload, event_id):
+            # The HTTP inbox owns receipt identity. Preserve the established
+            # two-argument application handler contract across transports.
+            await handler(envelope, payload)
+        return deliver
+    return HttpRoutingConsumer(database_url, {
+        event_type: (model, adapt(handler))
+        for event_type, (model, handler) in routes.items()
+    })
 
 
 
