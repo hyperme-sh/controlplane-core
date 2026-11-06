@@ -7,11 +7,9 @@ from api.infrastructure.externals.coolify_app import CoolifyApp
 from api.infrastructure.externals.dns_resolver import DnsResolver
 from api.infrastructure.externals.smtp_email import SmtpEmail
 
-from api.infrastructure.externals.stripe_resolver import StripeResolver
 from api.infrastructure.persistence.repositories.branding_repository_impl import BrandingRepository
 from api.infrastructure.persistence.repositories.chat_history_ai_repository_impl import ChatHistoryAIRepository
 from api.infrastructure.persistence.repositories.chat_session_ai_repository_impl import ChatSessionAIRepository
-from api.infrastructure.persistence.repositories.payment_repository_impl import PaymentRepository, StripeSettingsRepository
 from api.infrastructure.persistence.repositories.role_repository_impl import RoleRepository
 from api.infrastructure.persistence.repositories.sso_settings_provider_respository_impl import SSOSettingsProviderRepository
 from api.infrastructure.persistence.repositories.storage_settings_repository_impl import StorageSettingsRepository
@@ -22,25 +20,20 @@ from api.infrastructure.persistence.repositories.user_passkey_repository_impl im
 from api.infrastructure.persistence.repositories.user_password_reset_repository_impl import UserPasswordResetRepository
 from api.infrastructure.persistence.repositories.user_preference_repository_impl import UserPreferenceRepository
 from api.infrastructure.persistence.repositories.user_repository_impl import UserRepository
-from api.infrastructure.persistence.repositories.billing_record_repository_impl import BillingRecordRepository
 from api.infrastructure.persistence.repositories.notification_banner_repository_impl import NotificationBannerRepository
 
 from api.infrastructure.security.jwt_token_service import JwtTokenService
 from api.infrastructure.security.passkey_service import PasskeyService
 from api.usecases.audit_logs_service import AuditLogsService
-from api.usecases.billing_record_service import BillingRecordService
 from api.usecases.branding_service import BrandingService
 from api.usecases.coolify_app_service import CoolifyAppService
 from api.usecases.local_ai_service import LocalAIService
 from api.usecases.auth_service import AuthService
 from api.usecases.file_service import FileService
 from api.usecases.magic_link_service import EmailMagicLinkService
-from api.usecases.pricing_service import PricingService
-from api.usecases.product_service import ProductService
 from api.usecases.role_service import RoleService
 from api.usecases.sso_settings_service import SSOSettingsService
 from api.usecases.storage_settings_service import StorageSettingsService
-from api.usecases.stripe_setting_service import StripeSettingService
 from api.usecases.subscription_plan_service import SubscriptionPlanService
 from api.usecases.user_preference_service import UserPreferenceService
 from api.usecases.user_service import UserService
@@ -119,16 +112,8 @@ container.register(LocalAIService, scope=punq.Scope.singleton)
 container.register(SubscriptionPlanRepository, scope=punq.Scope.singleton)
 container.register(SubscriptionPlanService, scope=punq.Scope.singleton)
 
-## Stripe and Payment Components
-container.register(StripeSettingsRepository, scope=punq.Scope.singleton)
-container.register(BillingRecordRepository, scope=punq.Scope.singleton)
-container.register(PaymentRepository, scope=punq.Scope.singleton)
-container.register(StripeResolver, scope=punq.Scope.singleton)
+## Payment operations belong to the payment owner
 
-container.register(BillingRecordService, scope=punq.Scope.singleton)
-container.register(ProductService, scope=punq.Scope.singleton)
-container.register(PricingService, scope=punq.Scope.singleton)
-container.register(StripeSettingService, scope=punq.Scope.singleton)
 
 
 ## Notification Banner Components
@@ -227,20 +212,10 @@ def get_user_magic_link_repository() -> UserMagicLinkRepository:
 def get_email_magic_link_service() -> EmailMagicLinkService:
     return container.resolve(EmailMagicLinkService)
 
-def get_billing_record_service() -> BillingRecordService:
-    return container.resolve(BillingRecordService)
 
-def get_product_service() -> ProductService:
-    return container.resolve(ProductService)
 
-def get_pricing_service() -> PricingService:
-    return container.resolve(PricingService)
 
-def get_stripe_resolver() -> StripeResolver:
-    return container.resolve(StripeResolver)
 
-def get_stripe_setting_service() -> StripeSettingService:
-    return container.resolve(StripeSettingService)
 
 def get_subscription_plan_service() -> SubscriptionPlanService:
     return container.resolve(SubscriptionPlanService)

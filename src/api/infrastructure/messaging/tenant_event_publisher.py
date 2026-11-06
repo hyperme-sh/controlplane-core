@@ -10,7 +10,7 @@ group id. The subscription's max delivery count is what dead-letters a message;
 this process abandons on handler failure and does not complete it.
 
 MQTT is not this bus. It remains a future IoT edge bridge idea only.
-Never put prompt bodies, enroll tokens, or Stripe secrets on the bus.
+Never put prompt bodies, enroll tokens, or provider credentials on the bus.
 """
 
 from __future__ import annotations

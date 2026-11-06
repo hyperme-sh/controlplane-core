@@ -28,11 +28,6 @@ from controlplane_api.health import router as health_router
 from controlplane_api.version import router as version_router
 from api.interfaces.api_controllers.manage_security_endpoint import router as manage_security_router
 from api.interfaces.api_controllers.features_endpoint import router as features_router
-from api.interfaces.api_controllers.product_endpoint import router as product_router
-from api.interfaces.api_controllers.prices_endpoint import router as prices_router
-from api.interfaces.api_controllers.billing_endpoint import router as billing_router
-from api.interfaces.api_controllers.stripe_endpoint import router as stripe_router
-from api.interfaces.api_controllers.invoice_endpoint import router as invoice_router
 from api.interfaces.api_controllers.notification_endpoint import router as notification_router
 from api.interfaces.api_controllers.audit_logs_endpoint import router as audit_logs_router
 from api.interfaces.api_controllers.sso_settings_endpoint import router as sso_router
@@ -182,11 +177,6 @@ router.include_router(role_router)
 router.include_router(permissions_router)
 router.include_router(storage_router)
 router.include_router(ai_router)
-router.include_router(product_router)
-router.include_router(prices_router)
-router.include_router(billing_router)
-router.include_router(stripe_router)
-router.include_router(invoice_router)
 router.include_router(notification_router)
 router.include_router(audit_logs_router)
 router.include_router(sso_router)

@@ -71,9 +71,6 @@ class FeatureNotEnabledException(ForbiddenException):
         message = f"Feature '{feature}' is not enabled."
         super().__init__(message)
 
-class StripeSettingsNotFoundException(NotFoundException):
-    def __init__(self, message: str):
-        super().__init__("StripeSettings", message)
 
 
 class ProductException(InvalidOperationException):

@@ -24,7 +24,6 @@ from api.domain.serialization import serialize_tenant
 logger = get_logger(__name__)
 
 default_enable_features = [
-    Feature(name=FeatureEnum.STRIPE, enabled=True),
     Feature(name=FeatureEnum.REPORT, enabled=True),
 ]
 

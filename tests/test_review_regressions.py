@@ -33,36 +33,6 @@ async def test_oidc_email_fallback_never_uses_tenant_row():
     repo.update.assert_not_awaited()
 
 
-def test_webhook_has_signature_auth_without_user_login(monkeypatch):
-    from fastapi import FastAPI
-    from fastapi.testclient import TestClient
-    from api.interfaces.api_controllers import stripe_endpoint as endpoint
-    app = FastAPI()
-    @app.middleware('http')
-    async def context(request, call_next):
-        request.state.tenant_id = None
-        return await call_next(request)
-    app.include_router(endpoint.router)
-    app.dependency_overrides[endpoint.get_stripe_setting_service] = lambda: SimpleNamespace(get_stripe_secret=AsyncMock(return_value=None))
-    app.dependency_overrides[endpoint.get_billing_record_service] = lambda: object()
-    monkeypatch.setattr(endpoint.settings, 'stripe_webhook_secret', 'test-only-secret')
-    handled = AsyncMock()
-    monkeypatch.setitem(endpoint.SUPPORTED_EVENTS, 'invoice.paid', handled)
-    def verify(payload, sig_header, secret):
-        assert secret == 'test-only-secret'
-        if sig_header != 'valid':
-            raise ValueError('invalid')
-        return {'type':'invoice.paid','data':{'object':{'id':'test'}}}
-    monkeypatch.setattr(endpoint.stripe.Webhook, 'construct_event', verify)
-    with TestClient(app) as client:
-        from controlplane_api.exceptions import UnauthorizedException
-        with pytest.raises(UnauthorizedException):
-            client.get('/configurations/stripe')
-        assert client.post('/configurations/stripe/webhooks',content='{}').status_code == 400
-        assert client.post('/configurations/stripe/webhooks',content='{}',headers={'Stripe-Signature':'valid'}).status_code == 200
-    handled.assert_awaited_once()
-    config_routes=[r for r in endpoint.router.routes if getattr(r,'path',None)=='/configurations/stripe']
-    assert len(config_routes)==2 and all(len(r.dependencies)==2 for r in config_routes)
 
 from test_oidc_platform_subject import database
 
