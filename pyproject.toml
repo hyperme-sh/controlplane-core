@@ -11,9 +11,9 @@ license-files = ["LICENSE"]
 dependencies = [
     "operator-ban-store @ git+https://github.com/hyperme-sh/user-service.git@4bac0ba16e029df058498b1926d57c10b9d66e16#subdirectory=core/user-service/contracts",
     "controlplane-api @ git+https://github.com/hyperme-sh/controlplane-api.git@294899f4ef12afc76ffd99978eceb9e4671f613f",
-    "controlplane-tenancy @ git+https://github.com/hyperme-sh/controlplane-tenancy.git@f7db5bfdca59347bfa35584165bcfbc509a537b1",
+    "controlplane-tenancy @ git+https://github.com/hyperme-sh/controlplane-tenancy.git@7f80b575cd49e813b37ce33c6fcffb1c8718b91e",
     "controlplane-identity @ git+https://github.com/hyperme-sh/controlplane-identity.git@5aeff3d2c00568f39ca6e8b75c7e63883d3a510b",
-    "controlplane-db @ git+https://github.com/hyperme-sh/controlplane-db.git@af4ea84ced32ed886ea31dba2c712081c67a9465",
+    "controlplane-db @ git+https://github.com/hyperme-sh/controlplane-db.git@8d57f8d979f3808cf8d4b78e99debe18864bd6b4",
     "controlplane-events @ git+https://github.com/hyperme-sh/controlplane-events.git@76750a7c620950c8d0b911664ef4e605bc4d9188",
     "azure-storage-blob>=12.26.0",
     "boto3>=1.40.32",
