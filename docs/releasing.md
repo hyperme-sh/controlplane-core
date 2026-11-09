@@ -15,7 +15,7 @@ Direct dependencies are exact git revisions in `pyproject.toml` and `uv.lock`:
 | controlplane-identity | 0.15.0 | `5aeff3d2c00568f39ca6e8b75c7e63883d3a510b` |
 | controlplane-db | 0.1.0 | `95ef61433374274f4a4fc287e15982be6357e1cc` |
 | controlplane-events | 0.1.0 | `2a49f9af5f6c4dc9d6c4ddebc83c41d6331e2c87` |
-| operator-ban-store | 0.1.0 | `4bac0ba16e029df058498b1926d57c10b9d66e16` (user-service, `core/user-service/contracts`) |
+| operator-ban-store | 0.1.0 | `17b11625766e6ceb2c631f58d02211d776f94bae` (user-service, `core/user-service/contracts`) |
 
 Building and testing from those revisions does not require a previously
 published GitHub release of this package. Fixture wheels under
