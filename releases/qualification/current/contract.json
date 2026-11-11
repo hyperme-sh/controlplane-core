@@ -161,7 +161,7 @@
     "api/interfaces/middlewares/database_middleware.py": "4067226609fe1f889c48106684ae0912b929fdcf1822134d01e3e12db907d1e7",
     "api/interfaces/middlewares/redis_cache_middleware.py": "004ffdfb1204a0693e9f8d1770a7e1960e97ede295ce4475dd29c45e97b65283",
     "api/interfaces/security/role_checker.py": "002b50f85c287d82a0cc679d0f7200aaf09c6c60394cec74d90068b1403f9b6c",
-    "api/storage_app.py": "c5bf549de671202277f3d862f664247f2afd1a4a724a98b0ac2413502ce2e9de",
+    "api/storage_app.py": "8e86846d77195cb91299935abcf5b711d6ed31176629b19a1a83ef90d68ee34e",
     "api/usecases/audit_logs_service.py": "b2dbd2f699784c636d8af7f90b5d8ecdff57efce589991036678748eac7e8629",
     "api/usecases/auth_service.py": "1a747a0dff01b7b8fb47fd598b94a939a6f63c90e13f1e0e9f7190d357d82cb3",
     "api/usecases/branding_service.py": "dc5d370fae7cdd48556cfc5b511b1a712bacc2729ea3a4f8051235ab00ffa15b",

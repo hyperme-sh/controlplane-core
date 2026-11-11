@@ -2,6 +2,8 @@
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+from controlplane_api.exceptions import ApiBaseException, NotFoundException, ConflictException, UnauthorizedException, InvalidOperationException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -56,7 +58,18 @@ async def request_database(request: Request):
 
 app = FastAPI(title='Spanopticon tenant storage', lifespan=startup, docs_url=None, redoc_url=None, openapi_url=None)
 app.include_router(objects, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
-app.include_router(administration, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
+app.include_router(administration, prefix='/api/v1', dependencies=[Depends(request_database, scope='function')])
+
+
+@app.exception_handler(ApiBaseException)
+async def storage_error(request: Request, error: ApiBaseException):
+    status, detail = 400, 'Invalid storage request'
+    for kind, code, message in [(NotFoundException, 404, 'Storage not found'), (ConflictException, 409, 'Storage conflict'),
+                               (UnauthorizedException, 401, 'Storage authentication required'), (InvalidOperationException, 406, 'Invalid storage operation')]:
+        if isinstance(error, kind):
+            status, detail = code, message
+            break
+    return JSONResponse(status_code=status, content={'detail': detail})
 
 
 @app.get('/health')

@@ -110,3 +110,25 @@ async def test_startup_only_installs_session_and_disposes_engine(monkeypatch):
 def test_only_storage_and_health_routes_are_exposed():
     paths=set(runtime.app.openapi()['paths'])
     assert paths=={'/health','/api/v1/storage/objects/{object_id}','/api/v1/storage/tenant','/api/v1/storage/tenant/configure','/api/v1/storage/tenant/{storage_id}/reset'}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('failure,status',[('commit',500),('missing',404),('ok',204)])
+async def test_admin_commits_before_success_and_maps_missing_storage(db,failure,status):
+    import httpx
+    from api.interfaces.api_controllers import tenant_storage_admin_endpoint as endpoint
+    from controlplane_api.exceptions import NotFoundException
+    service=SimpleNamespace(reset_storage=AsyncMock())
+    if failure=='commit': db.session.commit.side_effect=RuntimeError('commit rejected')
+    if failure=='missing': service.reset_storage.side_effect=NotFoundException('Storage','private tenant details')
+    runtime.app.dependency_overrides[endpoint.storage_admin]=lambda:SimpleNamespace(tenant=db.tenant,subject=str(uuid4()))
+    runtime.app.dependency_overrides[endpoint.get_storage_settings_service]=lambda:service
+    try:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=runtime.app,raise_app_exceptions=False),base_url='http://unit') as client:
+            response=await client.patch('/api/v1/storage/tenant/'+str(uuid4())+'/reset')
+        assert response.status_code==status
+        if failure!='ok': db.session.rollback.assert_awaited_once()
+        else: db.session.commit.assert_awaited_once()
+        if failure=='missing': assert response.json()=={'detail':'Storage not found'}
+    finally:
+        runtime.app.dependency_overrides.clear()
