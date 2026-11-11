@@ -7,9 +7,15 @@ permissions:
   contents: read
 jobs:
   package:
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: storage-moving-test-${{ github.repository }}
+      cancel-in-progress: false
     if: github.ref == 'refs/heads/main'
     runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64", "debrunner"]') || 'ubuntu-24.04' }}
-    timeout-minutes: 15
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:17@sha256:3b0cda93be7c8dba2ed484d19393d93845dc3dafb88973e248ba8e6d99d784e1
@@ -75,6 +81,17 @@ jobs:
           export GIT_CONFIG_VALUE_5="AUTHORIZATION: basic $header"
           unset DEPENDENCY_READ_TOKEN
           bash scripts/check-package.sh
+      - name: Qualify storage-only runtime against the job database
+        env:
+          QUALIFIED_IMAGE_REF: storage:ci-${{ github.run_id }}-${{ github.run_attempt }}
+          STORAGE_TEST_DATABASE_URL: postgresql+psycopg://postgres:package-test-only@host.docker.internal:${{ job.services.postgres.ports['5432'] }}/postgres
+        run: bash scripts/check-container.sh
+      - name: Advance moving TEST from qualified current main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QUALIFIED_IMAGE_REF: storage:ci-${{ github.run_id }}-${{ github.run_attempt }}
+        run: bash scripts/publish-test-runtime.sh
       - name: Retain validated package bytes
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -91,3 +108,6 @@ jobs:
           path: ${{ runner.temp }}/package-test-results/*.xml
           if-no-files-found: error
           retention-days: 90
+      - name: Remove job-owned local storage image
+        if: always()
+        run: docker image rm "storage:ci-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >/dev/null 2>&1 || true
