@@ -13,7 +13,7 @@ import httpx
 from fastapi import HTTPException, Request
 
 from api.domain.storage_scope import storage_tenant
-from api.infrastructure.security.tenant_session_jwt import try_decode_tenant_session_jwt
+from controlplane_identity.security.tenant_session_jwt import try_decode_tenant_session_jwt_async
 from controlplane_identity.security.tenant_session_jwt import is_smoke_session
 
 
@@ -27,7 +27,7 @@ async def storage_admin(request: Request) -> StorageAdmin:
     auth = request.headers.get('authorization', '')
     if len(request.headers.getlist('authorization')) != 1 or not auth.startswith('Bearer ') or auth.count(' ') != 1 or len(auth) > 16391:
         raise HTTPException(401, 'Signed network session required')
-    claims = try_decode_tenant_session_jwt(auth[7:])
+    claims = await try_decode_tenant_session_jwt_async(auth[7:])
     try:
         if not claims or is_smoke_session(claims):
             raise ValueError()

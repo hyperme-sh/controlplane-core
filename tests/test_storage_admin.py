@@ -170,3 +170,29 @@ async def test_owner_deadline_cancels_a_stalled_response(setup,monkeypatch):
     with pytest.raises(HTTPException) as exc:
         await security.storage_admin(setup.request())
     assert exc.value.status_code==503 and stopped
+
+
+@pytest.mark.asyncio
+async def test_account_status_check_runs_off_event_loop_and_closed_accounts_deny(setup,monkeypatch):
+    import asyncio
+    from jwt import InvalidTokenError
+    checked=[]
+    closed=False
+    def account_status(claims):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            raise InvalidTokenError("Synchronous account check cannot run on the event loop")
+        checked.append(claims['sub'])
+        if closed:
+            raise InvalidTokenError("Account closed")
+    monkeypatch.setattr(tokens,'require_open_account',account_status)
+    assert (await security.storage_admin(setup.request())).subject==setup.subject
+    assert checked==[setup.subject]
+    closed=True
+    with pytest.raises(HTTPException) as exc:
+        await security.storage_admin(setup.request())
+    assert exc.value.status_code==403 and len(setup.requests)==1
+    assert checked==[setup.subject,setup.subject]
