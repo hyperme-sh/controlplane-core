@@ -337,3 +337,27 @@ rejected. Azure connection strings must explicitly contain
 `DefaultEndpointsProtocol=https`, `AccountName`, `AccountKey` and
 `EndpointSuffix=core.windows.net`. Provider credentials remain masked in lists.
 The older permission-based storage routes keep their existing contract.
+
+## Tenant storage process
+
+`api.storage_app:app` is the storage-only ASGI entrypoint for Spanopticon. It
+exposes `/health`, `/api/v1/storage/objects/{object_id}` and the tenant storage
+administration routes. It does not start the historical monolith, seed roles,
+start event workers, or expose its account/operator routes. Importing the package
+still constructs the historical application for compatibility; only the selected
+storage app's startup function runs.
+
+The process uses `DATABASE_URL` with the storage owner's restricted database
+role. Schema and role provisioning remain in controlplane-db/infra. Every request
+is authenticated before opening its transaction. Object access selects the RLS
+tenant from the bounded API-key JWT; administration selects it from the verified
+current owner. A conflicting or duplicate tenant header is refused. Host and
+query parameters cannot select database scope. Failed or cancelled requests roll
+back and clear the task-local session. `/health` checks database connectivity
+without returning connection details.
+
+The existing API-key exchange secret and `USER_SERVICE_URL`/optional
+`USER_SERVICE_CA_FILE` configure the authentication contracts described above.
+The runtime needs the same private provider settings and outbound HTTPS access.
+Deployment packaging, edge routing, tenant provisioning and quotas remain
+separate work; adding this entrypoint does not activate a storage service.
