@@ -1,6 +1,9 @@
 """Private opaque bytes for a scoped tenant service, not a public media origin."""
 from functools import partial
 import re
+from contextlib import asynccontextmanager
+from urllib.parse import urlsplit
+from azure.storage.blob.aio import ContainerClient
 
 import anyio
 import boto3
@@ -11,6 +14,7 @@ from fastapi.responses import StreamingResponse
 from api.core.container import get_storage_settings_repository
 from api.domain.tenant_objects import MAX_OBJECT_BYTES, ObjectInputError, ObjectUnavailable, TenantObjects, byte_range
 from api.infrastructure.externals.tenant_object_s3 import S3TenantObjects
+from api.infrastructure.externals.tenant_object_azure import AzureTenantObjects
 from api.infrastructure.security.storage_session import storage_session
 
 upload_capacity = anyio.CapacityLimiter(8)
@@ -25,7 +29,13 @@ async def object_store(request: Request):
         raise HTTPException(status_code=401, detail="Storage authentication required")
     tenant = storage_session(header[7:], operation)
     selected = await get_storage_settings_repository().get_active_for_tenant(tenant)
-    if selected is None or selected.tenant_id != tenant or selected.provider != "s3" or not selected.is_enabled:
+    if selected is None or selected.tenant_id != tenant or not selected.is_enabled:
+        raise HTTPException(status_code=503, detail="Tenant object storage unavailable")
+    if selected.provider == "azure_blob":
+        async with azure_store(selected) as backend:
+            yield TenantObjects(tenant, backend)
+        return
+    if selected.provider != "s3":
         raise HTTPException(status_code=503, detail="Tenant object storage unavailable")
     fields = [selected.aws_bucket_name, selected.aws_access_key, selected.aws_secret_key, selected.region]
     if not all(isinstance(value, str) and value.strip() and value == value.strip() for value in fields):
@@ -45,6 +55,31 @@ async def object_store(request: Request):
             access_key=selected.aws_access_key, secret_key=selected.aws_secret_key))
     finally:
         await anyio.to_thread.run_sync(client.close)
+
+
+@asynccontextmanager
+async def azure_store(selected):
+    connection = getattr(selected, "azure_connection_string", None)
+    container = getattr(selected, "azure_container_name", None)
+    if not isinstance(connection, str) or not connection.strip() or not isinstance(container, str) or not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])", container):
+        raise HTTPException(status_code=503, detail="Tenant object storage unavailable")
+    try:
+        client = ContainerClient.from_connection_string(connection, container,
+            max_single_put_size=MAX_OBJECT_BYTES, max_single_get_size=65536, max_chunk_get_size=65536,
+            connection_timeout=5, read_timeout=30, retry_total=2)
+        async with client:
+            url = urlsplit(client.url)
+            if url.scheme != "https" or not url.hostname or url.username or url.password:
+                raise ObjectUnavailable("HTTPS storage required")
+            with anyio.fail_after(30):
+                policy = await client.get_container_access_policy()
+            if not isinstance(policy, dict) or "public_access" not in policy or policy["public_access"] is not None:
+                raise ObjectUnavailable("Private container required")
+            yield AzureTenantObjects(client)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Private tenant object storage unavailable") from exc
 
 
 def headers(object_id: str, size: int):

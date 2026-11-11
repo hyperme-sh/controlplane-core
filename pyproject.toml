@@ -15,7 +15,7 @@ dependencies = [
     "controlplane-identity @ git+https://github.com/hyperme-sh/controlplane-identity.git@5aeff3d2c00568f39ca6e8b75c7e63883d3a510b",
     "controlplane-db @ git+https://github.com/hyperme-sh/controlplane-db.git@907b9390b3d68aa67903ffec849e9f1d64c17f1f",
     "controlplane-events @ git+https://github.com/hyperme-sh/controlplane-events.git@8f16587d105f7352891a1d9d77ec8305bbf5cd29",
-    "azure-storage-blob>=12.26.0",
+    "azure-storage-blob[aio]>=12.26.0",
     "boto3>=1.40.32",
     "celery[redis]>=5.3.1",
     "colorlog>=6.9.0",
