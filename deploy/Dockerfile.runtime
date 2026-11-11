@@ -1,0 +1,21 @@
+# Runtime bytes come from the qualified wheel, not a second source build.
+FROM python:3.13-slim-bookworm@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f AS build
+WORKDIR /build
+RUN pip install --no-cache-dir uv==0.11.26
+COPY requirements.txt ./
+RUN uv venv /opt/storage && uv pip sync --python /opt/storage/bin/python --require-hashes requirements.txt
+COPY private/ ./private/
+COPY *.whl ./
+RUN uv pip install --python /opt/storage/bin/python --no-deps private/*.whl ./*.whl && uv pip check --python /opt/storage/bin/python
+RUN /opt/storage/bin/python -I -c "from api.storage_app import app; assert app.routes"
+
+FROM python:3.13-slim-bookworm@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f
+COPY --from=build /opt/storage /opt/storage
+ENV PATH=/opt/storage/bin:$PATH PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ARG GIT_SHA
+ARG WHEEL_SHA256
+LABEL org.opencontainers.image.revision=${GIT_SHA} sh.hyperme.qualified-wheel-sha256=${WHEEL_SHA256}
+ENV GIT_SHA=${GIT_SHA} SERVICE_NAME=tenant-storage
+USER 65532:65532
+EXPOSE 8000
+CMD ["/opt/storage/bin/python", "-I", "-m", "uvicorn", "api.storage_app:app", "--host", "0.0.0.0", "--port", "8000"]

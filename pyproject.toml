@@ -54,7 +54,7 @@ servicebus = [
 packages = ["src/api"]
 
 [tool.hatch.build.targets.sdist]
-include = ["LICENSE", "/src", "/integration", "/tests", "/scripts", "/pyproject.toml", "/uv.lock", "/README.md"]
+include = ["LICENSE", "/deploy", "/src", "/integration", "/tests", "/scripts", "/pyproject.toml", "/uv.lock", "/README.md"]
 
 [tool.hatch.metadata]
 allow-direct-references = true

@@ -361,3 +361,12 @@ The existing API-key exchange secret and `USER_SERVICE_URL`/optional
 The runtime needs the same private provider settings and outbound HTTPS access.
 Deployment packaging, edge routing, tenant provisioning and quotas remain
 separate work; adding this entrypoint does not activate a storage service.
+
+The normal main package workflow prepares the storage image from its exact tested
+wheel plus verified dependency wheels and a hashed public dependency lock. No Git
+credential enters the build context. CI checks the non-root, read-only image
+against its disposable job database and refuses anonymous storage access before
+advancing `ghcr.io/hyperme-sh/controlplane-core/storage:test`. A superseded source
+revision cannot advance the channel. The image records source and wheel digests
+for diagnostics; deployments consume the moving TEST channel. This publication
+does not provision the tenant database role, provider, edge setting or service.
