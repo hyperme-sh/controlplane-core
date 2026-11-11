@@ -56,7 +56,7 @@ async def test_current_owner_checked_each_time_and_signed_tenant_is_fixed(setup)
     assert str(h.requests[0].url)=='https://user.owner.example/api/v1/authority/check'
     assert h.requests[0].headers['x-tenant-id']==h.tenant
     sent=json.loads(h.requests[0].content)
-    assert sent['action']=='network.admin' and sent['network']=='s3r.ch'
+    assert sent['action']=='tenant.admin' and sent['tenant_id']==h.tenant and sent['network'] is None
     h.response['allowed']=False
     with pytest.raises(HTTPException) as exc:
         await security.storage_admin(h.request())

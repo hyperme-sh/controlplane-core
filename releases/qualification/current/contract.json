@@ -122,7 +122,7 @@
     "api/infrastructure/security/jwt_token_service.py": "0369821485f0f98147e985ed6bd0ca81cee1b3177f66ae0942c6528e11bf71fe",
     "api/infrastructure/security/keycloak_jwt.py": "6550b500a1c989bf39345c004c53ba6aad63231585e8ef9870dc69327b655f4d",
     "api/infrastructure/security/passkey_service.py": "c588d0c018c804fa6fa3d9fbc21dc6bed6054132234cb8dfa5744f19d9868a65",
-    "api/infrastructure/security/storage_admin.py": "006a38ff878ec5865f4110efa58d80ed43782ed6dddd4d766dbd1b2c8681ff85",
+    "api/infrastructure/security/storage_admin.py": "879a868fff20bebacf64b5cf2894c25915982a5011513fe3ec8a31723137e57e",
     "api/infrastructure/security/storage_session.py": "c01de3b9905ae2f55f181e458242fb55af0c30c254abfb5bf81539ccfb0603a4",
     "api/infrastructure/security/tenant_session_jwt.py": "ddf96af86e3c52167f7299c407c8162cb1c145607c625cc2f9d49e883526a7f7",
     "api/infrastructure/service_cors.py": "f32f487057a0dd3b8d4b4fd17188007251b8f2df6df7b039374127713cd075de",

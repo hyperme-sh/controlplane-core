@@ -50,8 +50,8 @@ async def storage_admin(request: Request) -> StorageAdmin:
     parsed = urlsplit(base)
     if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.path or parsed.query or parsed.fragment:
         raise HTTPException(503, 'Storage authority unavailable')
-    body = {'version': 1, 'request_id': str(uuid4()), 'action': 'network.admin',
-        'network': claims['network_id'], 'tenant_id': None, 'organization_id': None}
+    body = {'version': 1, 'request_id': str(uuid4()), 'action': 'tenant.admin',
+        'network': None, 'tenant_id': str(tenant), 'organization_id': None}
     try:
         context = ssl.create_default_context(cafile=os.environ.get('USER_SERVICE_CA_FILE') or None)
         with anyio.fail_after(3):

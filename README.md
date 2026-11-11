@@ -325,7 +325,8 @@ session and matching `X-Tenant-ID`. Each call forwards the session to the
 configured HTTPS `USER_SERVICE_URL` owner check; `USER_SERVICE_CA_FILE` may name
 its trusted CA. No local role repair or substitute administrator is required.
 The owner validates the current selection generation and network mapping and
-checks the administrator grant. Unavailable, revoked or mismatched authority
+checks current tenant-administrator authority, including inherited network-admin
+authority and tenant-scoped actor bans. Unavailable, revoked or mismatched authority
 fails closed. These requests bypass the HTTP cache.
 
 The configuration body has the existing storage-settings shape, but its audit
