@@ -32,6 +32,7 @@ def db(monkeypatch):
 
 
 @pytest.mark.parametrize('method,operation',[('GET','read'),('HEAD','read'),('PUT','write'),('DELETE','delete')])
+@pytest.mark.asyncio
 async def test_object_session_uses_signed_tenant_not_host_or_query(db,method,operation):
     req=request(method=method)
     req.scope['query_string']=b'tenant_id=another'
@@ -46,11 +47,13 @@ async def test_object_session_uses_signed_tenant_not_host_or_query(db,method,ope
 
 
 @pytest.mark.parametrize('headers', [[],[(b'authorization',b'Basic unit')],[(b'authorization',b'Bearer a b')],[(b'authorization',b'Bearer a'),(b'authorization',b'Bearer b')]])
+@pytest.mark.asyncio
 async def test_missing_or_ambiguous_authorization_never_opens_database(db,headers):
     with pytest.raises(HTTPException): await anext(runtime.request_database(request(headers=headers)))
     db.maker.assert_not_called()
 
 
+@pytest.mark.asyncio
 async def test_mismatched_or_duplicate_tenant_header_is_denied(db):
     for headers in [[(b'x-tenant-id',str(uuid4()).encode())],[(b'x-tenant-id',str(db.tenant).encode())]*2]:
         with pytest.raises(HTTPException):
@@ -64,6 +67,7 @@ async def test_mismatched_or_duplicate_tenant_header_is_denied(db):
 
 
 @pytest.mark.parametrize('path',['/api/v1/storage/tenant','/api/v1/storage/tenant/configure'])
+@pytest.mark.asyncio
 async def test_configuration_uses_current_owner_tenant(db,path):
     flow=runtime.request_database(request(path))
     await anext(flow)
@@ -76,12 +80,14 @@ async def test_configuration_uses_current_owner_tenant(db,path):
     db.reset.assert_called_once_with('token')
 
 
+@pytest.mark.asyncio
 async def test_revoked_owner_never_opens_database(db):
     db.admin.side_effect=HTTPException(403,'Denied')
     with pytest.raises(HTTPException): await anext(runtime.request_database(request('/api/v1/storage/tenant')))
     db.maker.assert_not_called()
 
 
+@pytest.mark.asyncio
 async def test_health_hides_database_details(db):
     assert await runtime.health()=={'status':'ok'}
     db.session.execute.side_effect=RuntimeError('private database details')
@@ -90,6 +96,7 @@ async def test_health_hides_database_details(db):
     assert 'private' not in caught.value.detail
 
 
+@pytest.mark.asyncio
 async def test_startup_only_installs_session_and_disposes_engine(monkeypatch):
     engine=SimpleNamespace(dispose=AsyncMock())
     monkeypatch.setattr(runtime,'create_async_engine',Mock(return_value=engine))
