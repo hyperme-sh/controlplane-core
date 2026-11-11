@@ -5,6 +5,7 @@ from controlplane_api.utils import get_logger
 from api.domain.dtos.storage_settings_dto import AvailableStorageProviderDto, StorageSettingsDto
 from api.infrastructure.persistence.repositories.storage_settings_repository_impl import StorageSettingsRepository
 from api.domain.entities.storage_settings import StorageProvider, StorageSettings
+from api.domain.storage_scope import storage_tenant
 
 logger = get_logger(__name__)
 
@@ -17,23 +18,23 @@ class StorageSettingsService:
         self, setting: StorageSettingsDto, tenant_id: Optional[UUID] = None
     ) -> UUID:
         return await self.storage_settings_repository.configure_storage(
-            setting, tenant_id
+            setting, storage_tenant(tenant_id)
         )
 
 
-    async def get_storages(self) -> list[AvailableStorageProviderDto]:
-        return  await self.storage_settings_repository.get_storages()
+    async def get_storages(self, tenant_id: UUID | None = None) -> list[AvailableStorageProviderDto]:
+        return await self.storage_settings_repository.get_storages(storage_tenant(tenant_id))
 
 
     async def reset_storage(self, storage_id: str, updated_by_user_id: str, tenant_id: Optional[UUID] = None) -> None:
-        storage_setting: StorageSettings | None = await self.storage_settings_repository.get(
-            storage_id
+        tenant = storage_tenant(tenant_id)
+        storage_setting: StorageSettings | None = await self.storage_settings_repository.single_or_none(
+            id=UUID(storage_id), tenant_id=tenant
         )
-        logger.debug(f"Resetting storage setting: {storage_setting}")
         if storage_setting is None:
             raise NotFoundException("StorageSetting", storage_id)
         
-        if tenant_id is not None and storage_setting.tenant_id != tenant_id:
+        if storage_setting.tenant_id != tenant:
             raise NotFoundException("StorageSetting", storage_id)
         
         reset_payload: dict = {
@@ -57,5 +58,5 @@ class StorageSettingsService:
             )
 
         await self.storage_settings_repository.reset_storage(
-            str(storage_setting.id), reset_payload
+            str(storage_setting.id), reset_payload, tenant
         )

@@ -1,8 +1,6 @@
 from uuid import UUID
 from typing import List
-from fastapi import APIRouter, Depends, status
-from controlplane_api.exceptions import NotFoundException
-from controlplane_api.utils import get_logger
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from api.core.container import get_storage_settings_service
 from api.domain.dtos.storage_settings_dto import AvailableStorageProviderDto, StorageSettingsDto
 from api.domain.entities.storage_settings import StorageProvider
@@ -10,9 +8,9 @@ from controlplane_api.permissions import Permission
 from api.infrastructure.security.current_user import CurrentUser
 from api.interfaces.security.role_checker import check_permissions_for_current_role
 from api.usecases.storage_settings_service import StorageSettingsService
+from api.domain.storage_scope import storage_tenant
 
 
-logger = get_logger(__name__)
 
 router = APIRouter(
     prefix="/storage",
@@ -24,9 +22,10 @@ router.tags = ["Storage Settings"]
 
 @router.get("/", response_model=List[AvailableStorageProviderDto], response_model_exclude_none=True)
 async def get_storage_settings(
+    current_user: CurrentUser,
     setting_service: StorageSettingsService = Depends(get_storage_settings_service)
 ):
-    res = await setting_service.get_storages()
+    res = await setting_service.get_storages(_tenant(current_user.tenant_id))
     return [s.model_dump(exclude_none=True) for s in res]
 
 @router.get("/available", response_model=List[dict[str, str]])
@@ -41,38 +40,24 @@ async def configure_storage(
     setting_service: StorageSettingsService = Depends(get_storage_settings_service)
 ):
 
-    logger.debug(f"Received storage configuration: {configuration}")
-    try:
-        # We don't expect storage settings to be configured with host context as they are global settings. Only tenants with proper permissions can configure them.
-        if current_user.tenant_id is None or current_user.tenant_id.strip() == "":
-            logger.error("Tenant ID is missing in the current user context.")
-            return status.HTTP_400_BAD_REQUEST
-        
-        configuration.updated_by_user_id = current_user.id
-        await setting_service.configure_storage(setting=configuration, tenant_id=current_user.tenant_id)
-        return status.HTTP_201_CREATED
-    except Exception as e:
-        logger.error(f"Failed to configure storage: {e}")
-        return status.HTTP_400_BAD_REQUEST
-
+    tenant = _tenant(current_user.tenant_id)
+    configuration.updated_by_user_id = current_user.id
+    await setting_service.configure_storage(setting=configuration, tenant_id=tenant)
+    return status.HTTP_201_CREATED
 
 
 @router.patch("/{storage_id}/reset", status_code=status.HTTP_204_NO_CONTENT)
 async def reset_storage(
-    storage_id: str,
+    storage_id: UUID,
     current_user: CurrentUser,
     setting_service: StorageSettingsService = Depends(get_storage_settings_service)
 ):
-    logger.debug(f"Received request to reset storage settings for ID: {storage_id}")
+    await setting_service.reset_storage(storage_id=str(storage_id), updated_by_user_id=current_user.id, tenant_id=_tenant(current_user.tenant_id))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
+
+def _tenant(value: str | None) -> UUID:
     try:
-        # We don't expect storage settings to be configured with host context as they are global settings. Only tenants with proper permissions can configure them.
-        if current_user.tenant_id is None or current_user.tenant_id.strip() == "":
-            logger.error("Tenant ID is missing in the current user context.")
-            return status.HTTP_400_BAD_REQUEST
-
-        await setting_service.reset_storage(storage_id=storage_id, updated_by_user_id=current_user.id, tenant_id=UUID(current_user.tenant_id))
-        return status.HTTP_201_CREATED
-    except (NotFoundException, Exception) as e:
-        logger.error(f"Failed to reset storage settings: {e}")
-        raise e
+        return storage_tenant(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="Tenant storage scope required") from exc
