@@ -317,3 +317,23 @@ this API supplies per-object/request bounds, not aggregate billing quotas.
 No s3r.ch caller credential is installed by this change. Declared tenant wiring,
 client encryption/retrieval, aggregate quota policy and central nightly coverage
 remain tracked by #36 and FyberLabs/s3r.ch#300 before media is enabled.
+
+Tenant network administrators can use `GET /api/v1/storage/tenant`,
+`POST /api/v1/storage/tenant/configure` and
+`PATCH /api/v1/storage/tenant/{storage_id}/reset` with their signed network
+session and matching `X-Tenant-ID`. Each call forwards the session to the
+configured HTTPS `USER_SERVICE_URL` owner check; `USER_SERVICE_CA_FILE` may name
+its trusted CA. No local role repair or substitute administrator is required.
+The owner validates the current selection generation and network mapping and
+checks current tenant-administrator authority, including inherited network-admin
+authority and tenant-scoped actor bans. Unavailable, revoked or mismatched authority
+fails closed. These requests bypass the HTTP cache.
+
+The configuration body has the existing storage-settings shape, but its audit
+actor and tenant always come from the verified session. This network-owner path
+accepts public AWS regions/buckets and standard HTTPS public Azure account-key
+connection strings only; custom Azure endpoints and development storage are
+rejected. Azure connection strings must explicitly contain
+`DefaultEndpointsProtocol=https`, `AccountName`, `AccountKey` and
+`EndpointSuffix=core.windows.net`. Provider credentials remain masked in lists.
+The older permission-based storage routes keep their existing contract.

@@ -1,7 +1,7 @@
 {
   "coverage": "conservative complete packaged core runtime and packaged resources",
   "packaged_file_sha256": {
-    "api/__init__.py": "f09871cd0c74f58b960fccab66decefd4f3ce1ec26659212084237654e0ec969",
+    "api/__init__.py": "603cd0516a904a44f6fc21b9df05abeb97c5aafe0f1fce48d3f523abde0ce1c1",
     "api/common/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "api/common/audit_logs_repository.py": "d1d7bfcfa49f4fafb84133d5e75b80eeffdd11cb9e8389b230f948eeceffd7ac",
     "api/common/base_repository.py": "1afe5e87924acd4a1dc551f88ba53676949e8665bd55589ac9f56ec4484755e7",
@@ -122,6 +122,7 @@
     "api/infrastructure/security/jwt_token_service.py": "0369821485f0f98147e985ed6bd0ca81cee1b3177f66ae0942c6528e11bf71fe",
     "api/infrastructure/security/keycloak_jwt.py": "6550b500a1c989bf39345c004c53ba6aad63231585e8ef9870dc69327b655f4d",
     "api/infrastructure/security/passkey_service.py": "c588d0c018c804fa6fa3d9fbc21dc6bed6054132234cb8dfa5744f19d9868a65",
+    "api/infrastructure/security/storage_admin.py": "879a868fff20bebacf64b5cf2894c25915982a5011513fe3ec8a31723137e57e",
     "api/infrastructure/security/storage_session.py": "c01de3b9905ae2f55f181e458242fb55af0c30c254abfb5bf81539ccfb0603a4",
     "api/infrastructure/security/tenant_session_jwt.py": "ddf96af86e3c52167f7299c407c8162cb1c145607c625cc2f9d49e883526a7f7",
     "api/infrastructure/service_cors.py": "f32f487057a0dd3b8d4b4fd17188007251b8f2df6df7b039374127713cd075de",
@@ -143,6 +144,7 @@
     "api/interfaces/api_controllers/storage_endpoint.py": "0fac4a91db519c2249fe95d07d777c1805de57ccfed1699faf09fbade6950c97",
     "api/interfaces/api_controllers/tenant_endpoint.py": "ec55f0d56f12f192b5ab54502386e116fb3b80f04ce403c6d1fed0d6fc3c84c1",
     "api/interfaces/api_controllers/tenant_objects_endpoint.py": "7c33ecddf736d13e96c3acf0bbbcd66a122df44dbf57f8288a767281a4cd3016",
+    "api/interfaces/api_controllers/tenant_storage_admin_endpoint.py": "4aae7d0ec124fcbf1d7d2b838906e041f0117dd7ba2fcf115dd24a6af1a5c86d",
     "api/interfaces/api_controllers/user_endpoint.py": "2fdb3411444e5ff8bc390ed529cb87d1480ea8d8a49e786b50801dbfa798857a",
     "api/interfaces/api_controllers/version_endpoint.py": "bf28910a59a71962721cdd5518da3db9310d65123ae0de577102f7388f00984d",
     "api/interfaces/email_templates/activation_template_html.py": "7a34345fe4231527ab139f7172e6dc7ed38dcbe278b43376293f0135a4e576a6",
@@ -157,7 +159,7 @@
     "api/interfaces/email_templates/welcome_email_html.py": "766f87317bc15d48c6887e4642df555f5ae0d516b402a2fe3b1c64d736db3517",
     "api/interfaces/middlewares/audit_logs_read_middleware.py": "5968041b18f92cca6a8d7486248bcdf892d12c8489029fdb5871697b377e6b29",
     "api/interfaces/middlewares/database_middleware.py": "4067226609fe1f889c48106684ae0912b929fdcf1822134d01e3e12db907d1e7",
-    "api/interfaces/middlewares/redis_cache_middleware.py": "514686419247f2ae133aa92f0ba255f11b797f55c92a9434f33c1de4487fa075",
+    "api/interfaces/middlewares/redis_cache_middleware.py": "004ffdfb1204a0693e9f8d1770a7e1960e97ede295ce4475dd29c45e97b65283",
     "api/interfaces/security/role_checker.py": "002b50f85c287d82a0cc679d0f7200aaf09c6c60394cec74d90068b1403f9b6c",
     "api/usecases/audit_logs_service.py": "b2dbd2f699784c636d8af7f90b5d8ecdff57efce589991036678748eac7e8629",
     "api/usecases/auth_service.py": "1a747a0dff01b7b8fb47fd598b94a939a6f63c90e13f1e0e9f7190d357d82cb3",
