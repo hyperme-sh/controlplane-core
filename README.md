@@ -263,3 +263,49 @@ Configuration payloads and credentials are not logged.
 This is the configuration boundary for #36 / FyberLabs/s3r.ch#300. The private
 media object API, upload integrity, client-key encryption, quotas and s3r.ch
 consumer remain pending. The historical FileUpload helper is not that API.
+
+## Private tenant object API
+
+`/api/v1/storage/objects/{object_id}` stores opaque client-encrypted bytes for a
+service tenant. It accepts only the gateway's signed API-key session, with a
+canonical tenant ID, a bounded five-minute lifetime and the exact operation
+scope. Browser Keycloak tokens and s3r.ch agent JWTs are not storage credentials.
+Tenant identity never comes from a query parameter, filename or caller header.
+
+| Method | Required scope | Behavior |
+| --- | --- | --- |
+| PUT | `storage:objects:write` | Verify length and SHA-256, then conditionally create the whole object; 201 for new bytes, 204 for an identical retry. |
+| HEAD | `storage:objects:read` | Return length and checksum ETag, or 404. |
+| GET | `storage:objects:read` | Return bytes, with optional single byte range; invalid ranges return 416. A mismatched If-Range falls back to the complete object. |
+| DELETE | `storage:objects:delete` | Idempotently remove the current object; return 204. |
+
+The object ID is the lowercase SHA-256 of the ciphertext, not the plaintext or a
+filename. It cannot be used to replace an existing ID with different bytes.
+Uploads require `Content-Type: application/octet-stream` and an exact positive
+`Content-Length`, at most 64 MiB. The API bounds upload processing to 120 seconds
+and eight concurrent uploads per worker. It verifies the entire body in a
+private temporary spool before sending it to storage; cancelled, oversized or
+mismatched uploads never reach the provider. Temporary spools close on all exits.
+There is no incomplete multipart object or upload session to clean up.
+
+The initial backend is the tenant's explicitly selected AWS S3 provider. All
+four bucket Public Access Block settings must be enabled and readable by that
+provider credential. Missing configuration, unsupported providers and unreadable
+privacy settings fail closed; global S3 defaults are never used. Credentials and
+provider paths stay inside Spanopticon. Responses are binary attachments with
+`private, no-store` and `nosniff`; no public or signed download URL is issued.
+The adapter uses [conditional checksum-bound PutObject](https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/put_object.html)
+and [single-range GetObject](https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/get_object.html).
+
+A tenant token permits that service's storage operation, not an end user's
+SociACL see/share grant. s3r.ch must check current object access and encrypt with
+client-held keys before enabling its consumer. The storage service has no
+client decryption keys and cannot establish whether an arbitrary upload was
+properly encrypted. Delete does not recall downloaded copies or override bucket
+version/backup retention. Re-uploading a deleted ID can restore only identical
+bytes. Provider retention and aggregate tenant budgets remain deployment-owned;
+this API supplies per-object/request bounds, not aggregate billing quotas.
+
+No s3r.ch caller credential is installed by this change. Declared tenant wiring,
+client encryption/retrieval, aggregate quota policy and central nightly coverage
+remain tracked by #36 and FyberLabs/s3r.ch#300 before media is enabled.

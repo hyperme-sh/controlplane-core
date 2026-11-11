@@ -21,6 +21,7 @@ from api.interfaces.api_controllers.tenant_endpoint import router as tenant_rout
 from api.interfaces.api_controllers.role_endpoint import router as role_router
 from api.interfaces.api_controllers.app_configuration_endpoint import router as app_configuration_router
 from api.interfaces.api_controllers.storage_endpoint import router as storage_router
+from api.interfaces.api_controllers.tenant_objects_endpoint import router as tenant_objects_router
 from api.interfaces.api_controllers.permissions_endpoint import router as permissions_router
 from api.interfaces.api_controllers.dashboard_endpoint import router as dashboard_router
 from api.interfaces.api_controllers.ai_endpoint import router as ai_router
@@ -176,6 +177,7 @@ router.include_router(dashboard_router)
 router.include_router(role_router)
 router.include_router(permissions_router)
 router.include_router(storage_router)
+router.include_router(tenant_objects_router)
 router.include_router(ai_router)
 router.include_router(notification_router)
 router.include_router(audit_logs_router)
