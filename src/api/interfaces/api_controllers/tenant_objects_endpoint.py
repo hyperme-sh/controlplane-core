@@ -66,11 +66,13 @@ async def azure_store(selected):
     try:
         client = ContainerClient.from_connection_string(connection, container,
             max_single_put_size=MAX_OBJECT_BYTES, max_single_get_size=65536, max_chunk_get_size=65536,
-            connection_timeout=5, read_timeout=30, retry_total=2)
+            connection_timeout=5, read_timeout=30, retry_total=2, permit_redirects=False)
         async with client:
             url = urlsplit(client.url)
-            if url.scheme != "https" or not url.hostname or url.username or url.password:
-                raise ObjectUnavailable("HTTPS storage required")
+            if (url.scheme != "https" or not re.fullmatch(r"[a-z0-9]{3,24}\.blob\.core\.windows\.net", url.hostname or "")
+                    or url.port not in (None, 443) or url.username or url.password or url.query or url.fragment
+                    or url.path != "/" + container):
+                raise ObjectUnavailable("Approved HTTPS Azure storage required")
             with anyio.fail_after(30):
                 policy = await client.get_container_access_policy()
             if not isinstance(policy, dict) or "public_access" not in policy or policy["public_access"] is not None:

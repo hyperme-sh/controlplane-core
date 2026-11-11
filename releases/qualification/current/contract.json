@@ -142,7 +142,7 @@
     "api/interfaces/api_controllers/sso_settings_endpoint.py": "9c0a53da204db2653c8b05683333c58737b3a0bc0f2d645544f4120e29bfb120",
     "api/interfaces/api_controllers/storage_endpoint.py": "0fac4a91db519c2249fe95d07d777c1805de57ccfed1699faf09fbade6950c97",
     "api/interfaces/api_controllers/tenant_endpoint.py": "ec55f0d56f12f192b5ab54502386e116fb3b80f04ce403c6d1fed0d6fc3c84c1",
-    "api/interfaces/api_controllers/tenant_objects_endpoint.py": "87471724962df0ffb8b1971821b33e2260a490596e3b5ffa85b3671d2bcada25",
+    "api/interfaces/api_controllers/tenant_objects_endpoint.py": "7c33ecddf736d13e96c3acf0bbbcd66a122df44dbf57f8288a767281a4cd3016",
     "api/interfaces/api_controllers/user_endpoint.py": "2fdb3411444e5ff8bc390ed529cb87d1480ea8d8a49e786b50801dbfa798857a",
     "api/interfaces/api_controllers/version_endpoint.py": "bf28910a59a71962721cdd5518da3db9310d65123ae0de577102f7388f00984d",
     "api/interfaces/email_templates/activation_template_html.py": "7a34345fe4231527ab139f7172e6dc7ed38dcbe278b43376293f0135a4e576a6",

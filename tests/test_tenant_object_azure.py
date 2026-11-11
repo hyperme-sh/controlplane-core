@@ -101,6 +101,7 @@ async def test_azure_private_policy_is_required_and_client_always_closes(monkeyp
     assert client.closed
     assert factory.call_args.kwargs["max_single_put_size"] == MAX_OBJECT_BYTES
     assert factory.call_args.kwargs["max_single_get_size"] == 65536
+    assert factory.call_args.kwargs["permit_redirects"] is False
 
 
 @pytest.mark.asyncio
@@ -151,3 +152,64 @@ async def test_azure_cancelled_write_does_not_keep_using_the_upload_body():
             await backend.put("key", body, ObjectMetadata(3, hashlib.sha256(b"abc").hexdigest()))
     body.close()
     assert stopped
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("url", [
+    "https://attacker.example/private-container", "https://127.0.0.1/private-container",
+    "https://unit.blob.core.windows.net.attacker.example/private-container",
+    "https://unit.blob.core.windows.net:8443/private-container",
+    "https://unit.blob.core.windows.net/other-container",
+    "https://unit.blob.core.windows.net/private-container?redirect=internal",
+])
+async def test_unapproved_azure_endpoint_rejected_before_policy_request(monkeypatch,url):
+    client=Container({"public_access":None})
+    client.url=url
+    monkeypatch.setattr(endpoint.ContainerClient,"from_connection_string",Mock(return_value=client))
+    selected=SimpleNamespace(azure_connection_string="unit",azure_container_name="private-container")
+    with pytest.raises(HTTPException) as exc:
+        async with endpoint.azure_store(selected):
+            pytest.fail("Unapproved endpoint accepted")
+    assert exc.value.status_code==503 and client.closed
+    client.get_container_access_policy.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('operation', ['policy','head','read','put','delete'])
+async def test_real_sdk_pipeline_never_follows_private_redirects(monkeypatch,operation):
+    import base64
+    from azure.core.pipeline.transport import AsyncHttpResponse, AsyncHttpTransport
+    from azure.storage.blob.aio import ContainerClient
+    class Reply(AsyncHttpResponse):
+        def __init__(self,request,status):
+            super().__init__(request,None)
+            self.status_code=status
+            self.headers={'location':'http://169.254.169.254/private','content-type':'application/xml'}
+            self.reason='Redirect' if status==307 else 'OK'
+            self.content_type='application/xml'
+        def body(self):
+            return b'<SignedIdentifiers />' if self.status_code==200 else b''
+    class Transport(AsyncHttpTransport):
+        def __init__(self):
+            self.urls=[]
+        async def open(self): pass
+        async def close(self): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self,*args): await self.close()
+        async def send(self,request,**kwargs):
+            self.urls.append(request.url)
+            assert request.url.startswith('https://unit.blob.core.windows.net/')
+            return Reply(request,200 if operation!='policy' and len(self.urls)==1 else 307)
+    transport=Transport()
+    factory=ContainerClient.from_connection_string
+    monkeypatch.setattr(endpoint.ContainerClient,'from_connection_string',lambda *args,**kwargs: factory(*args,transport=transport,**kwargs))
+    selected=SimpleNamespace(azure_container_name='private-container',azure_connection_string=
+        'DefaultEndpointsProtocol=https;AccountName=unit;AccountKey='+base64.b64encode(b'a'*64).decode()+';EndpointSuffix=core.windows.net')
+    with pytest.raises(HTTPException) as exc:
+        async with endpoint.azure_store(selected) as backend:
+            if operation=='head': await backend.head('key')
+            elif operation=='read': _=[chunk async for chunk in backend.read('key',0,3)]
+            elif operation=='put': await backend.put('key',BytesIO(b'abc'),ObjectMetadata(3,hashlib.sha256(b'abc').hexdigest()))
+            elif operation=='delete': await backend.delete('key')
+    assert exc.value.status_code==503
+    assert len(transport.urls)==(1 if operation=='policy' else 2)

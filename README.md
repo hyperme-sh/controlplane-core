@@ -291,7 +291,8 @@ There is no incomplete multipart object or upload session to clean up.
 
 The backend is the tenant's explicitly selected AWS S3 or Azure Blob provider.
 S3 requires all four bucket Public Access Block settings to be enabled and
-readable by that provider credential. Azure requires an HTTPS endpoint and a
+readable by that provider credential. Azure requires an approved `*.blob.core.windows.net` HTTPS endpoint, disabled
+redirects, and a
 readable container policy with anonymous access disabled. Its existing tenant
 connection string stays in Spanopticon; it is never a product-owned archive.
 Azure uses a conditional single Block Blob upload with transport checksum
