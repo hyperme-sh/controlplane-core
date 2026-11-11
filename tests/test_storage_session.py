@@ -103,3 +103,31 @@ async def test_missing_or_duplicate_auth_and_private_policy_failure_deny(tokens,
         await anext(endpoint.object_store(request))
     assert exc.value.status_code == 503 and "private-details" not in exc.value.detail
     client.close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_azure_backend_uses_the_signed_tenant_and_closes_after_request(tokens, monkeypatch):
+    from api.interfaces.api_controllers import tenant_objects_endpoint as endpoint
+    from contextlib import asynccontextmanager
+    tenant, _, mint = tokens
+    selected = SimpleNamespace(tenant_id=tenant, provider="azure_blob", is_enabled=True)
+    repo = SimpleNamespace(get_active_for_tenant=AsyncMock(return_value=selected))
+    monkeypatch.setattr(endpoint, "get_storage_settings_repository", lambda: repo)
+    closed = False
+    backend = object()
+    @asynccontextmanager
+    async def azure(config):
+        nonlocal closed
+        assert config is selected
+        try:
+            yield backend
+        finally:
+            closed = True
+    monkeypatch.setattr(endpoint, "azure_store", azure)
+    request = Request({"type": "http", "method": "PUT", "path": "/", "headers": [(b"authorization", ("Bearer " + mint()).encode())]})
+    source = endpoint.object_store(request)
+    store = await anext(source)
+    assert store.tenant == tenant and store.backend is backend and not closed
+    await source.aclose()
+    assert closed
+    repo.get_active_for_tenant.assert_awaited_once_with(tenant)

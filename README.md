@@ -284,18 +284,26 @@ filename. It cannot be used to replace an existing ID with different bytes.
 Uploads require `Content-Type: application/octet-stream` and an exact positive
 `Content-Length`, at most 64 MiB. The API bounds upload processing to 120 seconds
 and eight concurrent uploads per worker. It verifies the entire body in a
-private temporary spool before sending it to storage; cancelled, oversized or
-mismatched uploads never reach the provider. Temporary spools close on all exits.
+private temporary spool before sending it to storage; incomplete, oversized or
+mismatched client bodies never reach the provider. Cancellation during a provider
+write has an unknown commit outcome; retrying the same ID is safe. Temporary spools close on all exits.
 There is no incomplete multipart object or upload session to clean up.
 
-The initial backend is the tenant's explicitly selected AWS S3 provider. All
-four bucket Public Access Block settings must be enabled and readable by that
-provider credential. Missing configuration, unsupported providers and unreadable
-privacy settings fail closed; global S3 defaults are never used. Credentials and
+The backend is the tenant's explicitly selected AWS S3 or Azure Blob provider.
+S3 requires all four bucket Public Access Block settings to be enabled and
+readable by that provider credential. Azure requires an approved `*.blob.core.windows.net` HTTPS endpoint, disabled
+redirects, and a
+readable container policy with anonymous access disabled. Its existing tenant
+connection string stays in Spanopticon; it is never a product-owned archive.
+Azure uses a conditional single Block Blob upload with transport checksum
+validation, bounded asynchronous reads and cancellation. No containers are
+created by request handling. Missing configuration, unsupported providers and
+unreadable privacy settings fail closed; global storage defaults are never used. Credentials and
 provider paths stay inside Spanopticon. Responses are binary attachments with
 `private, no-store` and `nosniff`; no public or signed download URL is issued.
 The adapter uses [conditional checksum-bound PutObject](https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/put_object.html)
 and [single-range GetObject](https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/get_object.html).
+The Azure adapter uses the [asynchronous Blob client](https://learn.microsoft.com/en-us/python/api/azure-storage-blob/azure.storage.blob.aio.blobclient?view=azure-python).
 
 A tenant token permits that service's storage operation, not an end user's
 SociACL see/share grant. s3r.ch must check current object access and encrypt with
