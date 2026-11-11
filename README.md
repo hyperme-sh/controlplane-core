@@ -250,3 +250,16 @@ including what a test bundle does and does not change, are in
 
 This package is licensed under [Apache-2.0](LICENSE). Dependencies keep their
 own licenses.
+
+## Tenant storage configuration
+
+Storage configuration reads, provider selection and resets require an explicit
+authenticated tenant. The repository filters that tenant even when the database
+role can see other tenants. Provider changes lock the tenant row for the request
+transaction; disabling or configuring one tenant cannot select a global default
+or modify another tenant's provider. Reset writes cleared credentials as NULL.
+Configuration payloads and credentials are not logged.
+
+This is the configuration boundary for #36 / FyberLabs/s3r.ch#300. The private
+media object API, upload integrity, client-key encryption, quotas and s3r.ch
+consumer remain pending. The historical FileUpload helper is not that API.
