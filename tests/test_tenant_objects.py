@@ -236,7 +236,8 @@ async def test_http_errors_never_expose_backend_exception_details():
 
 
 @pytest.mark.asyncio
-async def test_binary_objects_bypass_cache_without_consuming_the_stream(monkeypatch):
+@pytest.mark.parametrize("path", ["/api/v1/storage/objects/" + "a" * 64, "/api/v1/storage/tenant", "/api/v1/storage/tenant/configure"])
+async def test_binary_objects_bypass_cache_without_consuming_the_stream(monkeypatch, path):
     from api.interfaces.middlewares import redis_cache_middleware as cache
     from starlette.responses import StreamingResponse
     def forbidden(*args, **kwargs):
@@ -252,7 +253,7 @@ async def test_binary_objects_bypass_cache_without_consuming_the_stream(monkeypa
                 yield b"\xff\x80\x00"
             response = StreamingResponse(binary(), status_code=status, headers={"Cache-Control": "private, no-store"})
             next_call = AsyncMock(return_value=response)
-            request = Request({"type": "http", "method": method, "path": "/api/v1/storage/objects/" + "a" * 64,
+            request = Request({"type": "http", "method": method, "path": path,
                 "headers": [(b"authorization", b"Bearer unit-token")], "query_string": b""})
             result = await cache.RedisCacheMiddleware(None).dispatch(request, next_call)
             assert result is response and not consumed
