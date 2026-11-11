@@ -41,7 +41,8 @@ async def object_store(request: Request):
         flags = block.get("PublicAccessBlockConfiguration", {})
         if any(flags.get(name) is not True for name in ("BlockPublicAcls", "IgnorePublicAcls", "BlockPublicPolicy", "RestrictPublicBuckets")):
             raise HTTPException(status_code=503, detail="Private tenant object storage required")
-        yield TenantObjects(tenant, S3TenantObjects(client, selected.aws_bucket_name))
+        yield TenantObjects(tenant, S3TenantObjects(client, selected.aws_bucket_name, region=selected.region,
+            access_key=selected.aws_access_key, secret_key=selected.aws_secret_key))
     finally:
         await anyio.to_thread.run_sync(client.close)
 

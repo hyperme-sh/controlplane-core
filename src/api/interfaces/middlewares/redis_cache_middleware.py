@@ -39,7 +39,7 @@ class RedisCacheMiddleware(BaseHTTPMiddleware):
         if "authorization" in request.headers:
             token = request.headers["authorization"].replace("Bearer ", "")
 
-        if any(request.url.path.endswith(path) for path in not_allowed_cache_paths) or token is None:
+        if request.url.path.startswith("/api/v1/storage/objects/") or any(request.url.path.endswith(path) for path in not_allowed_cache_paths) or token is None:
             logger.debug(f"Bypassing cache for path: {request.url.path}")
             return await call_next(request)
             

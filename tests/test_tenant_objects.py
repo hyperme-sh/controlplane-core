@@ -108,22 +108,37 @@ def test_object_ids_are_not_paths(value):
 
 
 @pytest.mark.asyncio
-async def test_s3_write_binds_checksum_and_is_conditional_without_public_acl():
+async def test_s3_write_binds_checksum_and_is_conditional_without_public_acl(monkeypatch):
+    import httpx
+    import api.infrastructure.externals.tenant_object_s3 as adapter
     data = b"ciphertext"
     digest = hashlib.sha256(data).hexdigest()
-    client = SimpleNamespace(put_object=Mock(), head_object=Mock(return_value={"ContentLength": len(data), "Metadata": {"sha256": digest}}))
-    backend = S3TenantObjects(client, "private-bucket")
+    status = 200
+    seen = []
+    async def send(request):
+        seen.append(request)
+        assert await request.aread() == (data if request.method == "PUT" else b"")
+        return httpx.Response(status, headers={"content-length": str(len(data)), "x-amz-meta-sha256": digest})
+    original = httpx.AsyncClient
+    monkeypatch.setattr(adapter.httpx, "AsyncClient", lambda **kwargs: original(transport=httpx.MockTransport(send), **kwargs))
+    client = SimpleNamespace(meta=SimpleNamespace(endpoint_url="https://s3.us-east-1.amazonaws.com"))
+    backend = S3TenantObjects(client, "private-bucket", region="us-east-1", access_key="unit-key", secret_key="unit-secret")
     assert await backend.put("tenant-key", BytesIO(data), ObjectMetadata(len(data), digest)) is True
-    kwargs = client.put_object.call_args.kwargs
-    assert kwargs["IfNoneMatch"] == "*" and "ACL" not in kwargs
-    assert kwargs["ChecksumSHA256"] == base64.b64encode(hashlib.sha256(data).digest()).decode()
-    assert kwargs["ContentType"] == "application/octet-stream" and kwargs["CacheControl"] == "private, no-store"
+    headers = seen[-1].headers
+    assert headers["If-None-Match"] == "*" and "x-amz-acl" not in headers
+    assert headers["x-amz-checksum-sha256"] == base64.b64encode(hashlib.sha256(data).digest()).decode()
+    assert "SignedHeaders=" in headers["authorization"] and "if-none-match" in headers["authorization"]
+    assert headers["Content-Type"] == "application/octet-stream" and headers["Cache-Control"] == "private, no-store"
     assert await backend.head("tenant-key") == ObjectMetadata(len(data), digest)
-    client.put_object.side_effect = ClientError({"ResponseMetadata": {"HTTPStatusCode": 412}, "Error": {"Code": "PreconditionFailed"}}, "PutObject")
+    status = 412
     assert await backend.put("tenant-key", BytesIO(data), ObjectMetadata(len(data), digest)) is False
-    client.put_object.side_effect = ClientError({"Error": {"Code": "AccessDenied"}}, "PutObject")
+    status = 403
     with pytest.raises(ObjectUnavailable):
         await backend.put("tenant-key", BytesIO(data), ObjectMetadata(len(data), digest))
+    with pytest.raises(ObjectUnavailable):
+        await backend.head("tenant-key")
+    status = 404
+    assert await backend.head("tenant-key") is None
 
 
 @pytest.mark.asyncio
@@ -178,11 +193,6 @@ async def test_s3_missing_is_distinct_from_permission_failure_and_delete_failure
     backend = S3TenantObjects(client, "private-bucket")
     with pytest.raises(ObjectUnavailable):
         S3TenantObjects(client, "bad/bucket")
-    client.head_object.side_effect = ClientError({"Error": {"Code": "404"}}, "HeadObject")
-    assert await backend.head("key") is None
-    client.head_object.side_effect = ClientError({"Error": {"Code": "AccessDenied"}}, "HeadObject")
-    with pytest.raises(ObjectUnavailable):
-        await backend.head("key")
     await backend.delete("key")
     client.delete_object.assert_called_once_with(Bucket="private-bucket", Key="key")
     client.delete_object.side_effect = ClientError({"Error": {"Code": "AccessDenied"}}, "DeleteObject")
@@ -223,3 +233,71 @@ async def test_http_errors_never_expose_backend_exception_details():
         with pytest.raises(HTTPException) as exc:
             await operation()
         assert exc.value.status_code == 503 and "private-provider-details" not in exc.value.detail
+
+
+@pytest.mark.asyncio
+async def test_binary_objects_bypass_cache_without_consuming_the_stream(monkeypatch):
+    from api.interfaces.middlewares import redis_cache_middleware as cache
+    from starlette.responses import StreamingResponse
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Object requests must not reach cache or user lookup")
+    monkeypatch.setattr(cache, "get_user_service", forbidden)
+    monkeypatch.setattr(cache, "redis", SimpleNamespace(get=forbidden, scan_iter=forbidden))
+    for method in ("GET", "HEAD", "PUT", "DELETE"):
+        for status in (200, 206):
+            consumed = False
+            async def binary():
+                nonlocal consumed
+                consumed = True
+                yield b"\xff\x80\x00"
+            response = StreamingResponse(binary(), status_code=status, headers={"Cache-Control": "private, no-store"})
+            next_call = AsyncMock(return_value=response)
+            request = Request({"type": "http", "method": method, "path": "/api/v1/storage/objects/" + "a" * 64,
+                "headers": [(b"authorization", b"Bearer unit-token")], "query_string": b""})
+            result = await cache.RedisCacheMiddleware(None).dispatch(request, next_call)
+            assert result is response and not consumed
+            assert b"".join([part async for part in result.body_iterator]) == b"\xff\x80\x00"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("slow_method", ["PUT", "HEAD"])
+async def test_upload_deadline_cancels_provider_before_closing_spool(monkeypatch, slow_method):
+    import anyio
+    import httpx
+    import api.infrastructure.externals.tenant_object_s3 as adapter
+    from api.interfaces.api_controllers import tenant_objects_endpoint as endpoint
+    from api.domain import tenant_objects as domain
+    from tempfile import SpooledTemporaryFile
+    spools = []
+    def spool(**kwargs):
+        value = SpooledTemporaryFile(**kwargs)
+        spools.append(value)
+        return value
+    monkeypatch.setattr(domain, "SpooledTemporaryFile", spool)
+    exited = False
+    async def slow(request):
+        nonlocal exited
+        assert await request.aread() == (b"abc" if request.method == "PUT" else b"")
+        if request.method != slow_method:
+            return httpx.Response(412)
+        try:
+            await anyio.sleep_forever()
+        finally:
+            assert not spools[0].closed
+            exited = True
+    original = httpx.AsyncClient
+    monkeypatch.setattr(adapter.httpx, "AsyncClient", lambda **kwargs: original(transport=httpx.MockTransport(slow), **kwargs))
+    client = SimpleNamespace(meta=SimpleNamespace(endpoint_url="https://s3.us-east-1.amazonaws.com"))
+    store = TenantObjects(uuid4(), S3TenantObjects(client, "private-bucket", region="us-east-1", access_key="unit-key", secret_key="unit-secret"))
+    limiter = anyio.CapacityLimiter(1)
+    monkeypatch.setattr(endpoint, "upload_capacity", limiter)
+    actual_fail_after = anyio.fail_after
+    monkeypatch.setattr(endpoint.anyio, "fail_after", lambda seconds: actual_fail_after(0.05))
+    async def receive():
+        return {"type": "http.request", "body": b"abc", "more_body": False}
+    request = Request({"type": "http", "method": "PUT", "path": "/", "headers": [
+        (b"content-type", b"application/octet-stream"), (b"content-length", b"3")]}, receive)
+    with pytest.raises(HTTPException) as exc:
+        await endpoint.put_object(hashlib.sha256(b"abc").hexdigest(), request, store)
+    assert exc.value.status_code == 503 and exited and spools[0].closed
+    assert limiter.borrowed_tokens == 0
