@@ -18,6 +18,7 @@ from api.infrastructure.security.storage_session import storage_session, request
 from api.interfaces.api_controllers.tenant_objects_endpoint import router as objects
 from api.interfaces.api_controllers.tenant_storage_admin_endpoint import router as administration
 from api.interfaces.api_controllers.tenant_records_endpoint import router as records
+from api.interfaces.api_controllers.tenant_replays_endpoint import router as replays
 
 
 @asynccontextmanager
@@ -61,6 +62,7 @@ app = FastAPI(title='Spanopticon tenant storage', lifespan=startup, docs_url=Non
 app.include_router(objects, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 app.include_router(administration, prefix='/api/v1', dependencies=[Depends(request_database, scope='function')])
 app.include_router(records, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
+app.include_router(replays, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 
 
 @app.exception_handler(ApiBaseException)
