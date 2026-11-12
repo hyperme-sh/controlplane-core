@@ -457,3 +457,29 @@ The API saves policy only; it does not publish signed flags or start a worker.
 Authenticated telemetry collection, signing-key custody, portal configuration and
 delivery remain tracked in #49. This changes no release routing and enables no
 experiment by itself.
+
+The dedicated `python -m api.experiment_publisher` process reads
+`EXPERIMENT_TENANT_ID`, `EXPERIMENT_AUDIENCE` and a private PKCS8 Ed25519 PEM file at
+`EXPERIMENT_SIGNING_KEY_FILE`. Provision a different signing key per tenant and
+application; consumers pin that binding's public key. No HTTP caller supplies a
+key, policy or signing callback. The process uses the existing database tenant
+scope and private provider selection, checks every 30 seconds with a 30-second
+attempt deadline, and emits static failures without provider diagnostics.
+
+A private `tenant-experiment-publications/v1` record allocates monotonic publication
+sequences independently of operator policy sequences. Signed flags expire after
+five minutes and renew with two minutes remaining. The publisher writes only the
+public flag payload and detached signature to the tenant cache as
+`experiments-v1-s3rch`, `experiments-v1-hypermesh` or `experiments-v1-portal`.
+Existing record read credentials can retrieve that envelope; they cannot access
+private policy, publication state or signing keys. Conditional writes prevent
+older workers replacing newer signed cache data. Consumers must verify signatures,
+audience, sequence and expiry before using it. Corrupt cache bytes are replaceable;
+the cache never selects the authoritative publication sequence.
+
+Policy edits and cache delivery are separate conditional operations. A concurrent
+policy edit is picked up on the next successful publisher pass. Unavailable
+storage leaves the last signed payload to expire, after which consumers use their
+compiled control. Deployment key staging, consumer polling and the trusted metrics
+worker are still required before activating experiments. Do not reset publication
+state during restarts or key rotation: its monotonic counter must be preserved.

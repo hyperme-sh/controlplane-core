@@ -19,6 +19,7 @@ dependencies = [
     "boto3>=1.40.32",
     "celery[redis]>=5.3.1",
     "colorlog>=6.9.0",
+    "cryptography>=50.0.2",
     "faker>=37.8.0",
     "fastapi-mail>=1.5.0",
     "python-keycloak>=5.1.0",
