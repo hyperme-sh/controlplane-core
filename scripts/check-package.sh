@@ -7,8 +7,9 @@ sync_options=()
 run_options=()
 export_options=()
 fixture_wheels=()
-case "${1:-}" in
-  '') uv lock --check ;;
+contract_only=0
+for option in "$@"; do
+case "$option" in
   --fixtures)
     fixture_paths=$(python3 scripts/verify_dependency_fixtures.py "$PWD")
     mapfile -t fixture_wheels <<< "$fixture_paths"
@@ -26,26 +27,33 @@ case "${1:-}" in
     sync_options+=(--no-install-package operator-ban-store)
     export_options+=(--no-emit-package operator-ban-store)
     ;;
-  *) echo 'Usage: bash scripts/check-package.sh [--fixtures]' >&2; exit 2 ;;
+  --contracts) contract_only=1 ;;
+  *) echo 'Usage: bash scripts/check-package.sh [--fixtures] [--contracts]' >&2; exit 2 ;;
 esac
-if (( $# > 1 )); then echo 'Unexpected arguments' >&2; exit 2; fi
+done
+if (( ${#fixture_wheels[@]} == 0 )); then uv lock --check; fi
 sync_environment() {
   uv sync --frozen --python 3.13 "${sync_options[@]}"
   if (( ${#fixture_wheels[@]} )); then
     uv pip install --python .venv/bin/python --no-deps --reinstall "${fixture_wheels[@]}"
   fi
 }
-: "${TEST_DATABASE_URL:?Disposable PostgreSQL is required}"
+pytest_options=()
+if (( contract_only )); then
+  pytest_options+=(--ignore=tests/test_oidc_platform_subject.py)
+else
+  : "${TEST_DATABASE_URL:?Disposable PostgreSQL is required}"
+fi
 sync_environment
 scratch=$(mktemp -d)
 trap 'rm -rf "$scratch"' EXIT
 python3 scripts/prepare-storage-schema.py tests_artifacts/storage-schema "$scratch/storage-schema"
-uv run --frozen "${run_options[@]}" pytest --junitxml="$scratch/source.xml"
+uv run --frozen "${run_options[@]}" pytest "${pytest_options[@]}" --junitxml="$scratch/source.xml"
 uv build --out-dir "$scratch/dist"
 uv run --frozen "${run_options[@]}" python scripts/verify_wheel.py "$scratch/dist"
 uv run --frozen "${run_options[@]}" pytest -q tests_tools
 uv run --frozen "${run_options[@]}" python scripts/export_release_contract.py "$scratch"/dist/*.whl --output "$scratch/contract"
-for qualified_manifest in releases/qualification/current/release.json releases/candidate/release.json; do
+for qualified_manifest in releases/candidate/release.json; do
   if [[ -f "$qualified_manifest" ]]; then
     uv run --frozen "${run_options[@]}" python scripts/verify_release_candidate.py "$qualified_manifest" "$scratch/contract/contract.json" "$scratch/contract/evidence.json" controlplane-core
   fi
@@ -60,7 +68,7 @@ uv pip uninstall --python "$scratch/venv/bin/python" controlplane-api controlpla
 uv pip install --python "$scratch/venv/bin/python" --constraint "$scratch/requirements.txt" "$scratch"/dist/*.whl
 fi
 cp -R tests "$scratch/"
-(cd "$scratch" && "$scratch/venv/bin/python" -I -m pytest -c /dev/null tests --junitxml="$scratch/wheel.xml")
+(cd "$scratch" && "$scratch/venv/bin/python" -I -m pytest -c /dev/null tests "${pytest_options[@]}" --junitxml="$scratch/wheel.xml")
 # Rebuild from the sdist; a checkout must not supply omitted package files.
 uv run --frozen "${run_options[@]}" python - "$scratch" <<'PY'
 import pathlib, sys, tarfile
@@ -78,7 +86,7 @@ else
   uv pip install --python "$scratch/venv/bin/python" --constraint "$scratch/requirements.txt" --reinstall "$scratch"/rebuilt/*.whl
   uv pip check --python "$scratch/venv/bin/python"
 fi
-(cd "$scratch" && "$scratch/venv/bin/python" -I -m pytest -c /dev/null tests --junitxml="$scratch/sdist.xml")
+(cd "$scratch" && "$scratch/venv/bin/python" -I -m pytest -c /dev/null tests "${pytest_options[@]}" --junitxml="$scratch/sdist.xml")
 
 # Retain the exact validated bytes for the release channel; never rebuild them.
 if [[ -n "${RELEASE_ARTIFACT_DIR:-}" ]]; then

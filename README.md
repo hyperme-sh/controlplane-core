@@ -384,3 +384,11 @@ advancing `ghcr.io/hyperme-sh/controlplane-core/storage:test`. A superseded sour
 revision cannot advance the channel. The image records source and wheel digests
 for diagnostics; deployments consume the moving TEST channel. This publication
 does not provision the tenant database role, provider, edge setting or service.
+
+Audit log readers and writers use the same private directory from the pinned
+API package. Reads validate tenant names and use no-follow file descriptors;
+public `/tmp` globs are no longer used. This changes only temporary audit
+storage, without migrating historical files or changing package versions.
+Normal PR and main package checks use offline contracts; the PostgreSQL subject
+projection cases remain in the central nightly core suite. The existing scoped
+runtime-image smoke remains in its deployment workflow.
