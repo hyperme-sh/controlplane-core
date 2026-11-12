@@ -38,7 +38,7 @@ def provider_etag(value: str) -> str:
 
 
 def record_key(tenant: UUID, namespace: str, name: str) -> str:
-    if namespace not in ("cache", "recovery", "fixtures") or not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", name):
+    if namespace not in ("cache", "recovery", "fixtures", "media") or not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", name):
         raise ObjectInputError("Invalid record name")
     return f"tenant-records/v1/{storage_tenant(tenant).hex}/{namespace}/{name}"
 

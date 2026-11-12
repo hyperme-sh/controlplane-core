@@ -89,7 +89,7 @@ async def test_endpoint_is_cache_only_and_preserves_absence_and_unsupported():
         assert result.headers['cache-control'] == 'private, no-store'
         assert result.headers['referrer-policy'] == 'no-referrer'
         adapter.read_access.assert_awaited_once_with(record_key(tenant, 'cache', 'public-feed'))
-        for namespace in ('recovery', 'fixtures'):
+        for namespace in ('recovery', 'fixtures', 'media'):
             assert (await client.get(path.replace('/cache/', '/' + namespace + '/'))).status_code == 400
         assert (await client.get(path.replace('public-feed', 'bad.name'))).status_code == 400
         adapter.read_access.return_value = None

@@ -483,3 +483,14 @@ storage leaves the last signed payload to expire, after which consumers use thei
 compiled control. Deployment key staging, consumer polling and the trusted metrics
 worker are still required before activating experiments. Do not reset publication
 state during restarts or key rotation: its monotonic counter must be preserved.
+
+### Private media records
+
+`/api/v1/storage/records/media/{name}` stores opaque private media grant metadata
+with the existing bounded record and conditional-update contract. It requires
+`storage:media:read`, `storage:media:write`, or `storage:media:delete` for the
+corresponding method. General record credentials, including the public-feed
+cache key, cannot access this namespace. Media credentials confer neither
+object-byte access nor access to cache/recovery/fixture records. The cache-only
+`/access` delegation endpoint refuses media records. These service scopes do not
+replace application-level current reader grants or encryption.
