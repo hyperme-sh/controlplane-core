@@ -69,7 +69,7 @@ uv pip uninstall --python "$scratch/venv/bin/python" controlplane-api controlpla
 uv pip install --python "$scratch/venv/bin/python" --constraint "$scratch/requirements.txt" "$scratch"/dist/*.whl
 fi
 cp -R tests "$scratch/"
-(cd "$scratch" && "$scratch/venv/bin/python" -I -m pytest -c /dev/null tests "${pytest_options[@]}" --junitxml="$scratch/wheel.xml")
+(cd "$scratch" && "$scratch/venv/bin/python" -I -m pytest -c /dev/null --rootdir="$scratch" tests "${pytest_options[@]}" --junitxml="$scratch/wheel.xml")
 # Rebuild from the sdist; a checkout must not supply omitted package files.
 uv run --frozen "${run_options[@]}" python - "$scratch" <<'PY'
 import pathlib, sys, tarfile
@@ -87,7 +87,7 @@ else
   uv pip install --python "$scratch/venv/bin/python" --constraint "$scratch/requirements.txt" --reinstall "$scratch"/rebuilt/*.whl
   uv pip check --python "$scratch/venv/bin/python"
 fi
-(cd "$scratch" && "$scratch/venv/bin/python" -I -m pytest -c /dev/null tests "${pytest_options[@]}" --junitxml="$scratch/sdist.xml")
+(cd "$scratch" && "$scratch/venv/bin/python" -I -m pytest -c /dev/null --rootdir="$scratch" tests "${pytest_options[@]}" --junitxml="$scratch/sdist.xml")
 
 # Retain the exact validated bytes for the release channel; never rebuild them.
 if [[ -n "${RELEASE_ARTIFACT_DIR:-}" ]]; then
