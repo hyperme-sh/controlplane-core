@@ -34,7 +34,9 @@ class MemoryStore:
     async def load(self, tenant, audience):
         return self.current
 
-    async def replace(self, before, after):
+    async def replace(self, before, after, *, before_write=None):
+        if before_write is not None:
+            before_write()
         self.writes.append((before, after))
         if self.conflict:
             return False

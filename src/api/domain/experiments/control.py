@@ -105,7 +105,8 @@ class Aggregate(ClosedModel):
 
 class Store(Protocol):
     async def load(self, tenant: UUID, audience: str) -> Configuration: ...
-    async def replace(self, previous: Configuration, next_config: Configuration) -> bool: ...
+    async def replace(self, previous: Configuration, next_config: Configuration,
+                      *, before_write: Callable[[], None] | None = None) -> bool: ...
 
 
 # A deployment-owned source authenticates upstream telemetry and deduplicates
@@ -151,9 +152,11 @@ async def disable_regressed(store: Store, metrics: Metrics, *, tenant: UUID,
     updated = Configuration(tenant=current.tenant, audience=current.audience, sequence=current.sequence + 1,
         experiments=tuple(e.model_copy(update={"disabled": True}) if e.key in disabled else e
                           for e in current.experiments))
-    finished = clock()
-    if type(finished) is not int or not now <= finished <= now + 30:
-        raise ValueError("metric evaluation expired; re-evaluate")
-    if not await store.replace(current, updated):
+    def check_fresh():
+        finished = clock()
+        if type(finished) is not int or not now <= finished <= now + 30:
+            raise ValueError("metric evaluation expired; re-evaluate")
+    check_fresh()
+    if not await store.replace(current, updated, before_write=check_fresh):
         raise ValueError("experiment configuration changed; re-evaluate")
     return tuple(sorted(disabled))

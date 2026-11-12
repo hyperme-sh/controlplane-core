@@ -1,5 +1,6 @@
 """Conditional experiment state in a private provider prefix, outside public records."""
 import secrets
+from collections.abc import Callable
 from uuid import UUID
 
 from api.domain.experiments.control import Configuration
@@ -44,7 +45,8 @@ class ExperimentStore:
             raise ValueError("initial experiment sequence must be one")
         await self.backend.replace(key, self.encode(value), None)
 
-    async def replace(self, previous: Configuration, next_config: Configuration) -> bool:
+    async def replace(self, previous: Configuration, next_config: Configuration,
+                      *, before_write: Callable[[], None] | None = None) -> bool:
         key = self.key(previous.tenant, previous.audience)
         if (next_config.tenant != previous.tenant or next_config.audience != previous.audience
                 or next_config.sequence != previous.sequence + 1):
@@ -55,8 +57,13 @@ class ExperimentStore:
         if self.parse(found[0], previous.tenant, previous.audience) != previous:
             return False
         etag = provider_etag(found[1])
+        encoded = self.encode(next_config)
+        # The conditional read can block after the controller's first check.
+        # Validate immediately before dispatch; network completion may be later.
+        if before_write is not None:
+            before_write()
         try:
-            await self.backend.replace(key, self.encode(next_config), etag)
+            await self.backend.replace(key, encoded, etag)
         except RecordConflict:
             return False
         return True

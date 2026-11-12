@@ -82,3 +82,24 @@ async def test_scope_sequence_missing_and_corrupt_state_refuse():
     backend.rows[key] = (b"invalid", '"1"')
     with pytest.raises(ObjectUnavailable):
         await store.load(TENANT, "s3r.ch")
+
+
+@pytest.mark.asyncio
+async def test_slow_conditional_read_rechecks_guardrail_deadline_before_dispatch():
+    from api.domain.experiments.control import disable_regressed
+    from test_experiment_control import config as configured, metric_source
+    moments = [100]
+    class SlowBackend(Backend):
+        calls = 0
+        async def fetch(self, key):
+            self.calls += 1
+            if self.calls == 2:
+                moments[0] = 131
+            return await super().fetch(key)
+    backend = SlowBackend()
+    store = ExperimentStore(TENANT, backend)
+    await store.initialize(configured())
+    with pytest.raises(ValueError, match="expired"):
+        await disable_regressed(store, metric_source(), tenant=TENANT, audience="s3r.ch", clock=lambda: moments[0])
+    assert backend.count == 1
+    assert (await store.load(TENANT, "s3r.ch")).sequence == 1
