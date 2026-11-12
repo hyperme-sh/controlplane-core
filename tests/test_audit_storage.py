@@ -20,7 +20,7 @@ async def test_reader_and_writer_share_private_tenant_storage():
     assert page.total == 2
     assert [log.entity for log in page.logs] == ['latest']
     assert page.has_next
-    assert [log['entity'] for log in await repository.return_all_audit_logs(tenant_id='one')] == ['latest','first']
+    assert [log.entity for log in await repository.return_all_audit_logs(tenant_id='one')] == ['latest','first']
     assert (await repository.list_audit_logs(None)).total == 0
 
 

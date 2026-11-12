@@ -867,7 +867,7 @@ wheels = [
 [[package]]
 name = "controlplane-api"
 version = "0.23.0"
-source = { git = "https://github.com/hyperme-sh/controlplane-api.git?rev=1ed72fb3e3c486c9eb7e7b6be17b2d0898fa5f0c#1ed72fb3e3c486c9eb7e7b6be17b2d0898fa5f0c" }
+source = { git = "https://github.com/hyperme-sh/controlplane-api.git?rev=e7b798a045ca899147a8b1eafb6b9f83565e030f#e7b798a045ca899147a8b1eafb6b9f83565e030f" }
 dependencies = [
     { name = "colorlog" },
     { name = "controlplane-events" },
@@ -935,7 +935,7 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.40.32" },
     { name = "celery", extras = ["redis"], specifier = ">=5.3.1" },
     { name = "colorlog", specifier = ">=6.9.0" },
-    { name = "controlplane-api", git = "https://github.com/hyperme-sh/controlplane-api.git?rev=1ed72fb3e3c486c9eb7e7b6be17b2d0898fa5f0c" },
+    { name = "controlplane-api", git = "https://github.com/hyperme-sh/controlplane-api.git?rev=e7b798a045ca899147a8b1eafb6b9f83565e030f" },
     { name = "controlplane-db", git = "https://github.com/hyperme-sh/controlplane-db.git?rev=907b9390b3d68aa67903ffec849e9f1d64c17f1f" },
     { name = "controlplane-events", git = "https://github.com/hyperme-sh/controlplane-events.git?rev=8f16587d105f7352891a1d9d77ec8305bbf5cd29" },
     { name = "controlplane-identity", git = "https://github.com/hyperme-sh/controlplane-identity.git?rev=5aeff3d2c00568f39ca6e8b75c7e63883d3a510b" },
