@@ -79,6 +79,33 @@ libraries:
 
 ## Practical use
 
+### Tenant storage provider deployment
+
+`api.storage.configure_provider` is an explicit deployment command, separate
+from application startup and the tenant administrator API. It consumes a private
+JSON file containing version 1, the declared tenant ID and network, provider
+`azure`, account, container, and connection string. The invoking deployment must
+provide the expected tenant and network independently and the restricted storage
+runtime `DATABASE_URL`. The file must belong to the process user with mode 0400
+or 0600. Provider credentials never appear in command arguments or output.
+
+The command requires the existing `storage_owner` schema, forced tenant row
+isolation, a non-owner runtime role, and an existing tenant. It does not create
+tenants or change grants. It permits only HTTPS Azure public-cloud Blob endpoints
+whose account matches the declaration, and verifies that the container is private
+before writing settings. All writes use one tenant-locked database transaction.
+
+Initial configuration refuses existing administrator-managed settings. Repeated
+identical deployment is unchanged; credential rotation requires the SHA-256
+returned by the previous successful configuration. Rotation cannot move the
+account or container. Administrator changes, disabled providers, missing prior
+configuration, and competing providers require explicit administrator resolution.
+The result contains only `changed` and the configuration fingerprint. This command
+does not grant product API keys or expose provider credentials to product apps.
+
+Unit checks use provider and database doubles. A separate disposable PostgreSQL
+contract runs only in CI, checking runtime privileges and tenant isolation.
+
 Python 3.13 and [uv](https://docs.astral.sh/uv/) 0.11.26. Dependency revisions
 are pinned in `pyproject.toml` and `uv.lock`. The pinned repositories are
 public.

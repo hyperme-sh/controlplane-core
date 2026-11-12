@@ -41,6 +41,7 @@ sync_environment() {
 pytest_options=()
 if (( contract_only )); then
   pytest_options+=(--ignore=tests/test_oidc_platform_subject.py
+    --ignore=tests/test_storage_provider_database.py
     --deselect=tests/test_review_regressions.py::test_celery_repeated_event_loops)
 else
   : "${TEST_DATABASE_URL:?Disposable PostgreSQL is required}"
