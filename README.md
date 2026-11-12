@@ -433,7 +433,8 @@ trusted server/provider metrics source. That source must authenticate upstream
 telemetry and deduplicate stable action IDs before returning an aggregate. Do
 not expose aggregate submission to browser callers. Scope/window mismatches
 refuse the update; missing or undersampled data does not disable an experiment.
-A conditional-write conflict requires fresh configuration and metric evaluation.
+A conditional-write conflict or an evaluation exceeding 30 seconds requires fresh
+configuration and metric evaluation.
 The controller can only disable; re-enabling requires an operator change.
 
 `ExperimentStore` persists through the tenant's existing conditional provider

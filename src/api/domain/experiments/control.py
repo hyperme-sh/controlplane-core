@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import json
 import math
+import time
 from collections.abc import Awaitable, Callable
 from typing import Annotated, Literal, Protocol
 from uuid import UUID
@@ -113,12 +114,13 @@ Metrics = Callable[[UUID, str, str, str, Metric, int, int], Awaitable[Aggregate 
 
 
 async def disable_regressed(store: Store, metrics: Metrics, *, tenant: UUID,
-                           audience: str, now: int) -> tuple[str, ...]:
+                           audience: str, clock: Callable[[], int] = lambda: int(time.time())) -> tuple[str, ...]:
     """One conditional update. Conflict means reload/re-evaluate, never replay old signals.
 
     This controller only disables; enabling again requires an operator update.
     A failed/missing/stale query cannot create a disable decision.
     """
+    now = clock()
     if type(now) is not int or now < 0:
         raise ValueError("invalid evaluation time")
     current = await store.load(tenant, audience)
@@ -149,6 +151,9 @@ async def disable_regressed(store: Store, metrics: Metrics, *, tenant: UUID,
     updated = Configuration(tenant=current.tenant, audience=current.audience, sequence=current.sequence + 1,
         experiments=tuple(e.model_copy(update={"disabled": True}) if e.key in disabled else e
                           for e in current.experiments))
+    finished = clock()
+    if type(finished) is not int or not now <= finished <= now + 30:
+        raise ValueError("metric evaluation expired; re-evaluate")
     if not await store.replace(current, updated):
         raise ValueError("experiment configuration changed; re-evaluate")
     return tuple(sorted(disabled))

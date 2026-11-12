@@ -80,10 +80,10 @@ def test_signing_refuses_invalid_validity_before_using_key(now, ttl):
 @pytest.mark.asyncio
 async def test_regression_atomically_disables_without_changing_variants_or_other_policy():
     store = MemoryStore()
-    assert await disable_regressed(store, metric_source(), tenant=TENANT, audience="s3r.ch", now=100) == ("layout",)
+    assert await disable_regressed(store, metric_source(), tenant=TENANT, audience="s3r.ch", clock=lambda: 100) == ("layout",)
     assert store.current.sequence == 2 and store.current.experiments[0].disabled
     assert store.current.experiments[0].variants == ("control", "treatment")
-    assert await disable_regressed(store, metric_source(), tenant=TENANT, audience="s3r.ch", now=101) == ()
+    assert await disable_regressed(store, metric_source(), tenant=TENANT, audience="s3r.ch", clock=lambda: 101) == ()
     assert len(store.writes) == 1
 
 
@@ -91,7 +91,7 @@ async def test_regression_atomically_disables_without_changing_variants_or_other
 @pytest.mark.parametrize("changes", [dict(samples=99), dict(value=0.1), dict(value=0.0)])
 async def test_sparse_or_healthy_metrics_do_not_disable(changes):
     store = MemoryStore()
-    assert await disable_regressed(store, metric_source(**changes), tenant=TENANT, audience="s3r.ch", now=100) == ()
+    assert await disable_regressed(store, metric_source(**changes), tenant=TENANT, audience="s3r.ch", clock=lambda: 100) == ()
     assert not store.writes
 
 
@@ -101,7 +101,7 @@ async def test_sparse_or_healthy_metrics_do_not_disable(changes):
 async def test_wrong_tenant_variant_window_or_metric_cannot_disable(changes):
     store = MemoryStore()
     with pytest.raises(ValueError, match="scope"):
-        await disable_regressed(store, metric_source(**changes), tenant=TENANT, audience="s3r.ch", now=100)
+        await disable_regressed(store, metric_source(**changes), tenant=TENANT, audience="s3r.ch", clock=lambda: 100)
     assert not store.writes
 
 
@@ -112,9 +112,9 @@ async def test_missing_or_failed_provider_does_not_modify_configuration():
         return None
     async def unavailable(*_):
         raise RuntimeError("unavailable")
-    assert await disable_regressed(store, missing, tenant=TENANT, audience="s3r.ch", now=100) == ()
+    assert await disable_regressed(store, missing, tenant=TENANT, audience="s3r.ch", clock=lambda: 100) == ()
     with pytest.raises(RuntimeError):
-        await disable_regressed(store, unavailable, tenant=TENANT, audience="s3r.ch", now=100)
+        await disable_regressed(store, unavailable, tenant=TENANT, audience="s3r.ch", clock=lambda: 100)
     assert not store.writes
 
 
@@ -122,7 +122,7 @@ async def test_missing_or_failed_provider_does_not_modify_configuration():
 async def test_conflict_never_replays_an_old_disable_against_new_operator_configuration():
     store = MemoryStore(conflict=True)
     with pytest.raises(ValueError, match="re-evaluate"):
-        await disable_regressed(store, metric_source(), tenant=TENANT, audience="s3r.ch", now=100)
+        await disable_regressed(store, metric_source(), tenant=TENANT, audience="s3r.ch", clock=lambda: 100)
     assert len(store.writes) == 1 and store.current.sequence == 1
     assert not store.current.experiments[0].disabled
 
@@ -142,11 +142,11 @@ def test_scope_threshold_and_signer_boundaries():
 async def test_store_scope_and_exhausted_sequence_are_refused_before_write():
     store = MemoryStore(config(tenant=UUID(int=2)))
     with pytest.raises(ValueError, match="scope"):
-        await disable_regressed(store, metric_source(), tenant=TENANT, audience="s3r.ch", now=100)
+        await disable_regressed(store, metric_source(), tenant=TENANT, audience="s3r.ch", clock=lambda: 100)
     assert not store.writes
     store = MemoryStore(config(sequence=9007199254740991))
     with pytest.raises(ValidationError):
-        await disable_regressed(store, metric_source(), tenant=TENANT, audience="s3r.ch", now=100)
+        await disable_regressed(store, metric_source(), tenant=TENANT, audience="s3r.ch", clock=lambda: 100)
     assert not store.writes
 
 
@@ -155,7 +155,17 @@ async def test_window_cannot_precede_epoch_and_invalid_clock_never_reads():
     async def unused(*_):
         raise AssertionError("must not query")
     store = MemoryStore()
-    assert await disable_regressed(store, unused, tenant=TENANT, audience="s3r.ch", now=59) == ()
+    assert await disable_regressed(store, unused, tenant=TENANT, audience="s3r.ch", clock=lambda: 59) == ()
     with pytest.raises(ValueError, match="time"):
-        await disable_regressed(store, unused, tenant=TENANT, audience="s3r.ch", now=True)
+        await disable_regressed(store, unused, tenant=TENANT, audience="s3r.ch", clock=lambda: True)
+    assert not store.writes
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("finished", [99, 131, True])
+async def test_expired_or_reversed_evaluation_does_not_commit(finished):
+    moments = iter([100, finished])
+    store = MemoryStore()
+    with pytest.raises(ValueError, match="expired"):
+        await disable_regressed(store, metric_source(), tenant=TENANT, audience="s3r.ch", clock=lambda: next(moments))
     assert not store.writes
