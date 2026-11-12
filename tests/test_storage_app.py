@@ -32,13 +32,14 @@ def db(monkeypatch):
 
 
 @pytest.mark.parametrize('method,operation',[('GET','read'),('HEAD','read'),('PUT','write'),('DELETE','delete')])
+@pytest.mark.parametrize('records',[False,True])
 @pytest.mark.asyncio
-async def test_object_session_uses_signed_tenant_not_host_or_query(db,method,operation):
-    req=request(method=method)
+async def test_object_session_uses_signed_tenant_not_host_or_query(db,method,operation,records):
+    req=request('/api/v1/storage/records/cache/feed' if records else '/api/v1/storage/objects/'+'a'*64,method=method)
     req.scope['query_string']=b'tenant_id=another'
     flow=runtime.request_database(req)
     await anext(flow)
-    db.verify.assert_called_once_with('unit',operation)
+    db.verify.assert_called_once_with('unit','records.'+operation if records else operation)
     db.guc.assert_awaited_once_with(db.session,db.tenant)
     with pytest.raises(StopAsyncIteration): await anext(flow)
     db.session.commit.assert_awaited_once()
@@ -109,7 +110,7 @@ async def test_startup_only_installs_session_and_disposes_engine(monkeypatch):
 
 def test_only_storage_and_health_routes_are_exposed():
     paths=set(runtime.app.openapi()['paths'])
-    assert paths=={'/health','/api/v1/storage/objects/{object_id}','/api/v1/storage/tenant','/api/v1/storage/tenant/configure','/api/v1/storage/tenant/{storage_id}/reset'}
+    assert paths=={'/health','/api/v1/storage/objects/{object_id}','/api/v1/storage/records/{namespace}/{name}','/api/v1/storage/tenant','/api/v1/storage/tenant/configure','/api/v1/storage/tenant/{storage_id}/reset'}
 
 
 @pytest.mark.asyncio

@@ -27,7 +27,7 @@ for attempt in $(seq 1 60); do
 done
 docker exec "$container" python -c '
 import urllib.error, urllib.request
-for path, expected in [("/api/v1/storage/objects/" + "a" * 64, 401), ("/api/v1/storage/tenant", 401), ("/api/v1/users", 404)]:
+for path, expected in [("/api/v1/storage/objects/" + "a" * 64, 401), ("/api/v1/storage/records/cache/feed", 401), ("/api/v1/storage/tenant", 401), ("/api/v1/users", 404)]:
     try:
         urllib.request.urlopen("http://127.0.0.1:8000" + path, timeout=2)
     except urllib.error.HTTPError as error:

@@ -7,6 +7,14 @@ from api.infrastructure.security.api_key_exchange_jwt import try_decode_api_key_
 from api.domain.storage_scope import storage_tenant
 
 SCOPES = {"read": "storage:objects:read", "write": "storage:objects:write", "delete": "storage:objects:delete"}
+SCOPES.update({"records." + operation: "storage:records:" + operation for operation in ("read", "write", "delete")})
+
+
+def request_operation(method: str, path: str) -> str | None:
+    operation = {"GET": "read", "HEAD": "read", "PUT": "write", "DELETE": "delete"}.get(method)
+    if operation and path.startswith("/api/v1/storage/records/"):
+        return "records." + operation
+    return operation
 
 
 def storage_session(token: str, operation: str, now: int | None = None) -> UUID:

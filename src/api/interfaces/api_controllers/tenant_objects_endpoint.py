@@ -23,7 +23,8 @@ router = APIRouter(prefix="/storage/objects", tags=["Tenant objects"])
 
 
 async def object_store(request: Request):
-    operation = {"GET": "read", "HEAD": "read", "PUT": "write", "DELETE": "delete"}.get(request.method)
+    from api.infrastructure.security.storage_session import request_operation
+    operation = request_operation(request.method, request.url.path)
     header = request.headers.get("authorization", "")
     if len(request.headers.getlist("authorization")) != 1 or not header.startswith("Bearer ") or header.count(" ") != 1:
         raise HTTPException(status_code=401, detail="Storage authentication required")

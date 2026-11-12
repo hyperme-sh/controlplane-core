@@ -14,9 +14,10 @@ from api.infrastructure.persistence.db_session import (
 )
 from api.infrastructure.persistence.tenant_guc import set_current_tenant_id_guc
 from api.infrastructure.security.storage_admin import storage_admin
-from api.infrastructure.security.storage_session import storage_session
+from api.infrastructure.security.storage_session import storage_session, request_operation
 from api.interfaces.api_controllers.tenant_objects_endpoint import router as objects
 from api.interfaces.api_controllers.tenant_storage_admin_endpoint import router as administration
+from api.interfaces.api_controllers.tenant_records_endpoint import router as records
 
 
 @asynccontextmanager
@@ -38,7 +39,7 @@ async def request_database(request: Request):
         auth = request.headers.get('authorization', '')
         if len(request.headers.getlist('authorization')) != 1 or not auth.startswith('Bearer ') or auth.count(' ') != 1:
             raise HTTPException(401, 'Storage authentication required')
-        operation = {'GET': 'read', 'HEAD': 'read', 'PUT': 'write', 'DELETE': 'delete'}.get(request.method)
+        operation = request_operation(request.method, request.url.path)
         tenant = storage_session(auth[7:], operation)
         supplied = request.headers.getlist('x-tenant-id')
         if supplied and supplied != [str(tenant)]:
@@ -59,6 +60,7 @@ async def request_database(request: Request):
 app = FastAPI(title='Spanopticon tenant storage', lifespan=startup, docs_url=None, redoc_url=None, openapi_url=None)
 app.include_router(objects, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 app.include_router(administration, prefix='/api/v1', dependencies=[Depends(request_database, scope='function')])
+app.include_router(records, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 
 
 @app.exception_handler(ApiBaseException)
