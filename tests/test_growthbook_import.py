@@ -148,3 +148,21 @@ async def test_worker_uses_import_source_instead_of_static_renewal(monkeypatch):
     with pytest.raises(ValueError):await worker.tick(maker,TENANT,'s3r.ch',Ed25519PrivateKey.generate(),1000,source=source())
     imported.assert_awaited_once();direct.assert_not_awaited()
     session.rollback.assert_awaited_once();session.commit.assert_not_awaited();reset.assert_called_once_with('context')
+
+
+@pytest.mark.asyncio
+async def test_removed_and_restored_upstream_key_cannot_erase_disable():
+    meta,policy=responses();backend=Backend();p=Publisher(TENANT,'s3r.ch',Ed25519PrivateKey.generate(),backend)
+    async with httpx.AsyncClient(transport=transport(meta,policy)) as client:
+        await import_and_publish(source(),client,p,1000)
+        previous=await p.store.load(TENANT,'s3r.ch')
+        disabled=previous.model_copy(update={'sequence':2,'experiments':(previous.experiments[0].model_copy(update={'disabled':True}),)})
+        assert await p.store.replace(previous,disabled)
+        saved=policy['features']['controlplane-policy']['defaultValue']['experiments']
+        policy['features']['controlplane-policy']['defaultValue']['experiments']=[]
+        await import_and_publish(source(),client,p,1030)
+        assert (await p.store.load(TENANT,'s3r.ch')).experiments[0].disabled
+        policy['features']['controlplane-policy']['defaultValue']['experiments']=saved
+        await import_and_publish(source(),client,p,1060)
+        assert (await p.store.load(TENANT,'s3r.ch')).experiments[0].disabled
+        assert (await p.store.load(TENANT,'s3r.ch')).sequence==2

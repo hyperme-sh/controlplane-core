@@ -102,9 +102,15 @@ async def import_and_publish(source: GrowthBookSource, client: httpx.AsyncClient
         await publisher.store.initialize(incoming)
     else:
         disabled = {e.key for e in previous.experiments if e.disabled}
-        updated = incoming.model_copy(update={'sequence':previous.sequence + 1,
-            'experiments':tuple(e.model_copy(update={'disabled':True}) if e.key in disabled else e
-                                for e in incoming.experiments)})
+        incoming_keys = {e.key for e in incoming.experiments}
+        retained = tuple(e for e in previous.experiments if e.disabled and e.key not in incoming_keys)
+        # Removed disabled entries remain tombstones. Re-adding an upstream key
+        # cannot erase a controller decision. Validate the combined eight-key
+        # bound before writing; an operator must explicitly clear old disables.
+        updated = Configuration(tenant=incoming.tenant, audience=incoming.audience,
+            sequence=previous.sequence + 1,
+            experiments=tuple(e.model_copy(update={'disabled':True}) if e.key in disabled else e
+                              for e in incoming.experiments) + retained)
         if previous.experiments != updated.experiments:
             if not await publisher.store.replace(previous,updated):
                 raise ValueError('Experiment configuration changed; retry fresh import')
