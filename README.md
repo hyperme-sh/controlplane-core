@@ -340,6 +340,20 @@ The older permission-based storage routes keep their existing contract.
 
 ## Tenant storage process
 
+The runtime image also carries `/opt/storage-schema`, selected from the exact
+qualified controlplane-db source archive recorded in
+`tests_artifacts/storage-schema/manifest.json`. Context preparation verifies the
+archive digest and copies only the three storage-owner bundle files. It refuses
+links, duplicate members, missing files and oversized content. Historical
+migrations and the rest of the source archive never enter the runtime image.
+
+Deployment runs `/opt/storage/bin/python -I /opt/storage-schema/migrate.py`
+with `--database-url-file`, `--schema` and `--runtime-role` using the distinct
+restricted schema owner. The service itself uses the runtime role. Startup
+does not apply migrations, create identities or provision provider credentials.
+`/opt/storage-schema/source.json` records the selected source and digest; it
+does not pin a running service channel.
+
 `api.storage_app:app` is the storage-only ASGI entrypoint for Spanopticon. It
 exposes `/health`, `/api/v1/storage/objects/{object_id}` and the tenant storage
 administration routes. It does not start the historical monolith, seed roles,

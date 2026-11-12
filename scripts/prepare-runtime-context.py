@@ -38,6 +38,10 @@ def prepare(distribution, output):
     shutil.copyfile(wheel, output / wheel.name)
     shutil.copyfile(root / "deploy/Dockerfile.runtime", output / "Dockerfile")
     (output / "requirements.txt").write_text(public)
+    subprocess.run([
+        sys.executable, str(root / "scripts/prepare-storage-schema.py"),
+        str(root / "tests_artifacts/storage-schema"), str(output / "storage-schema"),
+    ], check=True)
     inventory = {p.relative_to(output).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
                  for p in sorted(output.rglob("*")) if p.is_file()}
     (output / "inventory.json").write_text(json.dumps(inventory, sort_keys=True, indent=2) + "\n")

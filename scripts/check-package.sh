@@ -39,6 +39,7 @@ sync_environment() {
 sync_environment
 scratch=$(mktemp -d)
 trap 'rm -rf "$scratch"' EXIT
+python3 scripts/prepare-storage-schema.py tests_artifacts/storage-schema "$scratch/storage-schema"
 uv run --frozen "${run_options[@]}" pytest --junitxml="$scratch/source.xml"
 uv build --out-dir "$scratch/dist"
 uv run --frozen "${run_options[@]}" python scripts/verify_wheel.py "$scratch/dist"

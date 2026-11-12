@@ -11,6 +11,7 @@ RUN /opt/storage/bin/python -I -c "from api.storage_app import app; assert app.r
 
 FROM python:3.13-slim-bookworm@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f
 COPY --from=build /opt/storage /opt/storage
+COPY storage-schema/ /opt/storage-schema/
 ENV PATH=/opt/storage/bin:$PATH PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 ARG GIT_SHA
 ARG WHEEL_SHA256
