@@ -62,9 +62,11 @@ class Publisher:
             pass
         return None
 
-    async def publish(self, now: int) -> bool:
+    async def publish(self, now: int, *, ttl: int = 300) -> bool:
         if type(now) is not int or not 0 <= now <= 9007199254740691:
             raise ValueError("invalid publication time")
+        if type(ttl) is not int or not 1 <= ttl <= 300:
+            raise ValueError('invalid publication stale limit')
         config = await self.store.load(self.tenant, self.audience)
         policy_hash = hashlib.sha256(config.model_dump_json().encode()).hexdigest()
         found = await self.backend.fetch(self.state_key)
@@ -83,13 +85,13 @@ class Publisher:
                 and previous.policy_hash != policy_hash):
             raise ValueError("configuration changed without a sequence")
         publication = previous
-        if previous is None or previous.config_sequence != config.sequence or previous.expires <= now + 120:
+        if previous is None or previous.config_sequence != config.sequence or previous.expires <= now + min(120, ttl // 2) or previous.expires > now + ttl:
             sequence = 1 if previous is None else previous.sequence + 1
             # Publication renewal has its own sequence and does not invalidate
             # an operator's conditional policy edit.
-            raw, signature = signed_payload(config.model_copy(update={"sequence": sequence}), now=now, ttl=300, sign=self.key.sign)
+            raw, signature = signed_payload(config.model_copy(update={"sequence": sequence}), now=now, ttl=ttl, sign=self.key.sign)
             publication = Publication(tenant=self.tenant, audience=self.audience, sequence=sequence,
-                config_sequence=config.sequence, policy_hash=policy_hash, issued=now, expires=now+300,
+                config_sequence=config.sequence, policy_hash=policy_hash, issued=now, expires=now+ttl,
                 payload=raw.decode(), signature=signature)
             if await self.store.load(self.tenant, self.audience) != config:
                 raise RecordConflict("configuration changed before publication")

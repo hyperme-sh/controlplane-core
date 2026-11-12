@@ -5,6 +5,7 @@ from pathlib import Path
 from uuid import UUID
 
 import anyio
+import httpx
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -35,7 +36,7 @@ def signing_binding():
     return tenant, audience, key
 
 
-async def tick(maker, tenant, audience, key, now):
+async def tick(maker, tenant, audience, key, now, *, source=None, verify=True):
     async with maker() as session:
         token = set_db_session(session)
         try:
@@ -47,7 +48,13 @@ async def tick(maker, tenant, audience, key, now):
                     records = S3TenantRecords(backend)
                 else:
                     raise ValueError("private experiment provider required")
-                changed = await Publisher(tenant, audience, key, records).publish(now)
+                publisher = Publisher(tenant, audience, key, records)
+                if source is None:
+                    changed = await publisher.publish(now)
+                else:
+                    from api.domain.experiments.growthbook import import_and_publish
+                    async with httpx.AsyncClient(trust_env=False, verify=verify) as client:
+                        changed = await import_and_publish(source, client, publisher, now)
             await session.commit()
             return changed
         except BaseException:
@@ -57,16 +64,18 @@ async def tick(maker, tenant, audience, key, now):
             reset_db_session(token)
 
 
-async def run():
+async def run(*, source=None, verify=True):
     import time
     tenant, audience, key = signing_binding()
+    if source is not None and (source.tenant != tenant or source.audience != audience):
+        raise ValueError('GrowthBook source must match the signing binding')
     engine = create_async_engine(normalize_database_url(settings.database_url))
     maker = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
     try:
         while True:
             try:
                 with anyio.fail_after(30):
-                    await tick(maker, tenant, audience, key, int(time.time()))
+                    await tick(maker, tenant, audience, key, int(time.time()), source=source, verify=verify)
             except Exception:
                 # Provider/configuration exceptions can contain private values.
                 print("Experiment publication unavailable", flush=True)
