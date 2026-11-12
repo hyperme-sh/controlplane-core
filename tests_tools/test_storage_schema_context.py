@@ -3,6 +3,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import tarfile
 
@@ -41,6 +42,18 @@ def test_copies_only_owner_bundle_and_records_source(tmp_path):
     assert json.loads((output / 'source.json').read_text()) == record
     with pytest.raises(FileExistsError):
         module.prepare(tmp_path, output)
+
+
+def test_schema_remains_readable_to_non_owner_under_private_umask(tmp_path):
+    fixture(tmp_path)
+    output = tmp_path / 'output'
+    previous = os.umask(0o077)
+    try:
+        module.prepare(tmp_path, output)
+    finally:
+        os.umask(previous)
+    assert output.stat().st_mode & 0o777 == 0o755
+    assert all(path.stat().st_mode & 0o777 == 0o644 for path in output.iterdir())
 
 
 @pytest.mark.parametrize('kind', ['symlink', 'hardlink', 'traversal', 'duplicate', 'unknown', 'oversize'])

@@ -48,10 +48,15 @@ def prepare(directory, output):
                 raise ValueError('Invalid storage schema member size')
     if selected.keys() != FILES:
         raise ValueError('Incomplete storage schema bundle')
-    output.mkdir(mode=0o700, parents=True, exist_ok=False)
+    output.mkdir(mode=0o755, parents=True, exist_ok=False)
+    # Public migration source must remain readable after root-owned Docker COPY
+    # into an image that executes as uid 65532, even with a restrictive umask.
+    output.chmod(0o755)
     for name, content in selected.items():
         (output / name).write_bytes(content)
+        (output / name).chmod(0o644)
     (output / 'source.json').write_text(json.dumps(record, sort_keys=True, indent=2) + '\n')
+    (output / 'source.json').chmod(0o644)
 
 
 if __name__ == '__main__':
