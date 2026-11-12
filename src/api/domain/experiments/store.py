@@ -8,6 +8,10 @@ from api.domain.tenant_records import MAGIC, RecordBackend, RecordConflict, deco
 from api.domain.storage_scope import storage_tenant
 
 
+class ExperimentMissing(ValueError):
+    pass
+
+
 class ExperimentStore:
     def __init__(self, tenant: UUID, backend: RecordBackend):
         self.tenant = storage_tenant(tenant)
@@ -35,7 +39,7 @@ class ExperimentStore:
     async def load(self, tenant: UUID, audience: str) -> Configuration:
         found = await self.backend.fetch(self.key(tenant, audience))
         if found is None:
-            raise ValueError("experiment configuration unavailable")
+            raise ExperimentMissing("experiment configuration unavailable")
         provider_etag(found[1])
         return self.parse(found[0], tenant, audience)
 
