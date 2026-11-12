@@ -419,3 +419,31 @@ storage, without migrating historical files or changing package versions.
 Normal PR and main package checks use offline contracts; the PostgreSQL subject
 projection cases remain in the central nightly core suite. The existing scoped
 runtime-image smoke remains in its deployment workflow.
+
+## Experiment control policy
+
+`api.domain.experiments.control` defines bounded tenant experiment configuration,
+per-metric sample/window thresholds, and conditional disable decisions. Its
+signed payload builder produces the existing strict v1 OpenFeature consumer
+shape; tenant identifiers and private guardrail policy stay outside the public
+payload. The deployment-owned signer must use Ed25519.
+
+`disable_regressed` reads through an injected authoritative store and queries a
+trusted server/provider metrics source. That source must authenticate upstream
+telemetry and deduplicate stable action IDs before returning an aggregate. Do
+not expose aggregate submission to browser callers. Scope/window mismatches
+refuse the update; missing or undersampled data does not disable an experiment.
+A conditional-write conflict or an evaluation exceeding 30 seconds requires fresh
+configuration and metric evaluation.
+The controller can only disable; re-enabling requires an operator change.
+
+`ExperimentStore` persists through the tenant's existing conditional provider
+backend under a separate `tenant-experiments/v1` prefix. General cache/recovery/
+fixture credentials cannot address that prefix. Initial creation requires an
+absent record; updates require the preceding sequence and provider ETag. It
+preserves the provider's atomic conflict handling and does not retry writes.
+
+This module is not a mounted API or background worker. Authenticated telemetry
+collection, operator authorization, signing-key custody,
+portal configuration and delivery remain tracked in #49. It changes no release
+routing and enables no experiment by itself.
