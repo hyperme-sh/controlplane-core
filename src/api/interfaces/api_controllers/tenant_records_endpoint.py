@@ -3,9 +3,10 @@ import re
 
 import anyio
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 
 from api.domain.tenant_objects import ObjectInputError, ObjectUnavailable
-from api.domain.tenant_records import MAX_RECORD_BYTES, RecordConflict, TenantRecords
+from api.domain.tenant_records import MAX_RECORD_BYTES, RecordConflict, TenantRecords, record_key
 from api.infrastructure.externals.tenant_object_azure import AzureTenantObjects
 from api.infrastructure.externals.tenant_object_s3 import S3TenantObjects
 from api.infrastructure.externals.tenant_record_azure import AzureTenantRecords
@@ -47,6 +48,27 @@ def translate(error):
     if isinstance(error, TimeoutError):
         return HTTPException(504, "Record operation timed out")
     return HTTPException(503, "Record storage unavailable")
+
+
+@router.get("/{namespace}/{name}/access")
+async def get_cache_read_access(namespace: str, name: str, store=Depends(records_store)):
+    # Reuse the signed tenant and records:read scope. Never delegate recovery,
+    # fixture, write, list, or account access through this cache-only endpoint.
+    if namespace != "cache":
+        raise HTTPException(400, "Cache record required")
+    try:
+        key = record_key(store.tenant, namespace, name)
+        if not isinstance(store.backend, AzureTenantRecords):
+            raise HTTPException(501, "Direct cache reads unavailable")
+        with anyio.fail_after(60):
+            async with capacity:
+                access = await store.backend.read_access(key)
+        if access is None:
+            raise HTTPException(404, "Record not found")
+        return JSONResponse(access, headers={"Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer"})
+    except (ObjectInputError, ObjectUnavailable, RecordConflict, TimeoutError) as exc:
+        raise translate(exc) from None
 
 
 @router.get("/{namespace}/{name}")
