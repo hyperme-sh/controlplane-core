@@ -297,3 +297,44 @@ def test_records_reuse_only_supported_explicit_private_backend_clients():
     s3=route.records_store(SimpleNamespace(tenant=tenant,backend=S3TenantObjects(Mock(),"bucket")))
     assert isinstance(s3.backend,S3TenantRecords)
     with pytest.raises(HTTPException):route.records_store(SimpleNamespace(tenant=tenant,backend=object()))
+
+
+@pytest.mark.parametrize("method,operation", [("GET", "read"), ("HEAD", "read"), ("PUT", "write"), ("DELETE", "delete")])
+def test_private_media_record_scope_is_separate_from_feed_and_objects(monkeypatch, method, operation):
+    from api.infrastructure.security import storage_session as sessions
+    from fastapi import HTTPException
+    tenant = uuid4()
+    claims = {"azp": "controlplane-api-key", "sub": "apikey:" + str(uuid4()), "iat": 100, "exp": 200,
+              "https://spanopticon.dev/tenant_id": str(tenant)}
+    monkeypatch.setattr(sessions, "try_decode_api_key_session_jwt", lambda _: claims)
+    selected = sessions.request_operation(method, "/api/v1/storage/records/media/grant")
+    assert selected == "media." + operation
+    for scope in ("storage:records:" + operation, "storage:objects:" + operation, "storage:replays:consume"):
+        claims["scope"] = scope
+        with pytest.raises(HTTPException) as error:
+            sessions.storage_session("token", selected, now=150)
+        assert error.value.status_code == 403
+    claims["scope"] = "storage:media:" + operation
+    assert sessions.storage_session("token", selected, now=150) == tenant
+    for namespace in ("cache", "recovery", "fixtures"):
+        with pytest.raises(HTTPException):
+            sessions.storage_session("token", sessions.request_operation(method, "/api/v1/storage/records/" + namespace + "/grant"), now=150)
+
+
+@pytest.mark.asyncio
+async def test_private_media_records_keep_tenant_namespace_and_conditional_write_boundaries():
+    backend = Memory()
+    tenant = uuid4()
+    media = TenantRecords(tenant, backend)
+    first = await media.put("media", "grant", b"private grant material", None)
+    assert await media.get("media", "grant") == first
+    for namespace in ("cache", "recovery", "fixtures"):
+        assert await media.get(namespace, "grant") is None
+    assert await TenantRecords(uuid4(), backend).get("media", "grant") is None
+    with pytest.raises(RecordConflict):
+        await media.put("media", "grant", b"replacement", None)
+    changed = await media.put("media", "grant", b"replacement", first.revision)
+    with pytest.raises(RecordConflict):
+        await media.delete("media", "grant", first.revision)
+    await media.delete("media", "grant", changed.revision)
+    assert await media.get("media", "grant") is None
