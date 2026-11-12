@@ -1,6 +1,7 @@
 from collections import deque
-import glob
 import json
+from pathlib import Path
+from controlplane_api import audit_files
 from typing import List, Optional
 from controlplane_api.utils import capture_audit_log, get_logger
 from controlplane_api.dtos.audit import AuditActionType, AuditLogDto, AuditLogListDto
@@ -10,18 +11,7 @@ logger = get_logger(__name__)
 class AuditLogRepository:
 
     async def _get_files_matching_pattern(self, tenant_id: str | None = None) -> List[str]:
-        file_path_pattern = "/tmp/audit_logs_forhost_*.jsonl"
-        if tenant_id:
-            file_path_pattern = f"/tmp/audit_logs_for{tenant_id}_*.jsonl"
-
-        logger.info(f"Reading audit logs from files matching pattern: {file_path_pattern}")
-
-        files = glob.glob(file_path_pattern)
-
-        # IMPORTANT: scan oldest → newest so the deque ends up with the last K lines
-        # If your filenames end with YYYY-MM-DD, name sort works for chronological asc.
-        files.sort()  # ascending
-        return files
+        return [str(path) for path in audit_files.log_paths(tenant_id)]
 
     async def add_audit_log(self, audit_log: AuditLogDto) -> None:
         await capture_audit_log(audit_log)
@@ -36,7 +26,7 @@ class AuditLogRepository:
 
         for file_path in files:
             try:
-                with open(file_path, "r") as f:
+                with audit_files.open_file(Path(file_path).name) as f:
                     for line in f:
                         obj = json.loads(line)
                         if action and obj.get("action") != action:
@@ -70,7 +60,7 @@ class AuditLogRepository:
         results: List[AuditLogDto] = []
         for file_path in files:
             try:
-                with open(file_path, "r") as f:
+                with audit_files.open_file(Path(file_path).name) as f:
                     for line in f:
                         obj = json.loads(line)
                         if action and obj.get("action") != action:

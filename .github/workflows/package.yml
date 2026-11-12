@@ -80,7 +80,7 @@ jobs:
           export GIT_CONFIG_KEY_5=http.https://github.com/hyperme-sh/user-service.git.extraheader
           export GIT_CONFIG_VALUE_5="AUTHORIZATION: basic $header"
           unset DEPENDENCY_READ_TOKEN
-          bash scripts/check-package.sh
+          bash scripts/check-package.sh --contracts
       - name: Qualify storage-only runtime against the job database
         env:
           QUALIFIED_IMAGE_REF: storage:ci-${{ github.run_id }}-${{ github.run_attempt }}
