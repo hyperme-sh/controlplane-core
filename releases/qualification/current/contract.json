@@ -3,7 +3,7 @@
   "packaged_file_sha256": {
     "api/__init__.py": "603cd0516a904a44f6fc21b9df05abeb97c5aafe0f1fce48d3f523abde0ce1c1",
     "api/common/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "api/common/audit_logs_repository.py": "d1d7bfcfa49f4fafb84133d5e75b80eeffdd11cb9e8389b230f948eeceffd7ac",
+    "api/common/audit_logs_repository.py": "48c98eed4f4c34a03f3bd2d6d74b403b763e2a1c7943205561cd41cf0bd8e839",
     "api/common/base_repository.py": "1afe5e87924acd4a1dc551f88ba53676949e8665bd55589ac9f56ec4484755e7",
     "api/common/dtos/app_configuration_dto.py": "f03cc762e19e796287d339e9f4ddb2728836ac01171f3713a72ece44dc6a4523",
     "api/common/dtos/cookies.py": "7b1b1f3f0f2be4697ad3110e8c2006adbeaf7c0622b7c2b0b9e269fb0f754968",
@@ -161,6 +161,8 @@
     "api/interfaces/middlewares/database_middleware.py": "4067226609fe1f889c48106684ae0912b929fdcf1822134d01e3e12db907d1e7",
     "api/interfaces/middlewares/redis_cache_middleware.py": "004ffdfb1204a0693e9f8d1770a7e1960e97ede295ce4475dd29c45e97b65283",
     "api/interfaces/security/role_checker.py": "002b50f85c287d82a0cc679d0f7200aaf09c6c60394cec74d90068b1403f9b6c",
+    "api/storage/__init__.py": "fc347fcd5c3760dd3c2177960a58f45a3514789ca7dfc258d45e160f92716461",
+    "api/storage/configure_provider.py": "9504f7b51b8bf54f4228968ab274623f8d93707536091a4b784e90b7a63c894d",
     "api/storage_app.py": "8e86846d77195cb91299935abcf5b711d6ed31176629b19a1a83ef90d68ee34e",
     "api/usecases/audit_logs_service.py": "b2dbd2f699784c636d8af7f90b5d8ecdff57efce589991036678748eac7e8629",
     "api/usecases/auth_service.py": "1a747a0dff01b7b8fb47fd598b94a939a6f63c90e13f1e0e9f7190d357d82cb3",
