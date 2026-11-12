@@ -8,9 +8,12 @@ from api.domain.storage_scope import storage_tenant
 
 SCOPES = {"read": "storage:objects:read", "write": "storage:objects:write", "delete": "storage:objects:delete"}
 SCOPES.update({"records." + operation: "storage:records:" + operation for operation in ("read", "write", "delete")})
+SCOPES["replays.consume"] = "storage:replays:consume"
 
 
 def request_operation(method: str, path: str) -> str | None:
+    if path.startswith("/api/v1/storage/replays/"):
+        return "replays.consume" if method == "POST" else None
     operation = {"GET": "read", "HEAD": "read", "PUT": "write", "DELETE": "delete"}.get(method)
     if operation and path.startswith("/api/v1/storage/records/"):
         return "records." + operation
