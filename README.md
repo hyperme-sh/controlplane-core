@@ -443,7 +443,17 @@ fixture credentials cannot address that prefix. Initial creation requires an
 absent record; updates require the preceding sequence and provider ETag. It
 preserves the provider's atomic conflict handling and does not retry writes.
 
-This module is not a mounted API or background worker. Authenticated telemetry
-collection, operator authorization, signing-key custody,
-portal configuration and delivery remain tracked in #49. It changes no release
-routing and enables no experiment by itself.
+The private `GET`/`PUT /api/v1/storage/tenant/experiments/{audience}` API
+requires a verified tenant session and a current `tenant.admin` check against the
+user authority on every request. Configuration uses that tenant's existing private
+provider; cache credentials cannot read or mutate it. Responses are private and
+non-cacheable. PUT accepts at most 32 KiB of JSON: creation requires
+`If-None-Match: *` and sequence 1; updates require `If-Match: "N"` and sequence
+N+1. A competing update returns 412 and requires reading current configuration
+before retrying. The path audience and body tenant must match the authenticated
+scope. Provider failures return static errors without private diagnostics.
+
+The API saves policy only; it does not publish signed flags or start a worker.
+Authenticated telemetry collection, signing-key custody, portal configuration and
+delivery remain tracked in #49. This changes no release routing and enables no
+experiment by itself.

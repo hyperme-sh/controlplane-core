@@ -64,3 +64,8 @@ async def configure(configuration: StorageSettingsDto, admin: Admin, service: Se
 async def reset(storage_id: UUID, admin: Admin, service: Service):
     await service.reset_storage(str(storage_id), admin.subject, admin.tenant)
     return Response(status_code=204, headers={'Cache-Control': 'no-store'})
+
+
+# Experiment configuration shares the existing verified tenant-admin boundary.
+from api.interfaces.api_controllers.experiment_admin_endpoint import router as experiments_router
+router.include_router(experiments_router, prefix="/experiments")
