@@ -181,14 +181,15 @@ async def test_s3_atomic_preconditions_and_bounded_reads(monkeypatch):
     assert seen[-1].method == "DELETE"
 
 
-def test_record_and_media_scopes_are_not_interchangeable(monkeypatch):
+@pytest.mark.parametrize("suffix", ["", "/access"])
+def test_record_and_media_scopes_are_not_interchangeable(monkeypatch, suffix):
     from api.infrastructure.security import storage_session as sessions
     from fastapi import HTTPException
     tenant = uuid4()
     claims = {"azp": "controlplane-api-key", "sub": "apikey:"+str(uuid4()), "iat":100, "exp":200,
         "https://spanopticon.dev/tenant_id":str(tenant), "scope":"storage:objects:read"}
     monkeypatch.setattr(sessions, "try_decode_api_key_session_jwt", lambda _: claims)
-    operation = sessions.request_operation("GET", "/api/v1/storage/records/cache/feed")
+    operation = sessions.request_operation("GET", "/api/v1/storage/records/cache/feed" + suffix)
     with pytest.raises(HTTPException) as error:
         sessions.storage_session("token", operation, now=150)
     assert error.value.status_code == 403
