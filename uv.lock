@@ -354,20 +354,6 @@ wheels = [
 ]
 
 [[package]]
-name = "azure-servicebus"
-version = "7.15.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-core" },
-    { name = "isodate" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e1/34/a377ae04966328abdd4a5366aba51d499bbe3c4e0d2aa17ad29bf8276574/azure_servicebus-7.15.0.tar.gz", hash = "sha256:62c73f3d9efbaf0089a375adc5ef992ffe6d7d0b1218b8462265aa30ad352c3e", size = 637868, upload-time = "2026-10-08T20:15:26.613Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b5/55/204b3848057a4f4178501fed240964cf2ee4ee2ac532d6da77725029f46d/azure_servicebus-7.15.0-py3-none-any.whl", hash = "sha256:7d60ad0956d7d9a7b75a0dad0b9eea0d182564e48911c11af9cd47f65a1d6584", size = 449397, upload-time = "2026-10-08T20:15:28.691Z" },
-]
-
-[[package]]
 name = "azure-storage-blob"
 version = "12.31.1"
 source = { registry = "https://pypi.org/simple" }
@@ -941,15 +927,9 @@ dependencies = [
     { name = "webauthn" },
 ]
 
-[package.optional-dependencies]
-servicebus = [
-    { name = "azure-servicebus" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "azure-identity", specifier = ">=1.25.0" },
-    { name = "azure-servicebus", marker = "extra == 'servicebus'", specifier = ">=7.12.0" },
     { name = "azure-storage-blob", extras = ["aio"], specifier = ">=12.26.0" },
     { name = "boto3", specifier = ">=1.40.32" },
     { name = "celery", extras = ["redis"], specifier = ">=5.3.1" },

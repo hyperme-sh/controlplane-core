@@ -52,13 +52,19 @@ libraries:
   operator mail, peer-plane rows, and the operator population map. Console
   access requires an explicit `operator:console` permission. Host and renter
   product groups are recorded separately and do not open the console.
-- Domain events go through `api.infrastructure.messaging.tenant_event_publisher`.
-  The default bus is the Postgres `controlplane_events` table from
-  [controlplane-events](https://github.com/hyperme-sh/controlplane-events) 0.1.0.
-  Set `AZURE_SERVICE_BUS_CONNECTION_STRING` and install the
-  `controlplane-core[servicebus]` extra (`azure-servicebus>=7.12.0`) to use
-  Azure Service Bus with the same `publish()` protocol. Each consumer uses its
-  own subscription, named by that consumer's group id.
+- Tenant domain events use the business session and the consuming service's
+  Postgres `service_outbox`. `publish_in_session` never commits; async callers
+  use `session.run_sync`. `publish` requires `bind_outbox_session`, and a stable
+  business operation UUID is required as `correlation_id`. Retrying identical
+  facts keeps one event ID; changing facts for that operation is refused.
+  The consuming service installs the outbox through its own migration chain;
+  Core does not create schema at startup. The shared log and cloud message bus
+  are not publishing options.
+- OIDC login projects an authenticated identity; it does not create tenant
+  membership and does not emit `user.created.v1`. Auth delegates tenant enrollment
+  and switching to the User owner. Only actual tenant-user creation emits that
+  event. Identity lookup, existing network authority and tenant profile rules
+  remain separate. See [the traced boundary](docs/tenant-event-boundary.md).
 - Schema migrations stay in
   [controlplane-db](https://github.com/hyperme-sh/controlplane-db) 0.1.0.
   The operator ban contract is

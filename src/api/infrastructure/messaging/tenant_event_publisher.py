@@ -1,21 +1,11 @@
-"""Tenant-scoped domain event publishing.
+"""Tenant facts use the caller's transaction and the owner Postgres outbox.
 
-Default transport: the service-owned Postgres outbox with an HTTP relay.
-Optional production transport: Azure Service Bus, same ``publish()`` protocol,
-selected when ``AZURE_SERVICE_BUS_CONNECTION_STRING`` is set. Service Bus is
-not required for local compose, the VM, or tests. Prod images install it with
-the Docker build arg ``CONTROLPLANE_SERVICEBUS=1`` (the ``controlplane-core[servicebus]``
-extra). Each consumer uses its own subscription, defaulting to that consumer's
-group id. The subscription's max delivery count is what dead-letters a message;
-this process abandons on handler failure and does not complete it.
-
-MQTT is not this bus. It remains a future IoT edge bridge idea only.
-Never put prompt bodies, enroll tokens, or provider credentials on the bus.
+Legacy transport arguments remain accepted during independent peer upgrades,
+but neither publishing nor consumer resolution selects a cloud message bus.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import uuid
 from typing import Any, Protocol, runtime_checkable
@@ -23,8 +13,6 @@ from typing import Any, Protocol, runtime_checkable
 from controlplane_events import (
     CONTROLPLANE_EVENTS_V1,
     ControlPlaneEventEnvelope,
-    RoutingControlPlaneConsumer,
-    dispatch_controlplane_envelope,
     refuse_forbidden_payload,
 )
 from controlplane_events.routing_consumer import Handler
@@ -120,247 +108,55 @@ class MemoryServiceBusReceiver:
 
 
 class AzureServiceBusSender:
-    """Lazy azure-servicebus sender. Not imported unless a connection string is set."""
-
-    def __init__(self, connection_string: str) -> None:
-        self._connection_string = connection_string
-        self._client = None
-
-    async def start(self) -> None:
-        try:
-            from azure.servicebus.aio import ServiceBusClient
-        except ImportError as exc:
-            raise RuntimeError(
-                "AZURE_SERVICE_BUS_CONNECTION_STRING is set but azure-servicebus "
-                "is not installed. Install controlplane-core[servicebus]."
-            ) from exc
-        self._client = ServiceBusClient.from_connection_string(self._connection_string)
-
-    async def stop(self) -> None:
-        if self._client is not None:
-            await self._client.close()
-            self._client = None
-
-    async def send_json(self, *, topic: str, body: str, session_id: str | None) -> None:
-        if self._client is None:
-            raise RuntimeError("Service Bus sender not started; call start() first")
-        sender = self._client.get_topic_sender(topic)
-        async with sender:
-            from azure.servicebus import ServiceBusMessage
-
-            props = {"tenant_id": session_id} if session_id else None
-            await sender.send_messages(
-                ServiceBusMessage(
-                    body,
-                    content_type="application/json",
-                    application_properties=props,
-                )
-            )
+    """Retained import name; the transport is retired."""
+    def __init__(self, *args, **kwargs):
+        raise RuntimeError('Use the owner Postgres outbox and HTTP relay')
 
 
-def _service_bus_body_text(message: Any) -> str:
-    """Read a Service Bus body as bytes. ``str(message)`` is not the payload."""
-
-    body = message.body
-    if isinstance(body, str):
-        return body
-    if isinstance(body, (bytes, bytearray)):
-        raw = bytes(body)
-    else:
-        raw = b"".join(body)
-    return raw.decode("utf-8")
+class AzureServiceBusReceiver(AzureServiceBusSender):
+    pass
 
 
-class _AzureServiceBusDelivery:
-    def __init__(self, receiver: Any, raw: Any, body: str) -> None:
-        self._receiver = receiver
-        self._raw = raw
-        self.body = body
-
-    async def complete(self) -> None:
-        await self._receiver.complete_message(self._raw)
-
-    async def abandon(self) -> None:
-        await self._receiver.abandon_message(self._raw)
+class ServiceBusRoutingConsumer(AzureServiceBusSender):
+    """Retained import name; consumers use the owner HTTP inbox."""
 
 
-class AzureServiceBusReceiver:
-    """Lazy azure-servicebus subscription receiver. Completes only after dispatch."""
-
-    def __init__(self, connection_string: str, topic: str, subscription: str) -> None:
-        self._connection_string = connection_string
-        self._topic = topic
-        self.subscription = subscription
-        self._client = None
-        self._receiver = None
-
-    async def start(self) -> None:
-        try:
-            from azure.servicebus.aio import ServiceBusClient
-        except ImportError as exc:
-            raise RuntimeError(
-                "AZURE_SERVICE_BUS_CONNECTION_STRING is set but azure-servicebus "
-                "is not installed. Install controlplane-core[servicebus]."
-            ) from exc
-        self._client = ServiceBusClient.from_connection_string(self._connection_string)
-        await self._client.__aenter__()
-        self._receiver = self._client.get_subscription_receiver(
-            topic_name=self._topic,
-            subscription_name=self.subscription,
-        )
-        await self._receiver.__aenter__()
-
-    async def stop(self) -> None:
-        if self._receiver is not None:
-            await self._receiver.__aexit__(None, None, None)
-            self._receiver = None
-        if self._client is not None:
-            await self._client.__aexit__(None, None, None)
-            self._client = None
-
-    async def receive_batch(self) -> list[_AzureServiceBusDelivery]:
-        if self._receiver is None:
-            raise RuntimeError("Service Bus receiver not started; call start() first")
-        messages = await self._receiver.receive_messages(max_wait_time=1, max_message_count=16)
-        return [
-            _AzureServiceBusDelivery(self._receiver, message, _service_bus_body_text(message))
-            for message in messages
-        ]
+class ServiceBusTenantEventPublisher(AzureServiceBusSender):
+    """Retained import name; direct transport publication is refused."""
 
 
-class ServiceBusRoutingConsumer:
-    """Dispatch controlplane.events.v1 envelopes from a Service Bus receiver.
+class TransactionalTenantEventPublisher(OwnedOutboxPublisher):
+    """Never create a transaction separate from a business mutation."""
+    async def start(self):
+        pass
 
-    Messages are completed only after the handler returns. A handler exception
-    abandons the message so the broker can redeliver it.
-    """
+    async def stop(self):
+        pass
 
-    def __init__(
-        self,
-        receiver: ServiceBusReceiver,
-        routes: dict[str, tuple[type[BaseModel], Handler]],
-        *,
-        topic: str = CONTROLPLANE_EVENTS_V1,
-    ) -> None:
-        self._receiver = receiver
-        self._routes = routes
-        self._topic = topic
-        self.subscription = getattr(receiver, "subscription", None)
-        self._task: asyncio.Task[None] | None = None
-        self._stop = asyncio.Event()
+    def publish_in_session(self, session, *, tenant_id, event_type, payload, correlation_id=None):
+        from api.infrastructure.messaging.transactional_outbox import enqueue_fact
+        return enqueue_fact(session, service=self._service_name, tenant_id=tenant_id,
+                            event_type=event_type, payload=payload, operation_id=correlation_id)
 
-    async def handle_body(self, body: str) -> None:
-        await dispatch_controlplane_envelope(body.encode("utf-8"), self._routes)
+    async def publish(self, **kwargs):
+        # Use the pinned event library's binding, including existing consumers.
+        from controlplane_events.publisher import _outbox_session
+        session = _outbox_session.get()
+        if session is None:
+            raise RuntimeError('State-changing publication requires a bound business session')
+        return self.publish_in_session(session, **kwargs)
 
-    async def drain(self) -> int:
-        """Receive one batch and dispatch. Tests use this; no live Azure."""
-
-        messages = await self._receiver.receive_batch()
-        for message in messages:
-            try:
-                await self.handle_body(message.body)
-            except Exception:
-                logger.exception("Service Bus dispatch failed; abandoning for retry")
-                await message.abandon()
-            else:
-                await message.complete()
-        return len(messages)
-
-    async def start(self) -> None:
-        start = getattr(self._receiver, "start", None)
-        if start is not None:
-            await start()
-        self._stop.clear()
-        self._task = asyncio.create_task(self._run_loop())
-        logger.info("Service Bus consumer started topic=%s", self._topic)
-
-    async def stop(self) -> None:
-        self._stop.set()
-        if self._task is not None:
-            self._task.cancel()
-            try:
-                await self._task
-            except asyncio.CancelledError:
-                pass
-            self._task = None
-        stop = getattr(self._receiver, "stop", None)
-        if stop is not None:
-            await stop()
-        logger.info("Service Bus consumer stopped topic=%s", self._topic)
-
-    async def _run_loop(self) -> None:
-        try:
-            while not self._stop.is_set():
-                try:
-                    await self.drain()
-                except Exception:
-                    logger.exception("Service Bus receive failed; continuing")
-                await asyncio.sleep(0.25)
-        except asyncio.CancelledError:
-            raise
-
-
-class ServiceBusTenantEventPublisher:
-    """Optional publisher for controlplane.events.v1 on Azure Service Bus."""
-
-    def __init__(
-        self,
-        sender: ServiceBusSender,
-        topic: str,
-        service_name: str,
-    ) -> None:
-        self._sender = sender
-        self._topic = topic
-        self._service_name = service_name
-
-    async def start(self) -> None:
-        start = getattr(self._sender, "start", None)
-        if start is not None:
-            await start()
-
-    async def stop(self) -> None:
-        stop = getattr(self._sender, "stop", None)
-        if stop is not None:
-            await stop()
-
-    async def publish(
-        self,
-        *,
-        tenant_id: uuid.UUID | None,
-        event_type: str,
-        payload: dict[str, Any],
-        correlation_id: str | None = None,
-    ) -> None:
-        refuse_forbidden_payload(payload)
-        env = ControlPlaneEventEnvelope(
-            event_type=event_type,
-            service=self._service_name,
-            tenant_id=tenant_id,
-            payload=payload,
-            correlation_id=correlation_id,
-        )
-        await self._sender.send_json(
-            topic=self._topic,
-            body=env.model_dump_json(),
-            session_id=str(tenant_id) if tenant_id is not None else None,
-        )
 
 
 def resolve_event_publisher(
     *,
     service_name: str,
-    service_bus_connection_string: str | None,
+    service_bus_connection_string: str | None = None,
     database_url: str | None = None,
     service_bus_sender: ServiceBusSender | None = None,
 ) -> TenantEventPublisher:
-    """Service Bus when a connection string or sender is set. Otherwise Postgres."""
-
-    if service_bus_connection_string or service_bus_sender is not None:
-        sender = service_bus_sender or AzureServiceBusSender(service_bus_connection_string or "")
-        return ServiceBusTenantEventPublisher(sender, CONTROLPLANE_EVENTS_V1, service_name)
-    if database_url:
-        return OwnedOutboxPublisher(database_url, service_name)
-    return NoOpTenantEventPublisher()
+    """Always return the transaction-bound owner publisher."""
+    return TransactionalTenantEventPublisher(database_url, service_name)
 
 
 def build_routing_consumer(
@@ -371,16 +167,9 @@ def build_routing_consumer(
     client_id: str,
     service_bus_connection_string: str | None = None,
     service_bus_subscription: str | None = None,
-) -> RoutingControlPlaneConsumer | ServiceBusRoutingConsumer:
-    """Owner HTTP inbox, or an explicitly configured Service Bus receiver."""
+):
+    """Owner HTTP inbox, preserving the existing handler signature."""
 
-    if service_bus_connection_string:
-        receiver = AzureServiceBusReceiver(
-            service_bus_connection_string,
-            CONTROLPLANE_EVENTS_V1,
-            service_bus_subscription or group_id,
-        )
-        return ServiceBusRoutingConsumer(receiver, routes, topic=CONTROLPLANE_EVENTS_V1)
     from controlplane_events.http_consumer import HttpRoutingConsumer
     def adapt(handler):
         async def deliver(envelope, payload, event_id):
@@ -396,7 +185,15 @@ def build_routing_consumer(
 
 
 _publisher: TenantEventPublisher | None = None
-_FALLBACK: TenantEventPublisher = NoOpTenantEventPublisher()
+class UnconfiguredPublisher:
+    def publish_in_session(self, *args, **kwargs):
+        raise RuntimeError('Tenant event publisher is not configured')
+
+    async def publish(self, *args, **kwargs):
+        raise RuntimeError('Tenant event publisher is not configured')
+
+
+_FALLBACK: TenantEventPublisher = UnconfiguredPublisher()
 
 
 def set_tenant_event_publisher(publisher: TenantEventPublisher | None) -> None:
@@ -409,13 +206,12 @@ def get_tenant_event_publisher() -> TenantEventPublisher:
 
 
 async def install_tenant_event_publisher(*, service_name: str) -> TenantEventPublisher:
-    """Wire the process publisher. Postgres unless Service Bus is configured."""
+    """Wire transaction-bound publication without opening a second engine."""
 
     from controlplane_api.config import settings
 
     publisher = resolve_event_publisher(
         service_name=service_name,
-        service_bus_connection_string=settings.azure_service_bus_connection_string,
         database_url=settings.database_url,
     )
     start = getattr(publisher, "start", None)

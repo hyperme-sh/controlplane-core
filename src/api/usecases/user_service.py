@@ -159,16 +159,16 @@ class UserService:
         to_create = user_data.model_copy()
         if to_create.password is not None:
             to_create = to_create.model_copy(update={"password": hash_it(to_create.password)})
-        user_id = await self.user_repository.create(to_create)
-        await get_tenant_event_publisher().publish(
-            tenant_id=tid,
-            event_type=USER_CREATED_V1,
-            payload={
-                "user_id": str(user_id),
-                "email": str(to_create.email),
-                "tenant_id": to_create.tenant_id,
-            },
-        )
+        async with self.user_repository.session.begin_nested():
+            user_id = await self.user_repository.create(to_create)
+            if tid is not None:
+                publisher = get_tenant_event_publisher()
+                await self.user_repository.session.run_sync(lambda session: publisher.publish_in_session(
+                    session, tenant_id=tid, event_type=USER_CREATED_V1,
+                    correlation_id=str(user_id), payload={
+                        "user_id": str(user_id), "email": str(to_create.email),
+                        "tenant_id": str(tid),
+                    }))
         return user_id
 
     async def _maybe_promote_oidc_admin(
@@ -249,16 +249,8 @@ class UserService:
             keycloak_sub=sub,
         )
         uid = await self.user_repository.create(dto)
-        tid = parse_uuid(dto.tenant_id) if dto.tenant_id else None
-        await get_tenant_event_publisher().publish(
-            tenant_id=tid,
-            event_type=USER_CREATED_V1,
-            payload={
-                "user_id": str(uid),
-                "email": str(dto.email),
-                "tenant_id": dto.tenant_id,
-            },
-        )
+        # OIDC identity projection is not tenant membership creation. The User
+        # owner establishes membership separately; there is no tenant event here.
         created = await self.user_repository.get(str(uid))
         if created is None:
             raise InvalidOperationException("Failed to create user from Keycloak")
