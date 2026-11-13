@@ -44,6 +44,7 @@ dependencies = [
     "streamlit>=1.49.1",
     "uvicorn>=0.37.0",
     "webauthn>=2.7.0",
+    "azure-identity>=1.25.0",
 ]
 
 [project.optional-dependencies]
