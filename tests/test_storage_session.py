@@ -131,3 +131,17 @@ async def test_azure_backend_uses_the_signed_tenant_and_closes_after_request(tok
     await source.aclose()
     assert closed
     repo.get_active_for_tenant.assert_awaited_once_with(tenant)
+
+
+def test_experiment_credentials_cannot_read_other_audiences_or_mutate_cache(tokens):
+    tenant, now, mint = tokens
+    token = mint({"scope": "storage:experiments:hypermesh:cache:read"})
+    assert auth.storage_session(token, "experiments.hypermesh.cache.read", now) == tenant
+    for operation in ("records.read", "records.write", "media.read", "experiments.portal.cache.read",
+                      "experiments.hypermesh.outbox.read", "experiments.hypermesh.outbox.write"):
+        with pytest.raises(HTTPException) as exc:
+            auth.storage_session(token, operation, now)
+        assert exc.value.status_code == 403
+    with pytest.raises(HTTPException) as exc:
+        auth.storage_session(mint({"scope": "storage:records:read"}), "experiments.hypermesh.cache.read", now)
+    assert exc.value.status_code == 403

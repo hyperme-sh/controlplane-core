@@ -1,5 +1,6 @@
 """Tenant object service access from the gateway's bounded API-key token."""
 import time
+import re
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -9,6 +10,10 @@ from api.domain.storage_scope import storage_tenant
 SCOPES = {"read": "storage:objects:read", "write": "storage:objects:write", "delete": "storage:objects:delete"}
 SCOPES.update({"records." + operation: "storage:records:" + operation for operation in ("read", "write", "delete")})
 SCOPES.update({"media." + operation: "storage:media:" + operation for operation in ("read", "write", "delete")})
+for audience in ("s3rch", "hypermesh", "portal"):
+    for kind in ("cache", "outbox"):
+        for operation in (("read",) if kind == "cache" else ("read", "write")):
+            SCOPES[f"experiments.{audience}.{kind}.{operation}"] = f"storage:experiments:{audience}:{kind}:{operation}"
 SCOPES["replays.consume"] = "storage:replays:consume"
 
 
@@ -16,6 +21,15 @@ def request_operation(method: str, path: str) -> str | None:
     if path.startswith("/api/v1/storage/replays/"):
         return "replays.consume" if method == "POST" else None
     operation = {"GET": "read", "HEAD": "read", "PUT": "write", "DELETE": "delete"}.get(method)
+    if path.startswith("/api/v1/storage/records/experiments/"):
+        name = path[len("/api/v1/storage/records/experiments/"):]
+        cache = re.fullmatch(r"(s3rch|hypermesh|portal)-cache", name)
+        outbox = re.fullmatch(r"(s3rch|hypermesh|portal)-outbox-[a-f0-9]{64}", name)
+        if cache and operation == "read":
+            return f"experiments.{cache[1]}.cache.read"
+        if outbox and operation in ("read", "write"):
+            return f"experiments.{outbox[1]}.outbox.{operation}"
+        return None
     if operation and path.startswith("/api/v1/storage/records/"):
         # Private media grant records never inherit the public-feed record scope.
         namespace = path[len("/api/v1/storage/records/"):].split("/", 1)[0]

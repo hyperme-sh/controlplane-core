@@ -91,7 +91,8 @@ async def put_record(namespace: str, name: str, request: Request, store=Depends(
             or request.headers.get("content-encoding", "identity") != "identity"):
         raise HTTPException(415, "Opaque binary record required")
     lengths = request.headers.getlist("content-length")
-    if len(lengths) != 1 or not re.fullmatch(r"[1-9][0-9]{0,7}", lengths[0]) or int(lengths[0]) > MAX_RECORD_BYTES:
+    maximum = 65536 if namespace == "experiments" else MAX_RECORD_BYTES
+    if len(lengths) != 1 or not re.fullmatch(r"[1-9][0-9]{0,7}", lengths[0]) or int(lengths[0]) > maximum:
         raise HTTPException(413, "Bounded record length required")
     size = int(lengths[0])
     try:
