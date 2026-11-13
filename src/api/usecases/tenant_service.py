@@ -1,3 +1,4 @@
+from api.infrastructure.messaging.transactional_outbox import publish_new_tenant
 from typing import Any, List
 from uuid import UUID
 
@@ -57,17 +58,16 @@ class TenantService:
         """Create a new tenant. Raises InvalidOperationException if admin password is weak."""
         if tenant_data.admin_password:
             validate_password(tenant_data.admin_password)
-        response = await self.tenant_repository.create(tenant_data)
-        if response is not None:
-            await get_tenant_event_publisher().publish(
-                tenant_id=response,
-                event_type=TENANT_CREATED_V1,
-                payload={
-                    "tenant_id": str(response),
-                    "name": tenant_data.name,
-                    "subdomain": str(tenant_data.subdomain),
-                },
-            )
+        async with self.tenant_repository.session.begin_nested():
+            response = await self.tenant_repository.create(tenant_data)
+            if response is not None:
+                publisher = get_tenant_event_publisher()
+                await self.tenant_repository.session.run_sync(lambda session: publish_new_tenant(
+                    session, publisher, tenant_id=response, event_type=TENANT_CREATED_V1,
+                    correlation_id=str(response), payload={
+                        "tenant_id": str(response), "name": tenant_data.name,
+                        "subdomain": str(tenant_data.subdomain),
+                    }))
         return response
 
 
