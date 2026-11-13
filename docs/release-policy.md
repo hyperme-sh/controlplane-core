@@ -34,5 +34,5 @@ does not enable repository Actions, grant private dependency access, or prove
 that a declared artifact exists. See the [Spanopticon release policy](https://github.com/hyperme-sh/spanopticon/blob/main/docs/releases.md)
 for the manifest format and compatibility rules.
 
-Channel behavior, test bundles, and stable tags are described in
+Channel behavior and version tags are described in
 [releasing](releasing.md).

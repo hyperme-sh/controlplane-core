@@ -258,7 +258,7 @@ behavior or a full plane deployment. `integration/test_metrics_deployment.py`
 reads a Spanopticon deployment checkout from `SPANOPTICON_CHECKOUT` and is
 outside the package suite.
 
-Release channels, test bundles, and stable tags are described in
+Release channels and version tags are described in
 [docs/releasing.md](docs/releasing.md). Compatibility rules for the shared
 line are in [docs/release-policy.md](docs/release-policy.md).
 
@@ -267,11 +267,10 @@ line are in [docs/release-policy.md](docs/release-policy.md).
 The distribution version is **0.1.0** (`pyproject.toml`). Development uses the
 exact git pins in that file and in `uv.lock`; a previous GitHub release is not
 required to build or test. Pushes to `main` retain the tested wheel and sdist
-as the `tested-dist` Actions artifact and can publish an immutable
-`0.24.0-test.N` bundle of those bytes. A stable package is an explicit
-`vMAJOR.MINOR.PATCH` tag, checked against an accepted baseline. Details,
-including what a test bundle does and does not change, are in
-[docs/releasing.md](docs/releasing.md).
+and then discards temporary distribution files. Automatic package
+prereleases are not published. A stable package, when used, is an explicit
+`vMAJOR.MINOR.PATCH` tag, checked against an accepted baseline. Details
+are in [docs/releasing.md](docs/releasing.md).
 
 ## License
 
