@@ -9,6 +9,8 @@ from api.domain.experiments.records import AUDIENCES, outbox_document
 from api.domain.storage_scope import storage_tenant
 from api.domain.tenant_records import MAGIC, RecordBackend, RecordConflict, decode, provider_etag
 
+PAGE_SIZE = 32
+
 Page = Callable[[str, str | None], Awaitable[tuple[list[str], str | None]]]
 
 
@@ -19,25 +21,33 @@ async def sweep_page(backend: RecordBackend, page: Page, tenant: UUID, audience:
     prefix = f"tenant-records/v1/{tenant.hex}/experiments/{audience}-outbox-"
     cursor_key = f"tenant-experiment-retention/v1/{tenant.hex}/{audience}"
     cursor = await backend.fetch(cursor_key)
-    token, etag = None, None
+    token, etag, pending = None, None, []
     if cursor is not None:
         etag = provider_etag(cursor[1])
         raw = decode(cursor[0]).data
         if len(raw) > 16384:
             raise ValueError("Invalid retention cursor")
         value = json.loads(raw)
-        if not isinstance(value, dict) or set(value) != {"version", "token"} or type(value["version"]) is not int or value["version"] != 1:
+        if not isinstance(value, dict) or type(value.get("version")) is not int or not (
+            value["version"] == 1 and set(value) == {"version", "token"} or
+            value["version"] == 2 and set(value) == {"version", "token", "pending"}
+        ):
             raise ValueError("Invalid retention cursor")
         token = value["token"]
+        pending = value.get("pending", [])
     if token is not None and (not isinstance(token, str) or not 1 <= len(token) <= 8192):
         raise ValueError("Invalid retention cursor")
-    names, next_token = await page(prefix, token)
-    if (not isinstance(names, list) or len(names) > 1000 or len(set(names)) != len(names)
+    if not isinstance(pending, list):
+        raise ValueError("Invalid retention cursor")
+    names, next_token = (pending, token) if pending else await page(prefix, token)
+    if (not isinstance(names, list) or len(names) > PAGE_SIZE or len(set(names)) != len(names)
             or any(not isinstance(name, str) or not re.fullmatch(re.escape(prefix) + r"[a-f0-9]{64}", name) for name in names)
-            or next_token is not None and (not isinstance(next_token, str) or not 1 <= len(next_token) <= 8192 or next_token == token)):
+            or next_token is not None and (not isinstance(next_token, str) or not 1 <= len(next_token) <= 8192 or not pending and next_token == token)):
         raise ValueError("Invalid experiment retention page")
     removed = 0
-    for name in names:
+    # Persist the rest of the page after each object. A deadline retries at
+    # most this object instead of discarding a whole page of scan progress.
+    for name in names[:1]:
         try:
             stored = await backend.fetch(name)
             if stored is None:
@@ -50,6 +60,6 @@ async def sweep_page(backend: RecordBackend, page: Page, tenant: UUID, audience:
             # Re-read on a later scan; a changed object must never be deleted
             # using a stale decision or an unconditional provider operation.
             continue
-    state = json.dumps({"version": 1, "token": next_token}, separators=(",", ":")).encode()
+    state = json.dumps({"version": 2, "token": next_token, "pending": names[1:]}, separators=(",", ":")).encode()
     await backend.replace(cursor_key, MAGIC + secrets.token_bytes(32) + state, etag)
-    return {"scanned": len(names), "removed": removed, "more": next_token is not None}
+    return {"scanned": min(1, len(names)), "removed": removed, "more": bool(names[1:]) or next_token is not None}

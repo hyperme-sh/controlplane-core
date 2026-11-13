@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from controlplane_api.config import settings
 from controlplane_db.session import normalize_database_url
 from api.domain.experiments.records import AUDIENCES
-from api.domain.experiments.retention import sweep_page
+from api.domain.experiments.retention import PAGE_SIZE, sweep_page
 from api.infrastructure.externals.tenant_object_azure import AzureTenantObjects
 from api.infrastructure.externals.tenant_object_s3 import S3TenantObjects
 from api.infrastructure.externals.tenant_record_azure import AzureTenantRecords
@@ -25,7 +25,7 @@ def listing(objects):
     if isinstance(objects, AzureTenantObjects):
         records = AzureTenantRecords(objects.container)
         async def page(prefix, token):
-            pages = objects.container.list_blobs(name_starts_with=prefix, results_per_page=1000).by_page(continuation_token=token)
+            pages = objects.container.list_blobs(name_starts_with=prefix, results_per_page=PAGE_SIZE).by_page(continuation_token=token)
             try:
                 rows = await anext(pages)
             except StopAsyncIteration:
@@ -33,21 +33,21 @@ def listing(objects):
             names = []
             async for row in rows:
                 names.append(row.name)
-                if len(names) > 1000:
+                if len(names) > PAGE_SIZE:
                     raise ValueError("Retention page exceeds limit")
             return names, pages.continuation_token
         return records, page
     if isinstance(objects, S3TenantObjects):
         records = S3TenantRecords(objects)
         async def page(prefix, token):
-            arguments = {"Bucket": objects.bucket, "Prefix": prefix, "MaxKeys": 1000}
+            arguments = {"Bucket": objects.bucket, "Prefix": prefix, "MaxKeys": PAGE_SIZE}
             if token is not None:
                 arguments["ContinuationToken"] = token
             result = await anyio.to_thread.run_sync(partial(objects.client.list_objects_v2, **arguments))
             if not isinstance(result, dict) or type(result.get("IsTruncated")) is not bool:
                 raise ValueError("Invalid retention page")
             rows = result.get("Contents", [])
-            if not isinstance(rows, list) or len(rows) > 1000:
+            if not isinstance(rows, list) or len(rows) > PAGE_SIZE:
                 raise ValueError("Invalid retention page")
             next_token = result.get("NextContinuationToken") if result["IsTruncated"] else None
             if result["IsTruncated"] and not next_token:

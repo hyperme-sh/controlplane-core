@@ -127,3 +127,30 @@ async def test_malformed_outbox_is_not_blindly_deleted_or_skipped():
         await sweep_page(backend, page, TENANT, "hypermesh", 3000)
     assert key in backend.rows
     assert len(backend.rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_deadline_preserves_progress_within_page():
+    import asyncio
+    backend = Memory()
+    names = [record_key(TENANT, "experiments", "hypermesh-outbox-" + digit * 64) for digit in "abc"]
+    for name in names:
+        await backend.replace(name, MAGIC + b"x" * 32 + document(4000 if name == names[0] else 2000), None)
+    calls = []
+    async def page(_prefix, token):
+        calls.append(token)
+        return names, None
+    assert await sweep_page(backend, page, TENANT, "hypermesh", 3000) == {"scanned": 1, "removed": 0, "more": True}
+    fetch = backend.fetch
+    async def interrupted(key):
+        if key == names[1]:
+            raise asyncio.CancelledError()
+        return await fetch(key)
+    backend.fetch = interrupted
+    with pytest.raises(asyncio.CancelledError):
+        await sweep_page(backend, page, TENANT, "hypermesh", 3000)
+    backend.fetch = fetch
+    assert (await sweep_page(backend, page, TENANT, "hypermesh", 3000))["more"] is True
+    assert (await sweep_page(backend, page, TENANT, "hypermesh", 3000))["more"] is False
+    assert calls == [None]
+    assert backend.removed == names[1:]

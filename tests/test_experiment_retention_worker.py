@@ -24,7 +24,7 @@ async def test_azure_listing_uses_exact_prefix_and_resumes_provider_cursor():
     container = SimpleNamespace(list_blobs=Mock(return_value=SimpleNamespace(by_page=by_page)))
     _records, page = worker.listing(AzureTenantObjects(container))
     assert await page("prefix/", "before") == (["prefix/name"], "next")
-    container.list_blobs.assert_called_once_with(name_starts_with="prefix/", results_per_page=1000)
+    container.list_blobs.assert_called_once_with(name_starts_with="prefix/", results_per_page=32)
     by_page.assert_called_once_with(continuation_token="before")
 
 
@@ -33,7 +33,7 @@ async def test_s3_listing_requires_a_continuation_for_truncated_results():
     client = SimpleNamespace(list_objects_v2=Mock(return_value={"Contents": [{"Key": "prefix/name"}], "IsTruncated": True, "NextContinuationToken": "next"}))
     _records, page = worker.listing(S3TenantObjects(client, "private-bucket"))
     assert await page("prefix/", "before") == (["prefix/name"], "next")
-    client.list_objects_v2.assert_called_once_with(Bucket="private-bucket", Prefix="prefix/", MaxKeys=1000, ContinuationToken="before")
+    client.list_objects_v2.assert_called_once_with(Bucket="private-bucket", Prefix="prefix/", MaxKeys=32, ContinuationToken="before")
     client.list_objects_v2.return_value = {"IsTruncated": True}
     with pytest.raises(ValueError):
         await page("prefix/", None)
