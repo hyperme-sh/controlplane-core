@@ -608,8 +608,10 @@ write, allocation and retirement permissions do not grant it; the observer scope
 cannot invoke those operations. The bounded JSON request contains `object` and
 up to eight distinct `{kind,digest}` references. Under the existing tenant lock,
 it reads the object's issuer/owner, phase, permanent command, immutable provider
-location, current references and charged owner/tenant totals, then observes only
-provider HEAD metadata. It never repairs a location, changes references, releases
+location, current references and charged owner/tenant totals. It releases that
+lock before provider HEAD requests, then rechecks the registry snapshot and
+refuses concurrent changes. This is not an atomic provider/registry snapshot.
+It never repairs a location, changes references, releases
 quota, or retires a payload. Unbound or changed locations refuse provider access.
 
 Requested digests are tenant-scoped metadata queries, not proof of former object
