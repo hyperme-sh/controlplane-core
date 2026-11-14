@@ -21,6 +21,7 @@ from api.interfaces.api_controllers.tenant_records_endpoint import router as rec
 from api.interfaces.api_controllers.tenant_replays_endpoint import router as replays
 from api.interfaces.api_controllers.media_allocation_endpoint import router as allocations
 from api.infrastructure.security.media_allocation_settings import load_issuers
+from api.interfaces.api_controllers.media_retirement_endpoint import router as retirement
 
 
 @asynccontextmanager
@@ -67,6 +68,7 @@ app.include_router(administration, prefix='/api/v1', dependencies=[Depends(reque
 app.include_router(records, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 app.include_router(replays, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 app.include_router(allocations, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
+app.include_router(retirement, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 
 
 @app.exception_handler(ApiBaseException)
