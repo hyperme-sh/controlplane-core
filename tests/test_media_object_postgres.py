@@ -58,7 +58,7 @@ async def test_reference_retry_immutability_and_quota_bounds(service):
                     [{'owner_principal':'other','byte_length':256*1024*1024}]]:
         cursor.fetchall.side_effect=[[],charged]
         with pytest.raises(AllocationRejected):await reserve()
-    cursor.fetchall.side_effect=None;cursor.fetchall.return_value=[{'kind':'wrap'}]*128
+    cursor.fetchall.side_effect=None;cursor.fetchall.return_value=[{'kind':'wrap','digest':f'{i:064x}','byte_length':33} for i in range(128)]
     with pytest.raises(AllocationRejected):await reserve('wrap')
     value._object.return_value={**row,'phase':1}
     with pytest.raises(RecordConflict):await reserve()
