@@ -192,3 +192,17 @@ def test_ciphertext_lookup_is_read_only_and_exact():
     for method in ('PUT','DELETE','POST','HEAD'):
         assert auth.request_operation(method,path) is None
     assert auth.request_operation('GET',path.replace('/ciphertext','/wrap')) is None
+
+
+def test_media_observer_is_separate_from_reads_writes_and_retirement(tokens):
+    tenant,now,mint=tokens
+    path='/api/v1/storage/media/observe'
+    assert auth.request_operation('POST',path)=='media.observe'
+    for method,route in [('GET',path),('PUT',path),('POST',path+'/extra')]:
+        assert auth.request_operation(method,route) is None
+    for scope in ['storage:media:retire','storage:media:payload:read','storage:media:payload:write','storage:allocations:issue']:
+        with pytest.raises(HTTPException):auth.storage_session(mint({'scope':scope}),'media.observe',now)
+    observer=mint({'scope':'storage:media:observe'})
+    assert auth.storage_session(observer,'media.observe',now)==tenant
+    for action in ['media.retire','media.payload.read','media.payload.write','allocations.issue']:
+        with pytest.raises(HTTPException):auth.storage_session(observer,action,now)
