@@ -522,3 +522,24 @@ original allocation, and atomically moves it into retiring state. Retries retain
 the same permanent command. Retiring objects still consume quota; this adapter
 neither deletes provider bytes nor marks cleanup complete. No HTTP route or
 runtime binding is enabled by these components.
+
+### Media provider retirement
+
+The dedicated `tenant-media/v1` Azure/S3 adapters replace the current payload
+with a permanent empty marker when the storage coordinator determines that no
+other live object references it. Create-only late uploads cannot overwrite that
+marker. The adapter verifies the marker before reporting completion and refuses
+hard deletion of this namespace. Generic object APIs remain separate.
+
+These adapters are not activated or exposed by a route. Callers must authenticate
+the source command and serialize references before using them. Removing current
+payloads does not purge provider-retained versions, soft-deleted snapshots or
+backups; those follow the declared retention policy. Never expire the current
+retirement marker through a storage cleanup rule.
+
+CI checks the Azure SDK against disposable Azurite, including a delayed block
+commit, and checks S3 request/signing behavior with unit fixtures. The S3 fixture
+does not qualify a live provider. The Azure behavior follows
+[Put Blob](https://learn.microsoft.com/en-us/rest/api/storageservices/put-blob)
+and [soft delete](https://learn.microsoft.com/en-us/azure/storage/blobs/soft-delete-blob-overview);
+S3 create-only writes use [conditional writes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html).
