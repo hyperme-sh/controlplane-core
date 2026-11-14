@@ -99,6 +99,16 @@ jobs:
           path: ${{ runner.temp }}/package-test-results/*.xml
           if-no-files-found: error
           retention-days: 90
+      - name: Record exact development package provenance
+        run: |
+          python3 - <<'PYCODE'
+          import hashlib, json, os, pathlib, subprocess
+          root = pathlib.Path(os.environ['RELEASE_ARTIFACT_DIR'])
+          value = {'revision': os.environ['GITHUB_SHA'],
+                   'source_tree': subprocess.check_output(['git','rev-parse','HEAD^{tree}'],text=True).strip(),
+                   'files': {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in root.iterdir() if path.is_file()}}
+          (root / 'development-provenance.json').write_text(json.dumps(value,sort_keys=True))
+          PYCODE
       - name: Retain qualified development packages for exact consumer fixtures
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
