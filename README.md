@@ -499,3 +499,17 @@ cache key, cannot access this namespace. Media credentials confer neither
 object-byte access nor access to cache/recovery/fixture records. The cache-only
 `/access` delegation endpoint refuses media records. These service scopes do not
 replace application-level current reader grants or encryption.
+
+### PostgreSQL media allocation adapter
+
+`PostgresAllocationStore` consumes the additive storage-media schema owned by
+controlplane-db. It preserves the original allocation on a same-scope retry,
+serializes tenant quota decisions with the tenant row lock, and refuses any
+object whose retirement has begun. Completed retirement stops charging allocation
+quota while the object binding and allocation identifier remain permanent.
+
+The adapter is not selected by runtime configuration yet. It creates no schema,
+tenant, source binding, or credentials, and does not import the existing Blob
+registry. Deployment must prepare/import the schema and coordinate the dedicated
+media write/cleanup API before changing the issuer store. Provider deletion and
+byte quota reclamation are separate consumers of the retirement state.

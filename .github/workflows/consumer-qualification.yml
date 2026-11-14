@@ -7,6 +7,18 @@ jobs:
   package:
     runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64", "debrunner"]') || 'ubuntu-24.04' }}
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17@sha256:3b0cda93be7c8dba2ed484d19393d93845dc3dafb88973e248ba8e6d99d784e1
+        env:
+          POSTGRES_PASSWORD: package-test-only
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Prepare test evidence directory
         run: echo "TEST_EVIDENCE_DIR=$RUNNER_TEMP/package-test-results" >> "$GITHUB_ENV"
@@ -21,8 +33,15 @@ jobs:
       - name: Allocation proof unit coverage
         run: |
           uv pip install --python .venv/bin/python --no-deps coverage==7.17.3
-          .venv/bin/python -m coverage run --branch --source=api.domain.media_allocation_grant,api.domain.media_allocation_store,api.domain.media_allocation_issuer,api.domain.media_allocation_request -m pytest -q tests/test_media_allocation_grant.py tests/test_media_allocation_store.py tests/test_media_allocation_issuer.py
+          .venv/bin/python -m coverage run --branch --source=api.domain.media_allocation_grant,api.domain.media_allocation_store,api.domain.media_allocation_issuer,api.domain.media_allocation_request,api.infrastructure.persistence.media_allocation_postgres -m pytest -q tests/test_media_allocation_grant.py tests/test_media_allocation_store.py tests/test_media_allocation_issuer.py tests/test_media_allocation_postgres.py
           .venv/bin/python -m coverage report --fail-under=95 --show-missing
+      - name: PostgreSQL allocation consumer contracts
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://postgres:package-test-only@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres
+          STORAGE_SCHEMA_DIRECTORY: ${{ runner.temp }}/allocation-storage-schema
+        run: |
+          python3 scripts/prepare-storage-schema.py tests_artifacts/storage-schema "$STORAGE_SCHEMA_DIRECTORY"
+          .venv/bin/python -m pytest -v qualification/test_media_allocation_postgres.py --junitxml="$TEST_EVIDENCE_DIR/allocation-storage.xml"
       - name: Allocation transport and configuration coverage
         run: |
           .venv/bin/python -m coverage run --branch --source=api.infrastructure.security.media_allocation_settings,api.interfaces.api_controllers.media_allocation_endpoint -m pytest -q tests/test_media_allocation_endpoint.py
