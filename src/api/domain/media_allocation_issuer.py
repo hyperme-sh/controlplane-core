@@ -24,6 +24,7 @@ class AllocationIssuer:
                 or not re.fullmatch(r'[A-Za-z0-9_-]{1,64}', key_id)
                 or not isinstance(signing_key, Ed25519PrivateKey)
                 or not 1 <= len(request_keys) <= 16
+                or any(type(kid) is not str or not re.fullmatch(r'[A-Za-z0-9_-]{1,64}',kid) for kid in request_keys)
                 or any(not isinstance(key, Ed25519PublicKey) for key in request_keys.values())):
             raise AllocationRejected('Invalid allocation issuer configuration')
         if any(key.public_bytes_raw() == signing_key.public_key().public_bytes_raw() for key in request_keys.values()):
