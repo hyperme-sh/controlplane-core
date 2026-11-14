@@ -136,3 +136,45 @@ async def test_invalid_scope_times_and_stored_registry_refuse(registry):
     backend.rows[store.key] = (encoded, "bad-etag")
     with pytest.raises(ObjectUnavailable):
         await store.reserve(candidate, now=1100, before_write=allowed)
+
+
+@pytest.mark.asyncio
+async def test_two_sources_racing_for_one_object_have_one_winner(registry):
+    import asyncio
+    store, backend, candidate = registry
+    await store.initialize()
+    original_fetch = backend.fetch
+    arrived, ready = 0, asyncio.Event()
+    async def simultaneous_fetch(key):
+        nonlocal arrived
+        result = await original_fetch(key)
+        arrived += 1
+        if arrived == 2:
+            ready.set()
+        await ready.wait()
+        return result
+    backend.fetch = simultaneous_fetch
+    rival = replace(candidate, scope=replace(candidate.scope, source=str(UUID(int=9))), allocation=str(UUID(int=9)))
+    results = await asyncio.gather(
+        store.reserve(candidate, now=1100, before_write=allowed),
+        AllocationStore(store.tenant, store.issuer, backend).reserve(rival, now=1100, before_write=allowed),
+        return_exceptions=True)
+    assert sum(isinstance(result, Reservation) for result in results) == 1
+    assert sum(isinstance(result, RecordConflict) for result in results) == 1
+    assert backend.writes == 2
+
+
+@pytest.mark.asyncio
+async def test_uncertain_committed_write_is_reconciled_without_second_allocation(registry):
+    store, backend, candidate = registry
+    await store.initialize()
+    original_replace = backend.replace
+    async def lost_response(key, data, etag):
+        await original_replace(key, data, etag)
+        raise TimeoutError("response lost")
+    backend.replace = lost_response
+    with pytest.raises(TimeoutError):
+        await store.reserve(candidate, now=1100, before_write=allowed)
+    backend.replace = original_replace
+    assert await store.reserve(candidate, now=1100, before_write=allowed) == candidate
+    assert backend.writes == 2
