@@ -82,3 +82,32 @@ a prior reservation. This primitive neither authenticates callers nor signs
 proofs. A provider snapshot rollback still needs independent source checkpoints
 and controlled recovery; provider CAS alone does not prevent it. No route,
 operator bootstrap, credential, signer, or runtime binding is enabled here.
+
+## Authenticated source issuance
+
+`AllocationIssuer` accepts a protected-source attestation signed by a separately
+configured Ed25519 request key. Its wire shape matches the grant envelope, but
+uses domain `spanopticon-media-allocation-request-v1` followed by a zero byte and
+a maximum 30-second interval. The allocation field is a request nonce. It is not
+the durable allocation ID. A request signature cannot verify as a storage grant,
+and source keys must differ from the storage signing key.
+
+Before signing a request, the protected ACL source must authenticate the bound
+caller and verify the canonical signed ownership record against current SEA
+history. Storage fixes tenant, issuer, source and policy in configuration; the
+source signature must match the complete proposed object/owner/ownership digest.
+Ownership and policy digests use sorted compact JSON with ASCII escaping, with
+the ownership signature included. A general storage API-key token is insufficient.
+
+The issuer checks authority before reading, immediately before reservation,
+and after persistence and signing. An operation crossing its starting integer
+second refuses and requires reconciliation. Only a durably reserved allocation
+can be signed. Retries return the original allocation and expiry; an expired
+reservation cannot be renewed. Cancellation or an uncertain response does not
+release capacity. Source proof expiry limits admission; the resulting grant is
+bounded to five minutes and configured policy expiry. The ACL consumer still
+rechecks current ownership inside its atomic transaction.
+
+This domain service does not install a transport endpoint or choose deployed
+keys. The authenticated source request adapter, issuer configuration and consumer
+transport wiring must be installed before activation; there is no default issuer.
