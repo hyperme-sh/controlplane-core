@@ -111,6 +111,26 @@ class PostgresMediaObjects:
                 guard()
             return created
 
+    async def ciphertext_reference(self,*,object,guard):
+        """Resolve only an active object's single immutable ciphertext reference."""
+        guard()
+        async with self.store._locked() as cursor:
+            row=await self._object(cursor,object)
+            if row['phase']!=0:raise RecordConflict('Media object retired')
+            await cursor.execute(sql.SQL("SELECT digest,byte_length FROM {} WHERE tenant_id=%s AND object_id=%s AND kind='ciphertext' LIMIT 2").format(self.refs),
+                (self.store.tenant,object))
+            refs=await cursor.fetchall()
+            if not refs:
+                guard();return None
+            if len(refs)!=1:raise ObjectUnavailable('Invalid media ciphertext references')
+            await self._location(cursor,object)
+            digest,size=refs[0]['digest'],refs[0]['byte_length']
+            media_key(UUID(self.store.tenant),'ciphertext',digest)
+            if type(size) is not int or not 33<=size<=64*1024*1024:
+                raise ObjectUnavailable('Invalid media reference length')
+            guard()
+            return ObjectMetadata(size,digest)
+
     @asynccontextmanager
     async def open(self,*,object,kind,digest,guard):
         """Verify allocated bytes before exposing a bounded temporary copy.

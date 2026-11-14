@@ -159,6 +159,8 @@ async def test_durable_read_requires_exact_live_reference_and_provider_location(
     await store.reserve(candidate,now=1100,before_write=lambda:None)
     await upload(service,candidate)
     args=dict(object=candidate.scope.object,kind='ciphertext',digest=hashlib.sha256(b'x'*33).hexdigest(),guard=lambda:None)
+    reference=await service.ciphertext_reference(object=candidate.scope.object,guard=lambda:None)
+    assert reference.sha256==args['digest'] and reference.size==33
     async with service.open(**args) as (body,metadata):
         assert body.read()==b'x'*33 and metadata.size==33
     wrong=PostgresMediaObjects(store,backend,location='b'*64)
@@ -167,6 +169,8 @@ async def test_durable_read_requires_exact_live_reference_and_provider_location(
     with pytest.raises(AllocationRejected):
         async with service.open(**{**args,'digest':'e'*64}):pass
     await begin(store,candidate)
+    with pytest.raises(RecordConflict):
+        await service.ciphertext_reference(object=candidate.scope.object,guard=lambda:None)
     with pytest.raises(RecordConflict):
         async with service.open(**args):pass
     await service.cleanup(object=candidate.scope.object,command='e'*64,guard=lambda:None)

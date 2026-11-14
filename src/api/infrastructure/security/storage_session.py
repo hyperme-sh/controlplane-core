@@ -24,6 +24,8 @@ SCOPES["replays.consume"] = "storage:replays:consume"
 def request_operation(method: str, path: str) -> str | None:
     if method in ("GET","PUT") and re.fullmatch(r"/api/v1/storage/media/payloads/media_p_[0-9a-f]{128}_[0-9a-f]{32}/(ciphertext|wrap)/[0-9a-f]{64}",path):
         return "media.payload.read" if method=="GET" else "media.payload.write"
+    if method=="GET" and re.fullmatch(r"/api/v1/storage/media/payloads/media_p_[0-9a-f]{128}_[0-9a-f]{32}/ciphertext",path):
+        return "media.payload.read"
     if path.startswith("/api/v1/storage/media/"):
         return "media.retire" if method == "POST" and path == "/api/v1/storage/media/retire" else None
     if path.startswith("/api/v1/storage/allocations/"):

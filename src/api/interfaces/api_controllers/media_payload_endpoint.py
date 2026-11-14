@@ -2,7 +2,7 @@
 import re
 import anyio
 from fastapi import APIRouter,Depends,HTTPException,Request,Response
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse,JSONResponse
 from api.domain.media_allocation_grant import AllocationRejected
 from api.domain.tenant_objects import ObjectInputError,ObjectUnavailable
 from api.domain.tenant_records import RecordConflict
@@ -73,3 +73,22 @@ async def download(digest:str,held=Depends(payload_reader,scope='request')):
             yield chunk
     return StreamingResponse(chunks(),media_type='application/octet-stream',headers={
         **PRIVATE,'Content-Length':str(metadata.size),'ETag':f'"{digest}"','Content-Disposition':'attachment'})
+
+@router.get('/{object}/ciphertext')
+async def ciphertext_reference(object:str,request:Request,store=Depends(media_objects_service)):
+    try:
+        with anyio.fail_after(4):
+            async with capacity:
+                metadata=await store.ciphertext_reference(object=object,guard=lambda:None)
+                if await request.is_disconnected():
+                    raise HTTPException(408,'Media lookup cancelled',headers=PRIVATE)
+        if metadata is None:raise HTTPException(404,'Media ciphertext unavailable',headers=PRIVATE)
+        return JSONResponse({'sha256':metadata.sha256,'length':metadata.size},headers=PRIVATE)
+    except AllocationRejected:
+        raise HTTPException(403,'Media allocation refused',headers=PRIVATE) from None
+    except RecordConflict:
+        raise HTTPException(409,'Media allocation conflict',headers=PRIVATE) from None
+    except ObjectInputError:
+        raise HTTPException(400,'Invalid media object',headers=PRIVATE) from None
+    except (TimeoutError,ObjectUnavailable):
+        raise HTTPException(503,'Media lookup unavailable',headers=PRIVATE) from None

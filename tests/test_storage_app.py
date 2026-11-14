@@ -110,7 +110,7 @@ async def test_startup_only_installs_session_and_disposes_engine(monkeypatch):
 
 def test_only_storage_and_health_routes_are_exposed():
     paths=set(runtime.app.openapi()['paths'])
-    assert paths=={'/api/v1/storage/media/payloads/{object}/{kind}/{digest}','/api/v1/storage/media/retire','/api/v1/storage/allocations/issue','/api/v1/storage/replays/{namespace}/{nonce}','/health','/api/v1/storage/objects/{object_id}','/api/v1/storage/records/{namespace}/{name}','/api/v1/storage/records/{namespace}/{name}/access','/api/v1/storage/tenant','/api/v1/storage/tenant/configure','/api/v1/storage/tenant/{storage_id}/reset','/api/v1/storage/tenant/experiments/{audience}'}
+    assert paths=={'/api/v1/storage/media/payloads/{object}/ciphertext','/api/v1/storage/media/payloads/{object}/{kind}/{digest}','/api/v1/storage/media/retire','/api/v1/storage/allocations/issue','/api/v1/storage/replays/{namespace}/{nonce}','/health','/api/v1/storage/objects/{object_id}','/api/v1/storage/records/{namespace}/{name}','/api/v1/storage/records/{namespace}/{name}/access','/api/v1/storage/tenant','/api/v1/storage/tenant/configure','/api/v1/storage/tenant/{storage_id}/reset','/api/v1/storage/tenant/experiments/{audience}'}
 
 
 @pytest.mark.asyncio

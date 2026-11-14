@@ -592,3 +592,12 @@ delivery. Previously acquired bytes cannot be recalled. The matching private GET
 write scope do not grant it. The request-scoped spool remains open only while the
 response streams under the shared four-request and 120-second bound. This does
 not switch consumers or activate credentials.
+
+
+`GET /api/v1/storage/media/payloads/{object}/ciphertext` resolves the active
+allocation's single immutable ciphertext reference as `{sha256, length}`.
+It uses the payload-read scope and refuses retired objects, duplicate references
+or changed provider locations. An allocated object without an uploaded reference
+returns 404. The descriptor does not grant reader access or prove provider bytes;
+the payload GET performs full verification. This enables consumers to replace
+their legacy shared index without selecting a caller-supplied storage location.
