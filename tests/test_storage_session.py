@@ -145,3 +145,12 @@ def test_experiment_credentials_cannot_read_other_audiences_or_mutate_cache(toke
     with pytest.raises(HTTPException) as exc:
         auth.storage_session(mint({"scope": "storage:records:read"}), "experiments.hypermesh.cache.read", now)
     assert exc.value.status_code == 403
+
+
+def test_allocation_transport_has_a_separate_exact_operation_and_scope(tokens):
+    tenant,now,mint=tokens
+    assert auth.request_operation('POST','/api/v1/storage/allocations/issue')=='allocations.issue'
+    for method,path in [('GET','/api/v1/storage/allocations/issue'),('POST','/api/v1/storage/allocations/bootstrap')]:
+        assert auth.request_operation(method,path) is None
+    with pytest.raises(HTTPException):auth.storage_session(mint(),'allocations.issue',now)
+    assert auth.storage_session(mint({'scope':'storage:allocations:issue'}),'allocations.issue',now)==tenant

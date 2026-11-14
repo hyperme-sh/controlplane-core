@@ -112,6 +112,7 @@ def test_configuration_rejects_invalid_or_shared_trust_keys(issuer,grant):
     configured=issuer[5]
     for values in [{'source':'invalid'},{'policy_digest':'bad'},{'key_id':'bad id'},
                    {'request_keys':{}},{'request_keys':{'bad':None}},
+                   {'request_keys':{'bad id':grant[1].public_key()}},
                    {'signing_key':grant[1]}, {'policy_until':True}]:
         with pytest.raises(AllocationRejected):configured(**values)
 

@@ -19,10 +19,13 @@ from api.interfaces.api_controllers.tenant_objects_endpoint import router as obj
 from api.interfaces.api_controllers.tenant_storage_admin_endpoint import router as administration
 from api.interfaces.api_controllers.tenant_records_endpoint import router as records
 from api.interfaces.api_controllers.tenant_replays_endpoint import router as replays
+from api.interfaces.api_controllers.media_allocation_endpoint import router as allocations
+from api.infrastructure.security.media_allocation_settings import load_issuers
 
 
 @asynccontextmanager
 async def startup(app: FastAPI):
+    app.state.media_allocation_issuers = load_issuers()
     engine = create_async_engine(normalize_database_url(settings.database_url))
     configure_session_maker(async_sessionmaker(engine, expire_on_commit=False, autoflush=False))
     try:
@@ -63,6 +66,7 @@ app.include_router(objects, prefix='/api/v1', dependencies=[Depends(request_data
 app.include_router(administration, prefix='/api/v1', dependencies=[Depends(request_database, scope='function')])
 app.include_router(records, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 app.include_router(replays, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
+app.include_router(allocations, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 
 
 @app.exception_handler(ApiBaseException)
