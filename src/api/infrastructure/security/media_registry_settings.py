@@ -28,6 +28,7 @@ class RegistrySettings:
             async with (connect or raw_connection)() as connection:
                 async with connection.transaction():
                     async with connection.cursor(row_factory=dict_row) as cursor:
+                        await cursor.execute("SET LOCAL search_path=pg_catalog,pg_temp")
                         await cursor.execute("SET LOCAL statement_timeout='3s'")
                         await cursor.execute("SET LOCAL lock_timeout='2s'")
                         await cursor.execute("SELECT r.rolsuper,r.rolbypassrls,r.rolcreaterole,r.rolcreatedb,r.rolreplication,has_schema_privilege(%s,'CREATE') AS can_create FROM pg_roles r WHERE r.rolname=current_user",(self.schema,))
