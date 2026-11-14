@@ -36,7 +36,7 @@ async def test_azure_retirement_blocks_late_single_and_block_uploads():
             control=container.get_blob_client(media_key(uuid4(),'ciphertext',digest))
             control_block=base64.b64encode(b'control-block-id').decode()
             await control.stage_block(block_id=control_block,data=data,length=len(data))
-            await control.commit_block_list([BlobBlock(block_id=control_block)],etag='*',match_condition=MatchConditions.IfMissing,metadata={'sha256':digest})
+            await control.commit_block_list([BlobBlock(block_id=control_block)],match_condition=MatchConditions.IfMissing,metadata={'sha256':digest})
             assert await (await control.download_blob()).readall()==data
             pending=media_key(uuid4(),'ciphertext',digest)
             blob=container.get_blob_client(pending)
@@ -44,7 +44,7 @@ async def test_azure_retirement_blocks_late_single_and_block_uploads():
             await blob.stage_block(block_id=block,data=data,length=len(data))
             await backend.retire(pending)
             with pytest.raises(HttpResponseError) as failure:
-                await blob.commit_block_list([BlobBlock(block_id=block)],etag='*',match_condition=MatchConditions.IfMissing,metadata={'sha256':digest})
+                await blob.commit_block_list([BlobBlock(block_id=block)],match_condition=MatchConditions.IfMissing,metadata={'sha256':digest})
             assert failure.value.status_code in (400,409,412)
             assert failure.value.error_code in ('ConditionNotMet','BlobAlreadyExists','InvalidBlockList')
             assert await backend.head(pending)==RETIRED
