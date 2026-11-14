@@ -154,3 +154,13 @@ def test_allocation_transport_has_a_separate_exact_operation_and_scope(tokens):
         assert auth.request_operation(method,path) is None
     with pytest.raises(HTTPException):auth.storage_session(mint(),'allocations.issue',now)
     assert auth.storage_session(mint({'scope':'storage:allocations:issue'}),'allocations.issue',now)==tenant
+
+
+def test_retirement_requires_its_own_exact_scope(tokens):
+    tenant,now,mint=tokens
+    assert auth.request_operation('POST','/api/v1/storage/media/retire')=='media.retire'
+    for method,path in [('GET','/api/v1/storage/media/retire'),('DELETE','/api/v1/storage/media/retire'),('POST','/api/v1/storage/media/cleanup')]:
+        assert auth.request_operation(method,path) is None
+    for scope in ['storage:objects:delete','storage:media:delete','storage:records:delete','storage:allocations:issue']:
+        with pytest.raises(HTTPException):auth.storage_session(mint({'scope':scope}),'media.retire',now)
+    assert auth.storage_session(mint({'scope':'storage:media:retire'}),'media.retire',now)==tenant

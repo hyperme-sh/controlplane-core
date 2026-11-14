@@ -54,3 +54,23 @@ async def test_runtime_role_and_all_three_tables_must_be_restricted():
         cursor.fetchall.return_value=invalid
         with pytest.raises(ValueError):
             async with settings.store(connect).connect():pass
+
+
+@pytest.mark.asyncio
+async def test_media_cleanup_requires_location_table_isolation():
+    settings=RegistrySettings('postgresql+psycopg://runtime@db/storage','storage_owner',str(UUID(int=1)),str(UUID(int=2)))
+    cursor=SimpleNamespace(execute=AsyncMock(),fetchone=AsyncMock(return_value={'rolsuper':False}),fetchall=AsyncMock())
+    @asynccontextmanager
+    async def context(value=None):yield value
+    connection=SimpleNamespace(transaction=lambda:context(),cursor=lambda **kw:context(cursor))
+    @asynccontextmanager
+    async def connect():yield connection
+    tables=[{'relname':name,'relrowsecurity':True,'relforcerowsecurity':True,'owns_table':False} for name in ('tenants','storage_media_objects','storage_media_refs','storage_media_locations')]
+    cursor.fetchall.return_value=tables[:3]
+    with pytest.raises(ValueError):
+        async with settings.store(connect,require_locations=True).connect():pass
+    cursor.fetchall.return_value=tables
+    async with settings.store(connect,require_locations=True).connect():pass
+    tables[-1]['owns_table']=True
+    with pytest.raises(ValueError):
+        async with settings.store(connect,require_locations=True).connect():pass

@@ -17,7 +17,7 @@ class RegistrySettings:
     tenant: str
     issuer: str
 
-    def store(self, connect=None):
+    def store(self, connect=None, *, require_locations=False):
         @asynccontextmanager
         async def raw_connection():
             url=make_url(self.database_url).set(drivername='postgresql').render_as_string(hide_password=False)
@@ -34,9 +34,11 @@ class RegistrySettings:
                         await cursor.execute("SELECT r.rolsuper,r.rolbypassrls,r.rolcreaterole,r.rolcreatedb,r.rolreplication,has_schema_privilege(%s,'CREATE') AS can_create FROM pg_roles r WHERE r.rolname=current_user",(self.schema,))
                         role=await cursor.fetchone()
                         if not role or any(role.values()):raise ValueError('Restricted media runtime role required')
-                        await cursor.execute("SELECT c.relname,c.relrowsecurity,c.relforcerowsecurity,pg_has_role(c.relowner,'MEMBER') AS owns_table FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=%s AND c.relname IN ('tenants','storage_media_objects','storage_media_refs') AND c.relkind='r'",(self.schema,))
+                        names=['tenants','storage_media_objects','storage_media_refs']
+                        if require_locations:names.append('storage_media_locations')
+                        await cursor.execute("SELECT c.relname,c.relrowsecurity,c.relforcerowsecurity,pg_has_role(c.relowner,'MEMBER') AS owns_table FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=%s AND c.relname=ANY(%s) AND c.relkind='r'",(self.schema,names))
                         tables=await cursor.fetchall()
-                        if len(tables)!=3 or any(not row['relrowsecurity'] or not row['relforcerowsecurity'] or row['owns_table'] for row in tables):
+                        if len(tables)!=len(names) or any(not row['relrowsecurity'] or not row['relforcerowsecurity'] or row['owns_table'] for row in tables):
                             raise ValueError('Forced media tenant isolation required')
                     yield connection
         return PostgresAllocationStore(self.tenant,self.issuer,restricted,schema=self.schema)

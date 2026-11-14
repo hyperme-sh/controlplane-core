@@ -68,6 +68,10 @@ jobs:
         run: |
           .venv/bin/python -m coverage run --branch --source=api.infrastructure.security.media_allocation_settings,api.infrastructure.security.media_registry_settings,api.interfaces.api_controllers.media_allocation_endpoint -m pytest -q tests/test_media_allocation_endpoint.py tests/test_media_registry_settings.py
           .venv/bin/python -m coverage report --fail-under=90 --show-missing
+      - name: Media retirement transport coverage
+        run: |
+          .venv/bin/python -m coverage run --branch --source=api.interfaces.api_controllers.media_retirement_endpoint -m pytest -q tests/test_media_retirement_endpoint.py
+          .venv/bin/python -m coverage report --fail-under=90 --show-missing
       - name: Retain matching package test inventories
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

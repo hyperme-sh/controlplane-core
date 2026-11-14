@@ -45,7 +45,7 @@ async def begin(store,candidate,command='e'*64):
 
 @pytest.mark.asyncio
 async def test_shared_payload_and_failed_cleanup_keep_other_object_and_quota(registry):
-    store,candidate,connect,schema=registry;backend=Backend();service=PostgresMediaObjects(store,backend)
+    store,candidate,connect,schema=registry;backend=Backend();service=PostgresMediaObjects(store,backend,location="a"*64)
     other=replace(candidate,scope=replace(candidate.scope,object=candidate.scope.object[:-32]+'b'*32),allocation=str(uuid4()))
     for value in (candidate,other):await store.reserve(value,now=1100,before_write=lambda:None)
     assert await upload(service,candidate)
@@ -79,7 +79,7 @@ async def test_shared_payload_and_failed_cleanup_keep_other_object_and_quota(reg
 
 @pytest.mark.asyncio
 async def test_unknown_write_result_keeps_durable_cleanup_target(registry):
-    store,candidate,connect,schema=registry;backend=Backend();service=PostgresMediaObjects(store,backend)
+    store,candidate,connect,schema=registry;backend=Backend();service=PostgresMediaObjects(store,backend,location="a"*64)
     await store.reserve(candidate,now=1100,before_write=lambda:None)
     backend.fail_put=True
     with pytest.raises(ObjectUnavailable):await upload(service,candidate)
@@ -93,7 +93,7 @@ async def test_unknown_write_result_keeps_durable_cleanup_target(registry):
 
 @pytest.mark.asyncio
 async def test_owner_capacity_reclaimed_only_after_confirmed_cleanup(registry):
-    store,candidate,connect,schema=registry;backend=Backend();service=PostgresMediaObjects(store,backend)
+    store,candidate,connect,schema=registry;backend=Backend();service=PostgresMediaObjects(store,backend,location="a"*64)
     values=[]
     for i in range(9):
         value=replace(candidate,scope=replace(candidate.scope,object=candidate.scope.object[:-32]+f'{i:032x}'),allocation=str(uuid4()))
@@ -112,7 +112,7 @@ async def test_owner_capacity_reclaimed_only_after_confirmed_cleanup(registry):
 @pytest.mark.asyncio
 async def test_coordinator_retries_accepted_command_after_uncertain_cleanup(registry):
     from api.domain.media_retirement import MediaRetirement
-    store,candidate,connect,schema=registry;backend=Backend();objects=PostgresMediaObjects(store,backend)
+    store,candidate,connect,schema=registry;backend=Backend();objects=PostgresMediaObjects(store,backend,location="a"*64)
     await store.reserve(candidate,now=1100,before_write=lambda:None)
     await upload(objects,candidate)
     key=Ed25519PrivateKey.from_private_bytes(b'\x08'*32)
@@ -133,3 +133,20 @@ async def test_coordinator_retries_accepted_command_after_uncertain_cleanup(regi
     assert await service.retire(request,**args,cancel=lambda:None)==result
     assert len(backend.retirements)==calls
     with pytest.raises(RecordConflict):await upload(objects,candidate)
+
+
+@pytest.mark.asyncio
+async def test_changed_provider_cannot_confirm_cleanup_or_release_refs(registry):
+    store,candidate,connect,schema=registry;original=Backend();replacement=Backend()
+    first=PostgresMediaObjects(store,original,location='a'*64)
+    changed=PostgresMediaObjects(store,replacement,location='b'*64)
+    await store.reserve(candidate,now=1100,before_write=lambda:None)
+    await upload(first,candidate)
+    with pytest.raises(RecordConflict):await upload(changed,candidate)
+    await begin(store,candidate)
+    with pytest.raises(RecordConflict):await changed.cleanup(object=candidate.scope.object,command='e'*64,guard=lambda:None)
+    assert not replacement.retirements and not original.retirements
+    async with connect() as connection:
+        await connection.execute("SELECT set_config('app.current_tenant_id',%s,false)",(store.tenant,))
+        assert (await (await connection.execute(sql.SQL('SELECT count(*) FROM {}.storage_media_refs').format(sql.Identifier(schema)))).fetchone())==(1,)
+    assert await first.cleanup(object=candidate.scope.object,command='e'*64,guard=lambda:None)
