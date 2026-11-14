@@ -140,3 +140,61 @@ async def test_provider_location_is_bound_before_refs_and_never_guessed(service)
     await check(cursor,OBJECT,bind=True)
     assert cursor.execute.call_args.args[1]==(TENANT,OBJECT,'a'*64)
     with pytest.raises(ObjectInputError):PostgresMediaObjects(value.store,backend,location='bad')
+
+
+@pytest.mark.asyncio
+async def test_read_requires_active_bound_reference_and_verified_bytes(service):
+    value,cursor,backend,row=service
+    value._object=AsyncMock(return_value=row)
+    cursor.fetchone.return_value={'byte_length':len(DATA)}
+    backend.head.return_value=ObjectMetadata(len(DATA),DIGEST)
+    async def chunks(*args):
+        assert args[1:]==(0,len(DATA))
+        yield DATA
+    backend.read=chunks
+    async with value.open(object=OBJECT,kind='ciphertext',digest=DIGEST,guard=lambda:None) as (body,metadata):
+        assert body.read()==DATA and metadata==ObjectMetadata(len(DATA),DIGEST)
+        held=body
+    assert held.closed
+    value._object.return_value={**row,'phase':1}
+    with pytest.raises(RecordConflict):
+        async with value.open(object=OBJECT,kind='ciphertext',digest=DIGEST,guard=lambda:None):pass
+    value._object.return_value=row
+    for ref,error in [(None,AllocationRejected),({'byte_length':True},ObjectUnavailable),
+        ({'byte_length':32},ObjectUnavailable),({'byte_length':67108865},ObjectUnavailable)]:
+        cursor.fetchone.return_value=ref
+        with pytest.raises(error):
+            async with value.open(object=OBJECT,kind='ciphertext',digest=DIGEST,guard=lambda:None):pass
+    cursor.fetchone.return_value={'byte_length':33};backend.head.return_value=RETIRED
+    with pytest.raises(ObjectUnavailable):
+        async with value.open(object=OBJECT,kind='ciphertext',digest=DIGEST,guard=lambda:None):pass
+    backend.head.return_value=ObjectMetadata(33,DIGEST)
+    for data in ['bad',DATA+b'x',b'x',b'y'*33]:
+        async def bad(*args):yield data
+        backend.read=bad
+        with pytest.raises(ObjectUnavailable):
+            async with value.open(object=OBJECT,kind='ciphertext',digest=DIGEST,guard=lambda:None):pass
+
+
+@pytest.mark.asyncio
+async def test_read_wrap_cancel_and_provider_failure_close_context(service):
+    value,cursor,backend,row=service;value._object=AsyncMock(return_value=row)
+    data=b'w';digest=hashlib.sha256(data).hexdigest()
+    cursor.fetchone.return_value={'byte_length':1};backend.head.return_value=ObjectMetadata(1,digest)
+    closed=[]
+    async def chunks(*args):
+        try:yield data
+        finally:closed.append(True)
+    backend.read=chunks
+    async with value.open(object=OBJECT,kind='wrap',digest=digest,guard=lambda:None) as (body,metadata):
+        assert body.read()==data
+    assert closed==[True]
+    def cancel():raise RuntimeError('cancelled')
+    with pytest.raises(RuntimeError):
+        async with value.open(object=OBJECT,kind='wrap',digest=digest,guard=cancel):pass
+    async def failed(*args):
+        raise ObjectUnavailable()
+        yield b''
+    backend.read=failed
+    with pytest.raises(ObjectUnavailable):
+        async with value.open(object=OBJECT,kind='wrap',digest=digest,guard=lambda:None):pass

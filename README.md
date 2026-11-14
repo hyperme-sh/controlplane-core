@@ -579,3 +579,13 @@ for the accepted deletion command's cleanup. Existing generic object and media
 record permissions do not grant this route. This is a trusted service boundary;
 the upstream protected source still authorizes owner operations.
 No client cutover, credential staging, schema application or data import occurs.
+
+
+The internal PostgreSQL media reader opens only an active allocated object's
+recorded kind/digest at its immutable provider location. It copies at most the
+declared bounded length into a temporary spool, verifies the complete digest,
+and closes the spool on every exit. Provider acquisition shares the tenant
+lock with retirement; retired objects and missing references refuse before
+provider reads. The caller still checks current reader authority before
+delivery. Previously acquired bytes cannot be recalled. This change does not
+add a public download route or switch consumers.
