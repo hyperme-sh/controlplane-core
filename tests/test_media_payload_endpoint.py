@@ -76,3 +76,22 @@ async def test_download_only_serves_verified_spool_and_closes_after_response():
         for error,status in [(AllocationRejected(),403),(RecordConflict(),409),(ObjectInputError(),400),(ObjectUnavailable(),503),(TimeoutError(),503)]:
             failure=error
             assert (await client.get(PATH)).status_code==status
+
+
+@pytest.mark.asyncio
+async def test_ciphertext_reference_lookup_returns_only_digest_and_length():
+    from api.domain.tenant_objects import ObjectMetadata
+    app=FastAPI();app.include_router(endpoint.router)
+    store=SimpleNamespace(ciphertext_reference=AsyncMock(return_value=ObjectMetadata(33,DIGEST)))
+    app.dependency_overrides[endpoint.media_objects_service]=lambda:store
+    path=f'/storage/media/payloads/{OBJECT}/ciphertext'
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='https://storage') as client:
+        response=await client.get(path)
+        assert response.status_code==200 and response.json()=={'sha256':DIGEST,'length':33}
+        assert response.headers['cache-control']=='private, no-store'
+        assert store.ciphertext_reference.call_args.kwargs['object']==OBJECT
+        store.ciphertext_reference.return_value=None
+        assert (await client.get(path)).status_code==404
+        for error,status in [(AllocationRejected(),403),(RecordConflict(),409),(ObjectInputError(),400),(ObjectUnavailable(),503),(TimeoutError(),503)]:
+            store.ciphertext_reference.side_effect=error
+            assert (await client.get(path)).status_code==status

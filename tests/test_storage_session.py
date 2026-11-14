@@ -184,3 +184,11 @@ def test_media_payload_scope_is_distinct_from_legacy_records_and_retirement(toke
     for scope in ('storage:media:read','storage:objects:read','storage:media:payload:write'):
         with pytest.raises(HTTPException):auth.storage_session(mint({'scope':scope}),'media.payload.read',now)
     assert auth.storage_session(mint({'scope':'storage:media:payload:read'}),'media.payload.read',now)==tenant
+
+
+def test_ciphertext_lookup_is_read_only_and_exact():
+    path='/api/v1/storage/media/payloads/media_p_'+'a'*128+'_'+'b'*32+'/ciphertext'
+    assert auth.request_operation('GET',path)=='media.payload.read'
+    for method in ('PUT','DELETE','POST','HEAD'):
+        assert auth.request_operation(method,path) is None
+    assert auth.request_operation('GET',path.replace('/ciphertext','/wrap')) is None

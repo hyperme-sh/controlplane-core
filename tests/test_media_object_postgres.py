@@ -211,3 +211,22 @@ async def test_read_wrap_cancel_and_provider_failure_close_context(service):
     backend.read=failed
     with pytest.raises(ObjectUnavailable):
         async with value.open(object=OBJECT,kind='wrap',digest=digest,guard=lambda:None):pass
+
+
+@pytest.mark.asyncio
+async def test_ciphertext_reference_requires_one_active_bound_entry(service):
+    value,cursor,backend,row=service;value._object=AsyncMock(return_value=row)
+    cursor.fetchall.return_value=[]
+    assert await value.ciphertext_reference(object=OBJECT,guard=lambda:None) is None
+    value._location.assert_not_awaited()
+    ref={'digest':DIGEST,'byte_length':33};cursor.fetchall.return_value=[ref]
+    assert await value.ciphertext_reference(object=OBJECT,guard=lambda:None)==ObjectMetadata(33,DIGEST)
+    value._location.assert_awaited_once()
+    backend.head.assert_not_awaited()
+    for refs in [[ref,ref],[{**ref,'byte_length':True}],[{**ref,'byte_length':32}]]:
+        cursor.fetchall.return_value=refs
+        with pytest.raises(ObjectUnavailable):await value.ciphertext_reference(object=OBJECT,guard=lambda:None)
+    cursor.fetchall.return_value=[ref];value._object.return_value={**row,'phase':1}
+    with pytest.raises(RecordConflict):await value.ciphertext_reference(object=OBJECT,guard=lambda:None)
+    value._object.return_value=row;value._location.side_effect=RecordConflict()
+    with pytest.raises(RecordConflict):await value.ciphertext_reference(object=OBJECT,guard=lambda:None)
