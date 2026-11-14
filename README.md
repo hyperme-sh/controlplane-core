@@ -601,3 +601,24 @@ or changed provider locations. An allocated object without an uploaded reference
 returns 404. The descriptor does not grant reader access or prove provider bytes;
 the payload GET performs full verification. This enables consumers to replace
 their legacy shared index without selecting a caller-supplied storage location.
+
+`POST /api/v1/storage/media/observe` is a read-only tenant metadata boundary for
+an independently provisioned `storage:media:observe` credential. Payload-read,
+write, allocation and retirement permissions do not grant it; the observer scope
+cannot invoke those operations. The bounded JSON request contains `object` and
+up to eight distinct `{kind,digest}` references. Under the existing tenant lock,
+it reads the object's issuer/owner, phase, permanent command, immutable provider
+location, current references and charged owner/tenant totals. It releases that
+lock before provider HEAD requests, then rechecks the registry snapshot and
+refuses concurrent changes. This is not an atomic provider/registry snapshot.
+It never repairs a location, changes references, releases
+quota, or retires a payload. Unbound or changed locations refuse provider access.
+
+Requested digests are tenant-scoped metadata queries, not proof of former object
+membership. A reconciliation consumer must retain the pre-cleanup reference set
+and provider location and match subsequent observations to that set. Missing,
+present and permanent-retired provider metadata are distinct outcomes. Shared
+references may legitimately retain a payload; an empty current reference list or
+an HTTP cleanup success alone does not prove terminal cleanup. Snapshots of quota
+can include unrelated activity and must not be treated as an isolated per-run
+refund counter. No observer credential is provisioned or activated by this change.

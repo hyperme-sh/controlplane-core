@@ -23,6 +23,7 @@ from api.interfaces.api_controllers.media_allocation_endpoint import router as a
 from api.infrastructure.security.media_allocation_settings import load_issuers
 from api.interfaces.api_controllers.media_retirement_endpoint import router as retirement
 from api.interfaces.api_controllers.media_payload_endpoint import router as payloads
+from api.interfaces.api_controllers.media_observation_endpoint import router as observations, observation_capacity
 
 
 @asynccontextmanager
@@ -92,4 +93,5 @@ async def health():
         raise HTTPException(503, 'Storage database unavailable') from None
     return {'status': 'ok'}
 
+app.include_router(observations, prefix='/api/v1', dependencies=[Depends(observation_capacity, scope='request'), Depends(request_database, scope='request')])
 app.include_router(payloads, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])

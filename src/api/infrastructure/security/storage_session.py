@@ -16,6 +16,7 @@ for audience in ("s3rch", "hypermesh", "portal"):
             SCOPES[f"experiments.{audience}.{kind}.{operation}"] = f"storage:experiments:{audience}:{kind}:{operation}"
 SCOPES["media.payload.write"] = "storage:media:payload:write"
 SCOPES["media.payload.read"] = "storage:media:payload:read"
+SCOPES["media.observe"] = "storage:media:observe"
 SCOPES["media.retire"] = "storage:media:retire"
 SCOPES["allocations.issue"] = "storage:allocations:issue"
 SCOPES["replays.consume"] = "storage:replays:consume"
@@ -26,6 +27,8 @@ def request_operation(method: str, path: str) -> str | None:
         return "media.payload.read" if method=="GET" else "media.payload.write"
     if method=="GET" and re.fullmatch(r"/api/v1/storage/media/payloads/media_p_[0-9a-f]{128}_[0-9a-f]{32}/ciphertext",path):
         return "media.payload.read"
+    if method == "POST" and path == "/api/v1/storage/media/observe":
+        return "media.observe"
     if path.startswith("/api/v1/storage/media/"):
         return "media.retire" if method == "POST" and path == "/api/v1/storage/media/retire" else None
     if path.startswith("/api/v1/storage/allocations/"):

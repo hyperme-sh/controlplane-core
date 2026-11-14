@@ -110,7 +110,7 @@ async def test_startup_only_installs_session_and_disposes_engine(monkeypatch):
 
 def test_only_storage_and_health_routes_are_exposed():
     paths=set(runtime.app.openapi()['paths'])
-    assert paths=={'/api/v1/storage/media/payloads/{object}/ciphertext','/api/v1/storage/media/payloads/{object}/{kind}/{digest}','/api/v1/storage/media/retire','/api/v1/storage/allocations/issue','/api/v1/storage/replays/{namespace}/{nonce}','/health','/api/v1/storage/objects/{object_id}','/api/v1/storage/records/{namespace}/{name}','/api/v1/storage/records/{namespace}/{name}/access','/api/v1/storage/tenant','/api/v1/storage/tenant/configure','/api/v1/storage/tenant/{storage_id}/reset','/api/v1/storage/tenant/experiments/{audience}'}
+    assert paths=={'/api/v1/storage/media/observe','/api/v1/storage/media/payloads/{object}/ciphertext','/api/v1/storage/media/payloads/{object}/{kind}/{digest}','/api/v1/storage/media/retire','/api/v1/storage/allocations/issue','/api/v1/storage/replays/{namespace}/{nonce}','/health','/api/v1/storage/objects/{object_id}','/api/v1/storage/records/{namespace}/{name}','/api/v1/storage/records/{namespace}/{name}/access','/api/v1/storage/tenant','/api/v1/storage/tenant/configure','/api/v1/storage/tenant/{storage_id}/reset','/api/v1/storage/tenant/experiments/{audience}'}
 
 
 @pytest.mark.asyncio
@@ -133,3 +133,37 @@ async def test_admin_commits_before_success_and_maps_missing_storage(db,failure,
         if failure=='missing': assert response.json()=={'detail':'Storage not found'}
     finally:
         runtime.app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_observer_capacity_refuses_before_database_and_releases(db, monkeypatch):
+    import anyio
+    import httpx
+    from api.interfaces.api_controllers import media_observation_endpoint as endpoint
+    limiter = anyio.CapacityLimiter(2)
+    monkeypatch.setattr(endpoint, 'capacity', limiter)
+    media = Mock()
+    runtime.app.dependency_overrides[endpoint.media_objects_service] = lambda: media
+    observer = AsyncMock(return_value={'phase': 2})
+    monkeypatch.setattr(endpoint, 'observe_media', observer)
+    first, second = object(), object()
+    limiter.acquire_on_behalf_of_nowait(first)
+    limiter.acquire_on_behalf_of_nowait(second)
+    body = {'object': 'media_p_' + 'a'*128 + '_' + 'b'*32, 'references': []}
+    try:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=runtime.app), base_url='http://unit') as client:
+            response = await client.post('/api/v1/storage/media/observe', json=body, headers={'authorization':'Bearer unit'})
+            assert response.status_code == 503
+            db.maker.assert_not_called()
+            observer.assert_not_awaited()
+            limiter.release_on_behalf_of(first)
+            response = await client.post('/api/v1/storage/media/observe', json=body, headers={'authorization':'Bearer unit'})
+            assert response.status_code == 200
+            assert limiter.borrowed_tokens == 1
+            db.maker.assert_called_once()
+            response = await client.post('/api/v1/storage/media/observe', json={})
+            assert response.status_code == 401
+            assert limiter.borrowed_tokens == 1
+    finally:
+        runtime.app.dependency_overrides.pop(endpoint.media_objects_service, None)
+        limiter.release_on_behalf_of(second)
