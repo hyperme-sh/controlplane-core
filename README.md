@@ -567,3 +567,15 @@ configuration opens no connections and creates no state. Each registry connectio
 checks that its role cannot bypass tenant isolation or own the three required
 media tables. Missing schemas, tenants or grants refuse operation; installation
 and reconciliation of an existing allocation index must precede selection.
+
+The private payload upload route is
+`PUT /api/v1/storage/media/payloads/{object}/{ciphertext|wrap}/{sha256}`.
+It requires the separate `storage:media:payload:write` service permission,
+`X-Media-Owner`, a bounded Content-Length, and opaque uncompressed bytes.
+The durable PostgreSQL allocation must already belong to that owner and be
+active. The registry binds the provider location and charges the immutable
+reference before provider access; failed uploads remain charged and eligible
+for the accepted deletion command's cleanup. Existing generic object and media
+record permissions do not grant this route. This is a trusted service boundary;
+the upstream protected source still authorizes owner operations.
+No client cutover, credential staging, schema application or data import occurs.

@@ -23,7 +23,7 @@ capacity=anyio.CapacityLimiter(4)
 PRIVATE={'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}
 
 
-def retirement_service(request:Request,objects=Depends(object_store,scope='request')):
+def media_objects_service(request:Request,objects=Depends(object_store,scope='request')):
     settings=getattr(request.app.state,'media_allocation_issuers',{}).get(str(objects.tenant))
     if settings is None or settings.registry is None:
         raise HTTPException(503,'Media retirement unavailable',headers=PRIVATE)
@@ -34,8 +34,14 @@ def retirement_service(request:Request,objects=Depends(object_store,scope='reque
             access_key=existing.credentials.access_key,secret_key=existing.credentials.secret_key)
     else:raise HTTPException(503,'Media retirement unavailable',headers=PRIVATE)
     store=settings.registry.store(require_locations=True)
-    authority=PostgresMediaRetirement(store,source=settings.source,request_keys=settings.request_keys,clock=lambda:int(time.time()))
-    return MediaRetirement(authority,PostgresMediaObjects(store,backend))
+    return PostgresMediaObjects(store,backend)
+
+
+def retirement_service(request:Request,objects=Depends(object_store,scope='request')):
+    media=media_objects_service(request,objects)
+    settings=request.app.state.media_allocation_issuers[str(objects.tenant)]
+    authority=PostgresMediaRetirement(media.store,source=settings.source,request_keys=settings.request_keys,clock=lambda:int(time.time()))
+    return MediaRetirement(authority,media)
 
 
 @router.post('/retire')
