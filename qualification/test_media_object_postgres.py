@@ -107,3 +107,29 @@ async def test_owner_capacity_reclaimed_only_after_confirmed_cleanup(registry):
     with pytest.raises(RecordConflict):await upload(service,values[0])
     with pytest.raises(RecordConflict):await upload(service,values[1],b'y'*33)
     assert await upload(service,values[1],b'wrap',kind='wrap')
+
+
+@pytest.mark.asyncio
+async def test_coordinator_retries_accepted_command_after_uncertain_cleanup(registry):
+    from api.domain.media_retirement import MediaRetirement
+    store,candidate,connect,schema=registry;backend=Backend();objects=PostgresMediaObjects(store,backend)
+    await store.reserve(candidate,now=1100,before_write=lambda:None)
+    await upload(objects,candidate)
+    key=Ed25519PrivateKey.from_private_bytes(b'\x08'*32)
+    signer=RetirementRequestSigner(issuer=store.issuer,tenant=store.tenant,source=candidate.scope.source,key_id='source',signing_key=key)
+    authority=PostgresMediaRetirement(store,source=candidate.scope.source,request_keys={'source':key.public_key()},clock=lambda:1100)
+    service=MediaRetirement(authority,objects)
+    args=dict(object=candidate.scope.object,owner=candidate.scope.owner,command='e'*64)
+    request=signer.sign(**args,now=1100)
+    backend.fail_retire=True
+    with pytest.raises(ObjectUnavailable):await service.retire(request,**args,cancel=lambda:None)
+    async with connect() as connection:
+        await connection.execute("SELECT set_config('app.current_tenant_id',%s,false)",(store.tenant,))
+        assert (await (await connection.execute(sql.SQL('SELECT phase FROM {}.storage_media_objects WHERE object_id=%s').format(sql.Identifier(schema)),(candidate.scope.object,))).fetchone())==(1,)
+    backend.fail_retire=False
+    result=await service.retire(request,**args,cancel=lambda:None)
+    assert result=={'accepted':True,'command':'e'*64,'cleanup':'complete'}
+    calls=len(backend.retirements)
+    assert await service.retire(request,**args,cancel=lambda:None)==result
+    assert len(backend.retirements)==calls
+    with pytest.raises(RecordConflict):await upload(objects,candidate)
