@@ -189,6 +189,19 @@ async def test_read_wrap_cancel_and_provider_failure_close_context(service):
     async with value.open(object=OBJECT,kind='wrap',digest=digest,guard=lambda:None) as (body,metadata):
         assert body.read()==data
     assert closed==[True]
+    calls=0
+    def mid_read():
+        nonlocal calls
+        calls+=1
+        if calls==3:raise RuntimeError('cancelled during provider read')
+    with pytest.raises(RuntimeError):
+        async with value.open(object=OBJECT,kind='wrap',digest=digest,guard=mid_read):pass
+    assert closed==[True,True]
+    with pytest.raises(RuntimeError):
+        async with value.open(object=OBJECT,kind='wrap',digest=digest,guard=lambda:None) as (body,_):
+            held=body
+            raise RuntimeError('caller stopped delivery')
+    assert held.closed
     def cancel():raise RuntimeError('cancelled')
     with pytest.raises(RuntimeError):
         async with value.open(object=OBJECT,kind='wrap',digest=digest,guard=cancel):pass
