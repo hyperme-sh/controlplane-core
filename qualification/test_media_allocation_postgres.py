@@ -103,3 +103,31 @@ async def test_competing_sources_and_final_quota_slot_are_serialized(registry):
             await store.reserve(loser, now=1100, before_write=lambda: None)
         await connection.execute(sql.SQL('UPDATE {}.storage_media_objects SET phase=2 WHERE object_id=%s').format(sql.Identifier(schema)), (candidate.scope.object,))
     assert await store.reserve(loser, now=1100, before_write=lambda: None) == loser
+
+
+@pytest.mark.asyncio
+async def test_signed_retirement_matches_original_source_and_never_releases_early(registry):
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from api.domain.media_retirement_request import RetirementRequestSigner
+    from api.infrastructure.persistence.media_retirement_postgres import PostgresMediaRetirement
+    store,candidate,connect,schema=registry
+    await store.reserve(candidate,now=1100,before_write=lambda:None)
+    key=Ed25519PrivateKey.from_private_bytes(b'\x08'*32)
+    signer=RetirementRequestSigner(issuer=store.issuer,tenant=store.tenant,source=candidate.scope.source,key_id='source',signing_key=key)
+    current=[1100]
+    service=PostgresMediaRetirement(store,source=candidate.scope.source,request_keys={'source':key.public_key()},clock=lambda:current[0])
+    args=dict(object=candidate.scope.object,owner=candidate.scope.owner,command='e'*64)
+    raw=signer.sign(**args,now=1100)
+    assert await service.begin(raw,**args,cancel=lambda:None)==1
+    assert await service.begin(raw,**args,cancel=lambda:None)==1
+    current[0]=1200
+    with pytest.raises(AllocationRejected):await service.begin(raw,**args,cancel=lambda:None)
+    retry=signer.sign(**args,now=1200)
+    assert await service.begin(retry,**args,cancel=lambda:None)==1
+    different={**args,'command':'f'*64}
+    with pytest.raises(RecordConflict):await service.begin(signer.sign(**different,now=1200),**different,cancel=lambda:None)
+    with pytest.raises(RecordConflict):await store.reserve(candidate,now=1200,before_write=lambda:None)
+    async with connect() as connection:
+        await connection.execute("SELECT set_config('app.current_tenant_id',%s,false)",(store.tenant,))
+        row=await (await connection.execute(sql.SQL('SELECT phase,deletion_command FROM {}.storage_media_objects').format(sql.Identifier(schema)))).fetchone()
+        assert row==(1,args['command'])
