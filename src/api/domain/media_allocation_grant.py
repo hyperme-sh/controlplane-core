@@ -98,13 +98,13 @@ def _unique(pairs):
     return result
 
 
-def canonical_message(key_id: str, claims: dict) -> bytes:
+def canonical_message(key_id: str, claims: dict, *, domain: bytes = DOMAIN) -> bytes:
     """Domain separation also binds key selection. Inputs still need validation."""
-    return DOMAIN + json.dumps({"keyId": key_id, "claims": claims}, sort_keys=True,
+    return domain + json.dumps({"keyId": key_id, "claims": claims}, sort_keys=True,
                               separators=(",", ":"), ensure_ascii=True, allow_nan=False).encode("ascii")
 
 
-def verify_allocation_grant(raw: bytes, *, expected: AllocationScope,
+def _verify_allocation(raw: bytes, *, domain: bytes, expected: AllocationScope,
                             keys: Mapping[str, Ed25519PublicKey], now: int) -> VerifiedAllocation:
     """No key discovery, identity enrollment, policy import or replay-state reset.
 
@@ -138,7 +138,29 @@ def verify_allocation_grant(raw: bytes, *, expected: AllocationScope,
         raise AllocationRejected("Allocation expired or not current")
     signature = _b64(envelope["signature"], 64)
     try:
-        key.verify(signature, canonical_message(key_id, claims))
+        key.verify(signature, canonical_message(key_id, claims, domain=domain))
     except InvalidSignature as exc:
         raise AllocationRejected("Invalid allocation signature") from exc
     return VerifiedAllocation(expected, allocation, issued, expires)
+
+
+def verify_allocation_grant(raw: bytes, *, expected: AllocationScope,
+                            keys: Mapping[str, Ed25519PublicKey], now: int) -> VerifiedAllocation:
+    return _verify_allocation(raw, domain=DOMAIN, expected=expected, keys=keys, now=now)
+
+
+REQUEST_DOMAIN = b"spanopticon-media-allocation-request-v1\x00"
+
+
+def verify_allocation_request(raw: bytes, *, expected: AllocationScope,
+                              keys: Mapping[str, Ed25519PublicKey], now: int) -> VerifiedAllocation:
+    """A configured protected source attests its current ownership/policy check.
+
+    The source must verify current SEA ownership before signing. Its request key
+    is distinct from the storage issuer key. A request is never a storage grant.
+    The allocation field is a request nonce; storage chooses the durable ID.
+    """
+    request = _verify_allocation(raw, domain=REQUEST_DOMAIN, expected=expected, keys=keys, now=now)
+    if request.expires_at - request.issued_at > 30:
+        raise AllocationRejected("Allocation request exceeds validity limit")
+    return request
