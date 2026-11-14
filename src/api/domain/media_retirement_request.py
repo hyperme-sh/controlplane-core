@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
-from api.domain.media_allocation_grant import AllocationRejected, _b64, _integer, _unique, _uuid, canonical_message
+from .media_allocation_grant import AllocationRejected, _b64, _integer, _unique, _uuid, canonical_message
 
 DOMAIN = b'spanopticon-media-retirement-v1\x00'
 MAX_BYTES = 4096
