@@ -558,3 +558,12 @@ Ciphertext retains the product limits of eight objects and 64 MiB per owner,
 and 64 KiB each. Quota remains charged for failed uploads and pending cleanup.
 This coordinator is not selected by runtime configuration and exposes no route.
 It does not import existing Blob indexes or activate credentials.
+
+Private allocation configuration version 2 adds `registryFile` to every issuer
+binding. That owner-readable JSON has `version: 1`, the matching `tenant` and
+`issuer`, `schema`, and an explicit `postgresql+psycopg` `databaseUrl`. It selects
+the PostgreSQL media registry; version 1 retains its existing behavior. Loading
+configuration opens no connections and creates no state. Each registry connection
+checks that its role cannot bypass tenant isolation or own the three required
+media tables. Missing schemas, tenants or grants refuse operation; installation
+and reconciliation of an existing allocation index must precede selection.
