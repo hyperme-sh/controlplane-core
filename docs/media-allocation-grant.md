@@ -111,3 +111,28 @@ rechecks current ownership inside its atomic transaction.
 This domain service does not install a transport endpoint or choose deployed
 keys. The authenticated source request adapter, issuer configuration and consumer
 transport wiring must be installed before activation; there is no default issuer.
+
+## Disabled-by-default Storage transport
+
+The narrow Storage process exposes `POST /api/v1/storage/allocations/issue` only
+with a gateway API-key token carrying `storage:allocations:issue` and a matching
+configured tenant. The bounded JSON body contains `object`, `owner`,
+`ownershipDigest`, and `request` (canonical standard base64 of the signed source
+request). The response is the signed grant JSON with private no-store headers.
+The gateway token does not replace the protected-source signature. Generic
+object, cache and media-record scopes cannot invoke this operation.
+
+`STORAGE_MEDIA_ALLOCATION_FILE` names an owner-readable private JSON file (0400
+or 0600, no symlink). Version 1 contains at most eight `bindings`, each with exact
+fields `tenant`, `issuer`, `source`, `policyDigest`, `policyUntil`, `keyId`,
+`signingKey`, and `requestKeys`. The signing key is a canonical unpadded base64url
+32-byte Ed25519 seed; requestKeys maps configured source key IDs to similarly
+encoded 32-byte public keys. These are operator declarations, not request data.
+Missing configuration disables issuance; invalid configuration fails startup.
+No credentials or keys are created by loading configuration, and no registry is
+bootstrapped on an HTTP request. A missing private registry refuses issuance.
+
+Provider conflicts return 409 for reconciliation; cancellation or uncertain
+provider failures do not cause an implicit retry or quota refund. Deployment
+still needs explicit issuer/source keys, narrow caller scope, trusted policy and
+controlled registry initialization. This change does not stage any of them.

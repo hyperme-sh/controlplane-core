@@ -14,10 +14,13 @@ for audience in ("s3rch", "hypermesh", "portal"):
     for kind in ("cache", "outbox"):
         for operation in (("read",) if kind == "cache" else ("read", "write")):
             SCOPES[f"experiments.{audience}.{kind}.{operation}"] = f"storage:experiments:{audience}:{kind}:{operation}"
+SCOPES["allocations.issue"] = "storage:allocations:issue"
 SCOPES["replays.consume"] = "storage:replays:consume"
 
 
 def request_operation(method: str, path: str) -> str | None:
+    if path.startswith("/api/v1/storage/allocations/"):
+        return "allocations.issue" if method == "POST" and path == "/api/v1/storage/allocations/issue" else None
     if path.startswith("/api/v1/storage/replays/"):
         return "replays.consume" if method == "POST" else None
     operation = {"GET": "read", "HEAD": "read", "PUT": "write", "DELETE": "delete"}.get(method)
