@@ -1,6 +1,6 @@
 """Allocation proof unit contracts; fixtures confer no deployed authority."""
 import base64
-from dataclasses import replace
+from dataclasses import FrozenInstanceError, replace
 import json
 from uuid import UUID
 
@@ -47,7 +47,7 @@ def test_exact_bound_proof_and_validity_boundaries(grant):
     assert proof.scope == scope and proof.allocation == claims["allocation"]
     assert (proof.issued_at, proof.expires_at) == (1000, 1300)
     assert verify(now=1000) == proof and verify(now=1299) == proof
-    with pytest.raises(Exception):
+    with pytest.raises(FrozenInstanceError):
         proof.allocation = str(UUID(int=5))
     message = canonical_message("fixture", claims)
     assert message == b"spanopticon-media-allocation-v1\x00" + json.dumps(
