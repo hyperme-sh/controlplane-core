@@ -170,7 +170,7 @@ def test_media_payload_scope_is_distinct_from_legacy_records_and_retirement(toke
     path='/api/v1/storage/media/payloads/media_p_'+'a'*128+'_'+'b'*32+'/ciphertext/'+'c'*64
     assert auth.request_operation('PUT',path)=='media.payload.write'
     assert auth.SCOPES['media.payload.write']=='storage:media:payload:write'
-    for method in ('GET','HEAD','DELETE','POST'):
+    for method in ('HEAD','DELETE','POST'):
         assert auth.request_operation(method,path) is None
     assert auth.request_operation('PUT',path+'/extra') is None
     assert auth.request_operation('PUT',path.replace('/ciphertext/','/wrap/'))=='media.payload.write'
@@ -179,3 +179,8 @@ def test_media_payload_scope_is_distinct_from_legacy_records_and_retirement(toke
     for scope in ('storage:media:write','storage:objects:write','storage:media:retire'):
         with pytest.raises(HTTPException):auth.storage_session(mint({'scope':scope}),'media.payload.write',now)
     assert auth.storage_session(mint({'scope':'storage:media:payload:write'}),'media.payload.write',now)==tenant
+
+    assert auth.request_operation('GET',path)=='media.payload.read'
+    for scope in ('storage:media:read','storage:objects:read','storage:media:payload:write'):
+        with pytest.raises(HTTPException):auth.storage_session(mint({'scope':scope}),'media.payload.read',now)
+    assert auth.storage_session(mint({'scope':'storage:media:payload:read'}),'media.payload.read',now)==tenant

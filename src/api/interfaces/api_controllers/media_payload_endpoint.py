@@ -2,6 +2,7 @@
 import re
 import anyio
 from fastapi import APIRouter,Depends,HTTPException,Request,Response
+from fastapi.responses import StreamingResponse
 from api.domain.media_allocation_grant import AllocationRejected
 from api.domain.tenant_objects import ObjectInputError,ObjectUnavailable
 from api.domain.tenant_records import RecordConflict
@@ -43,3 +44,32 @@ async def upload(object:str,kind:str,digest:str,request:Request,store=Depends(me
         raise HTTPException(400,'Invalid media bytes or checksum',headers=PRIVATE) from None
     except (TimeoutError,ObjectUnavailable):
         raise HTTPException(503,'Media upload unconfirmed',headers=PRIVATE) from None
+
+async def payload_reader(object:str,kind:str,digest:str,request:Request,store=Depends(media_objects_service)):
+    try:
+        with anyio.fail_after(120):
+            async with capacity:
+                async with store.open(object=object,kind=kind,digest=digest,guard=lambda:None) as held:
+                    if await request.is_disconnected():
+                        raise HTTPException(408,'Media download cancelled',headers=PRIVATE)
+                    yield held
+    except AllocationRejected:
+        raise HTTPException(403,'Media reference refused',headers=PRIVATE) from None
+    except RecordConflict:
+        raise HTTPException(409,'Media allocation conflict',headers=PRIVATE) from None
+    except ObjectInputError:
+        raise HTTPException(400,'Invalid media reference',headers=PRIVATE) from None
+    except (TimeoutError,ObjectUnavailable):
+        raise HTTPException(503,'Media download unavailable',headers=PRIVATE) from None
+
+
+@router.get('/{object}/{kind}/{digest}')
+async def download(digest:str,held=Depends(payload_reader,scope='request')):
+    body,metadata=held
+    async def chunks():
+        while True:
+            chunk=await anyio.to_thread.run_sync(body.read,65536)
+            if not chunk:break
+            yield chunk
+    return StreamingResponse(chunks(),media_type='application/octet-stream',headers={
+        **PRIVATE,'Content-Length':str(metadata.size),'ETag':f'"{digest}"','Content-Disposition':'attachment'})

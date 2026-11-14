@@ -587,5 +587,8 @@ declared bounded length into a temporary spool, verifies the complete digest,
 and closes the spool on every exit. Provider acquisition shares the tenant
 lock with retirement; retired objects and missing references refuse before
 provider reads. The caller still checks current reader authority before
-delivery. Previously acquired bytes cannot be recalled. This change does not
-add a public download route or switch consumers.
+delivery. Previously acquired bytes cannot be recalled. The matching private GET route requires
+`storage:media:payload:read`; legacy object/media-record scopes and the payload
+write scope do not grant it. The request-scoped spool remains open only while the
+response streams under the shared four-request and 120-second bound. This does
+not switch consumers or activate credentials.

@@ -47,3 +47,32 @@ async def test_upload_exact_reference_bounds_and_safe_failure_mapping():
             assert result.status_code==status and result.headers['cache-control']=='private, no-store'
         store.put.side_effect=None;store.put.return_value=True
         assert (await client.put(PATH.replace('/ciphertext/','/wrap/'),content=b'x',headers=HEADERS)).status_code==201
+
+
+@pytest.mark.asyncio
+async def test_download_only_serves_verified_spool_and_closes_after_response():
+    from contextlib import asynccontextmanager
+    from io import BytesIO
+    from api.domain.tenant_objects import ObjectMetadata
+    held=[];failure=None
+    @asynccontextmanager
+    async def open(**args):
+        assert args['object']==OBJECT and args['kind']=='ciphertext' and args['digest']==DIGEST
+        args['guard']()
+        if failure:raise failure
+        with BytesIO(b'x'*33) as body:
+            held.append(body)
+            yield body,ObjectMetadata(33,DIGEST)
+    store=SimpleNamespace(open=open)
+    app=FastAPI();app.include_router(endpoint.router)
+    app.dependency_overrides[endpoint.media_objects_service]=lambda:store
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='https://storage') as client:
+        response=await client.get(PATH)
+        assert response.status_code==200 and response.content==b'x'*33
+        assert response.headers['etag']==f'"{DIGEST}"'
+        assert response.headers['cache-control']=='private, no-store'
+        assert response.headers['content-length']=='33' and held[0].closed
+        assert response.headers['content-disposition']=='attachment'
+        for error,status in [(AllocationRejected(),403),(RecordConflict(),409),(ObjectInputError(),400),(ObjectUnavailable(),503),(TimeoutError(),503)]:
+            failure=error
+            assert (await client.get(PATH)).status_code==status
