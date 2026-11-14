@@ -16,13 +16,14 @@ from test_media_allocation_postgres import registry
 
 
 class Backend:
-    def __init__(self):self.objects={};self.retirements=[];self.fail_put=False;self.fail_retire=False
+    def __init__(self):self.objects={};self.bytes={};self.retirements=[];self.fail_put=False;self.fail_retire=False
     async def put(self,key,body,metadata):
         if key in self.objects:return False
-        self.objects[key]=metadata
+        self.objects[key]=metadata;self.bytes[key]=body.read()
         if self.fail_put:raise ObjectUnavailable('uncertain write')
         return True
     async def head(self,key):return self.objects.get(key)
+    async def read(self,key,start,length):yield self.bytes[key][start:start+length]
     async def retire(self,key):
         self.retirements.append(key)
         self.objects[key]=RETIRED
@@ -150,3 +151,24 @@ async def test_changed_provider_cannot_confirm_cleanup_or_release_refs(registry)
         await connection.execute("SELECT set_config('app.current_tenant_id',%s,false)",(store.tenant,))
         assert (await (await connection.execute(sql.SQL('SELECT count(*) FROM {}.storage_media_refs').format(sql.Identifier(schema)))).fetchone())==(1,)
     assert await first.cleanup(object=candidate.scope.object,command='e'*64,guard=lambda:None)
+
+@pytest.mark.asyncio
+async def test_durable_read_requires_exact_live_reference_and_provider_location(registry):
+    store,candidate,connect,schema=registry;backend=Backend()
+    service=PostgresMediaObjects(store,backend,location='a'*64)
+    await store.reserve(candidate,now=1100,before_write=lambda:None)
+    await upload(service,candidate)
+    args=dict(object=candidate.scope.object,kind='ciphertext',digest=hashlib.sha256(b'x'*33).hexdigest(),guard=lambda:None)
+    async with service.open(**args) as (body,metadata):
+        assert body.read()==b'x'*33 and metadata.size==33
+    wrong=PostgresMediaObjects(store,backend,location='b'*64)
+    with pytest.raises(RecordConflict):
+        async with wrong.open(**args):pass
+    with pytest.raises(AllocationRejected):
+        async with service.open(**{**args,'digest':'e'*64}):pass
+    await begin(store,candidate)
+    with pytest.raises(RecordConflict):
+        async with service.open(**args):pass
+    await service.cleanup(object=candidate.scope.object,command='e'*64,guard=lambda:None)
+    with pytest.raises(RecordConflict):
+        async with service.open(**args):pass

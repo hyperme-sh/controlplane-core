@@ -1,4 +1,5 @@
 """Durable media references and serialized provider retirement; no HTTP activation."""
+from contextlib import asynccontextmanager,aclosing
 import hashlib
 import re
 from tempfile import SpooledTemporaryFile
@@ -109,6 +110,44 @@ class PostgresMediaObjects:
                     raise ObjectUnavailable('Media provider object unavailable')
                 guard()
             return created
+
+    @asynccontextmanager
+    async def open(self,*,object,kind,digest,guard):
+        """Verify allocated bytes before exposing a bounded temporary copy.
+
+        The tenant lock serializes provider reads with retirement. Bytes already
+        acquired by an authorized service cannot be recalled after completion.
+        The caller must still enforce current reader authority before delivery.
+        """
+        key=media_key(UUID(self.store.tenant),kind,digest)
+        guard()
+        with SpooledTemporaryFile(max_size=1024*1024,mode='w+b') as body:
+            async with self.store._locked() as cursor:
+                row=await self._object(cursor,object)
+                if row['phase']!=0:raise RecordConflict('Media object retired')
+                await self._location(cursor,object)
+                await cursor.execute(sql.SQL('SELECT byte_length FROM {} WHERE tenant_id=%s AND object_id=%s AND kind=%s AND digest=%s').format(self.refs),
+                    (self.store.tenant,object,kind,digest))
+                ref=await cursor.fetchone()
+                if ref is None:raise AllocationRejected('Media reference unavailable')
+                size=ref['byte_length']
+                if type(size) is not int or not (33 if kind=='ciphertext' else 1)<=size<=(64*1024*1024 if kind=='ciphertext' else 65536):
+                    raise ObjectUnavailable('Invalid media reference length')
+                metadata=ObjectMetadata(size,digest)
+                if await self.backend.head(key)!=metadata:
+                    raise ObjectUnavailable('Media provider object unavailable')
+                guard();hashed,seen=hashlib.sha256(),0
+                async with aclosing(self.backend.read(key,0,size)) as chunks:
+                    async for chunk in chunks:
+                        guard()
+                        if type(chunk) is not bytes or seen+len(chunk)>size:
+                            raise ObjectUnavailable('Invalid media provider bytes')
+                        seen+=len(chunk);hashed.update(chunk);body.write(chunk)
+                if seen!=size or hashed.hexdigest()!=digest:
+                    raise ObjectUnavailable('Media provider checksum mismatch')
+                guard()
+            guard();body.seek(0)
+            yield body,metadata
 
     async def cleanup(self,*,object,command,guard):
         if type(command) is not str or not re.fullmatch('[0-9a-f]{64}',command):
