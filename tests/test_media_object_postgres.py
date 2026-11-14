@@ -23,7 +23,7 @@ def service():
     @asynccontextmanager
     async def locked():yield cursor
     store=SimpleNamespace(tenant=TENANT,issuer=ISSUER,schema='storage_owner',_locked=locked,_table=lambda:sql.Identifier('storage_owner','storage_media_objects'))
-    backend=Mock(put=AsyncMock(return_value=True),head=AsyncMock(),retire=AsyncMock())
+    backend=Mock(put=AsyncMock(return_value=True),head=AsyncMock(return_value=None),retire=AsyncMock())
     value=PostgresMediaObjects(store,backend)
     row={'issuer_id':ISSUER,'owner_principal':OWNER,'phase':0,'deletion_command':None}
     return value,cursor,backend,row
@@ -68,6 +68,10 @@ async def test_reference_retry_immutability_and_quota_bounds(service):
     assert 'INSERT INTO' in cursor.execute.call_args.args[0].as_string()
     cursor.fetchall.side_effect=[[]]
     await reserve('wrap')
+    cursor.fetchall.side_effect=[[]];backend.head.return_value=RETIRED
+    cursor.execute.reset_mock()
+    with pytest.raises(ObjectUnavailable):await reserve()
+    assert not any('INSERT' in str(call.args[0]) for call in cursor.execute.call_args_list)
 
 
 @pytest.mark.asyncio

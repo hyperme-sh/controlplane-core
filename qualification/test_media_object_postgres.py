@@ -68,6 +68,13 @@ async def test_shared_payload_and_failed_cleanup_keep_other_object_and_quota(reg
     assert set(backend.objects.values())=={RETIRED}
     assert not await service.cleanup(object=other.scope.object,command='f'*64,guard=lambda:None)
     with pytest.raises(RecordConflict):await store.reserve(other,now=1100,before_write=lambda:None)
+    fresh=replace(candidate,scope=replace(candidate.scope,object=candidate.scope.object[:-32]+'c'*32),allocation=str(uuid4()))
+    await store.reserve(fresh,now=1100,before_write=lambda:None)
+    with pytest.raises(ObjectUnavailable):await upload(service,fresh)
+    async with connect() as connection:
+        await connection.execute("SELECT set_config('app.current_tenant_id',%s,false)",(store.tenant,))
+        assert (await (await connection.execute(sql.SQL('SELECT count(*) FROM {}.storage_media_refs').format(sql.Identifier(schema)))).fetchone())==(0,)
+    assert await upload(service,fresh,b'fresh encrypted bytes'.ljust(33,b'x'))
 
 
 @pytest.mark.asyncio

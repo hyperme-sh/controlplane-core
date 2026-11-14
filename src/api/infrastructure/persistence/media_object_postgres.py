@@ -48,6 +48,11 @@ class PostgresMediaObjects:
                 if ref['kind']==kind and ref['digest']==digest:
                     if ref['byte_length']!=size:raise RecordConflict('Media reference length differs')
                     guard();return
+            # Cleanup uses this same tenant lock. Refuse an existing permanent
+            # marker before charging a fresh reference, so callers can re-encrypt.
+            found=await self.backend.head(media_key(UUID(self.store.tenant),kind,digest))
+            if found is not None and found!=ObjectMetadata(size,digest):
+                raise ObjectUnavailable('Media payload unavailable; use fresh encrypted bytes')
             if kind=='ciphertext':
                 if any(ref['kind']=='ciphertext' for ref in held):raise RecordConflict('Media ciphertext is immutable')
                 await cursor.execute(sql.SQL("SELECT o.owner_principal,r.byte_length FROM {} r JOIN {} o USING(tenant_id,object_id) WHERE r.tenant_id=%s AND r.kind='ciphertext'").format(self.refs,self.store._table()),(self.store.tenant,))
