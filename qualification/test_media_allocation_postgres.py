@@ -131,3 +131,13 @@ async def test_signed_retirement_matches_original_source_and_never_releases_earl
         await connection.execute("SELECT set_config('app.current_tenant_id',%s,false)",(store.tenant,))
         row=await (await connection.execute(sql.SQL('SELECT phase,deletion_command FROM {}.storage_media_objects').format(sql.Identifier(schema)))).fetchone()
         assert row==(1,args['command'])
+
+
+@pytest.mark.asyncio
+async def test_configured_registry_uses_restricted_postgres_without_bootstrap(registry):
+    from api.infrastructure.security.media_registry_settings import RegistrySettings
+    store,candidate,connect,schema=registry
+    settings=RegistrySettings('postgresql+psycopg://runtime@unused/database',schema,store.tenant,store.issuer)
+    configured=settings.store(connect)
+    assert await configured.reserve(candidate,now=1100,before_write=lambda:None)==candidate
+    assert await configured.reserve(candidate,now=1101,before_write=lambda:None)==candidate
