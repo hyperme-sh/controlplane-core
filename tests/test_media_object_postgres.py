@@ -24,7 +24,8 @@ def service():
     async def locked():yield cursor
     store=SimpleNamespace(tenant=TENANT,issuer=ISSUER,schema='storage_owner',_locked=locked,_table=lambda:sql.Identifier('storage_owner','storage_media_objects'))
     backend=Mock(put=AsyncMock(return_value=True),head=AsyncMock(return_value=None),retire=AsyncMock())
-    value=PostgresMediaObjects(store,backend)
+    value=PostgresMediaObjects(store,backend,location="a"*64)
+    value._location=AsyncMock()
     row={'issuer_id':ISSUER,'owner_principal':OWNER,'phase':0,'deletion_command':None}
     return value,cursor,backend,row
 
@@ -121,3 +122,21 @@ async def test_cleanup_command_and_shared_reference_boundaries(service):
     cursor.fetchone.side_effect=[None];cursor.execute.reset_mock();backend.retire.side_effect=ObjectUnavailable()
     with pytest.raises(ObjectUnavailable):await clean()
     assert not any('DELETE' in str(call.args[0]) for call in cursor.execute.call_args_list)
+
+
+@pytest.mark.asyncio
+async def test_provider_location_is_bound_before_refs_and_never_guessed(service):
+    value,cursor,backend,row=service
+    check=PostgresMediaObjects._location.__get__(value)
+    cursor.fetchone.side_effect=[{'provider_location':'a'*64}]
+    await check(cursor,OBJECT)
+    cursor.fetchone.side_effect=[{'provider_location':'b'*64}]
+    with pytest.raises(RecordConflict):await check(cursor,OBJECT)
+    cursor.fetchone.side_effect=[None]
+    with pytest.raises(RecordConflict):await check(cursor,OBJECT)
+    cursor.fetchone.side_effect=[None,{'exists':1}]
+    with pytest.raises(RecordConflict):await check(cursor,OBJECT,bind=True)
+    cursor.fetchone.side_effect=[None,None]
+    await check(cursor,OBJECT,bind=True)
+    assert cursor.execute.call_args.args[1]==(TENANT,OBJECT,'a'*64)
+    with pytest.raises(ObjectInputError):PostgresMediaObjects(value.store,backend,location='bad')

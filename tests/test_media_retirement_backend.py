@@ -107,3 +107,16 @@ async def test_s3_failed_or_unconfirmed_retirement_refuses(monkeypatch):
     with pytest.raises(ObjectUnavailable,match='failed'):await backend.retire(KEY)
     response['status']=200
     with pytest.raises(ObjectUnavailable,match='not confirmed'):await backend.retire(KEY)
+
+
+def test_provider_location_changes_with_namespace_but_not_credentials():
+    from api.infrastructure.externals.media_retirement_backend import provider_location
+    first=AzureMediaObjects(SimpleNamespace(url='https://fixture.blob.core.windows.net/media'))
+    assert provider_location(first)==provider_location(AzureMediaObjects(SimpleNamespace(url=first.container.url)))
+    assert provider_location(first)!=provider_location(AzureMediaObjects(SimpleNamespace(url=first.container.url+'other')))
+    client=SimpleNamespace(meta=SimpleNamespace(endpoint_url='https://s3.example'))
+    first=S3MediaObjects(client,'bucket',region='region',access_key='first',secret_key='first')
+    assert provider_location(first)==provider_location(S3MediaObjects(client,'bucket',region='region',access_key='rotated',secret_key='rotated'))
+    assert provider_location(first)!=provider_location(S3MediaObjects(client,'other',region='region'))
+    for backend in [object(),AzureMediaObjects(SimpleNamespace(url='')),AzureMediaObjects(SimpleNamespace(url=None))]:
+        with pytest.raises(ObjectInputError):provider_location(backend)

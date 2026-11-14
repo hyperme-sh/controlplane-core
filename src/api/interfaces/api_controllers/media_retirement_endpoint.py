@@ -33,7 +33,7 @@ def retirement_service(request:Request,objects=Depends(object_store,scope='reque
         backend=S3MediaObjects(existing.client,existing.bucket,region=existing.region,
             access_key=existing.credentials.access_key,secret_key=existing.credentials.secret_key)
     else:raise HTTPException(503,'Media retirement unavailable',headers=PRIVATE)
-    store=settings.registry.store()
+    store=settings.registry.store(require_locations=True)
     authority=PostgresMediaRetirement(store,source=settings.source,request_keys=settings.request_keys,clock=lambda:int(time.time()))
     return MediaRetirement(authority,PostgresMediaObjects(store,backend))
 

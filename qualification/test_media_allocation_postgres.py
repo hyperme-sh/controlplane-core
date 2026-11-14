@@ -24,7 +24,7 @@ def registry():
     url = make_url(os.environ['TEST_DATABASE_URL']).set(drivername='postgresql').render_as_string(hide_password=False)
     schema, owner, runtime = ('media_' + uuid4().hex for _ in range(3))
     tenant, issuer, source = str(uuid4()), str(uuid4()), str(uuid4())
-    path = Path(os.environ['STORAGE_SCHEMA_DIRECTORY']) / 'media_migrate.py'
+    path = Path(os.environ['STORAGE_SCHEMA_DIRECTORY']) / 'media_location_migrate.py'
     spec = importlib.util.spec_from_file_location('qualified_media_migration', path)
     migration = importlib.util.module_from_spec(spec); spec.loader.exec_module(migration)
     with psycopg.connect(url, autocommit=True) as admin:

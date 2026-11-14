@@ -7,7 +7,7 @@ import re
 import tarfile
 
 
-FILES = frozenset({'001_storage.sql', 'migrate.py', 'README.md', '002_media_objects.sql', 'media_migrate.py', 'MEDIA.md'})
+FILES = frozenset({'001_storage.sql', 'migrate.py', 'README.md', '002_media_objects.sql', 'media_migrate.py', 'MEDIA.md', '003_media_locations.sql', 'media_location_migrate.py'})
 MAX_ARCHIVE = 16 * 1024 * 1024
 MAX_FILE = 128 * 1024
 

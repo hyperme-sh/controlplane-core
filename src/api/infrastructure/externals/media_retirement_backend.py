@@ -1,6 +1,7 @@
 """Private media provider tombstones prevent late create-only uploads reviving bytes."""
 from contextlib import aclosing
 import hashlib
+import json
 import re
 from uuid import UUID
 import httpx
@@ -79,3 +80,15 @@ class S3MediaObjects(MediaNamespace,S3TenantObjects):
         except Exception as exc:
             raise ObjectUnavailable('Media retirement failed') from exc
         if await self.head(key)!=RETIRED:raise ObjectUnavailable('Media retirement not confirmed')
+
+
+def provider_location(backend):
+    """Stable namespace identity excludes credentials so rotation stays compatible."""
+    if isinstance(backend,AzureTenantObjects):
+        parts=['azure',backend.container.url]
+    elif isinstance(backend,S3TenantObjects):
+        parts=['s3',backend.client.meta.endpoint_url,backend.bucket]
+    else:raise ObjectInputError('Media provider location unavailable')
+    if any(type(part) is not str or not part or len(part)>2048 for part in parts):
+        raise ObjectInputError('Media provider location unavailable')
+    return hashlib.sha256(json.dumps(parts,separators=(',',':')).encode()).hexdigest()

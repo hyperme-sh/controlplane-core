@@ -1,7 +1,7 @@
 {
   "repository": "hyperme-sh/controlplane-db",
-  "revision": "37eadb119daa6f115b66639dd5b2c1b3ab5e28c3",
+  "revision": "a082ad62336b0983c7e2b1535019bcf26d464683",
   "archive": "controlplane_db-0.1.0.tar.gz",
-  "sha256": "7d24931615d74b06b44a60984f878ec98d2e64adcade944d483217df2172b2e4",
-  "qualification_run": "https://github.com/hyperme-sh/controlplane-db/actions/runs/43568169443"
+  "sha256": "08ab775cf5e3e286910227bb43b29c73c7d8d86a86803447ed733a5bfd69417e",
+  "qualification_run": "https://github.com/hyperme-sh/controlplane-db/actions/runs/43574312064"
 }

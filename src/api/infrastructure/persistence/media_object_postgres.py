@@ -8,7 +8,7 @@ from psycopg import sql
 from api.domain.media_allocation_grant import AllocationRejected
 from api.domain.tenant_objects import ObjectInputError,ObjectMetadata,ObjectUnavailable
 from api.domain.tenant_records import RecordConflict
-from api.infrastructure.externals.media_retirement_backend import media_key
+from api.infrastructure.externals.media_retirement_backend import media_key,provider_location
 
 MAX_OWNER_OBJECTS=8
 MAX_OWNER_BYTES=64*1024*1024
@@ -25,8 +25,12 @@ class PostgresMediaObjects:
     payloads even after a process interruption. Only phase 1 plus its stored
     command permits cleanup; no supplied list of digests is trusted.
     """
-    def __init__(self,store,backend):
+    def __init__(self,store,backend,*,location=None):
         self.store,self.backend=store,backend
+        self.location=provider_location(backend) if location is None else location
+        if type(self.location) is not str or not re.fullmatch('[0-9a-f]{64}',self.location):
+            raise ObjectInputError('Invalid media provider location')
+        self.locations=sql.Identifier(store.schema,'storage_media_locations')
         self.refs=sql.Identifier(store.schema,'storage_media_refs')
 
     async def _object(self,cursor,object,owner=None):
@@ -38,10 +42,22 @@ class PostgresMediaObjects:
             raise AllocationRejected('Media allocation unavailable')
         return row
 
+    async def _location(self,cursor,object,*,bind=False):
+        await cursor.execute(sql.SQL('SELECT provider_location FROM {} WHERE tenant_id=%s AND object_id=%s').format(self.locations),(self.store.tenant,object))
+        held=await cursor.fetchone()
+        if held is not None:
+            if held['provider_location']!=self.location:raise RecordConflict('Media provider location changed')
+            return
+        if not bind:raise RecordConflict('Media provider location requires reconciliation')
+        await cursor.execute(sql.SQL('SELECT 1 FROM {} WHERE tenant_id=%s AND object_id=%s LIMIT 1').format(self.refs),(self.store.tenant,object))
+        if await cursor.fetchone() is not None:raise RecordConflict('Legacy media provider location requires reconciliation')
+        await cursor.execute(sql.SQL('INSERT INTO {} (tenant_id,object_id,provider_location) VALUES (%s,%s,%s)').format(self.locations),(self.store.tenant,object,self.location))
+
     async def _reserve(self,object,owner,kind,digest,size,guard):
         async with self.store._locked() as cursor:
             row=await self._object(cursor,object,owner)
             if row['phase']!=0:raise RecordConflict('Media object retired')
+            await self._location(cursor,object,bind=True)
             await cursor.execute(sql.SQL('SELECT kind,digest,byte_length FROM {} WHERE tenant_id=%s AND object_id=%s').format(self.refs),(self.store.tenant,object))
             held=await cursor.fetchall()
             for ref in held:
@@ -85,6 +101,7 @@ class PostgresMediaObjects:
             async with self.store._locked() as cursor:
                 row=await self._object(cursor,object,owner)
                 if row['phase']!=0:raise RecordConflict('Media object retired')
+                await self._location(cursor,object)
                 guard();body.seek(0)
                 metadata=ObjectMetadata(size,digest)
                 created=await self.backend.put(key,body,metadata)
@@ -105,8 +122,9 @@ class PostgresMediaObjects:
                 guard();return False
             await cursor.execute(sql.SQL('SELECT kind,digest FROM {} WHERE tenant_id=%s AND object_id=%s ORDER BY kind,digest').format(self.refs),(self.store.tenant,object))
             refs=await cursor.fetchall()
+            if refs:await self._location(cursor,object)
             for ref in refs:
-                await cursor.execute(sql.SQL('SELECT 1 FROM {} WHERE tenant_id=%s AND kind=%s AND digest=%s AND object_id<>%s LIMIT 1').format(self.refs),(self.store.tenant,ref['kind'],ref['digest'],object))
+                await cursor.execute(sql.SQL('SELECT 1 FROM {} r LEFT JOIN {} l USING(tenant_id,object_id) WHERE r.tenant_id=%s AND r.kind=%s AND r.digest=%s AND r.object_id<>%s AND (l.provider_location=%s OR l.provider_location IS NULL) LIMIT 1').format(self.refs,self.locations),(self.store.tenant,ref['kind'],ref['digest'],object,self.location))
                 shared=await cursor.fetchone()
                 guard()
                 if shared is None:

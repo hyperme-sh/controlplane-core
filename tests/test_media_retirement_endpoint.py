@@ -44,17 +44,17 @@ async def test_bounded_http_and_exact_command_no_automatic_retry():
 
 def test_service_refuses_absent_registry_and_only_wraps_configured_provider():
     tenant=UUID(int=1);app=FastAPI();request=Request({'type':'http','app':app})
-    objects=SimpleNamespace(tenant=tenant,backend=AzureTenantObjects(SimpleNamespace()))
+    objects=SimpleNamespace(tenant=tenant,backend=AzureTenantObjects(SimpleNamespace(url="https://fixture.blob.core.windows.net/media")))
     with pytest.raises(HTTPException):endpoint.retirement_service(request,objects)
     settings=SimpleNamespace(registry=None);app.state.media_allocation_issuers={str(tenant):settings}
     with pytest.raises(HTTPException):endpoint.retirement_service(request,objects)
     store=SimpleNamespace(schema='storage_owner',tenant=str(tenant),issuer=str(UUID(int=2)))
-    settings.registry=SimpleNamespace(store=lambda:store);settings.source=str(UUID(int=3))
+    settings.registry=SimpleNamespace(store=lambda **kwargs:store);settings.source=str(UUID(int=3))
     settings.request_keys={'source':Ed25519PrivateKey.generate().public_key()}
     service=endpoint.retirement_service(request,objects)
     assert service.authority.store is service.objects.store is store
     assert service.objects.backend.container is objects.backend.container
-    objects.backend=S3TenantObjects(SimpleNamespace(),'bucket',region='region',access_key='fixture',secret_key='fixture')
+    objects.backend=S3TenantObjects(SimpleNamespace(meta=SimpleNamespace(endpoint_url='https://s3.example')),'bucket',region='region',access_key='fixture',secret_key='fixture')
     assert endpoint.retirement_service(request,objects).objects.backend.bucket=='bucket'
     objects.backend=object()
     with pytest.raises(HTTPException):endpoint.retirement_service(request,objects)
