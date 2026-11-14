@@ -513,3 +513,12 @@ tenant, source binding, or credentials, and does not import the existing Blob
 registry. Deployment must prepare/import the schema and coordinate the dedicated
 media write/cleanup API before changing the issuer store. Provider deletion and
 byte quota reclamation are separate consumers of the retirement state.
+
+`RetirementRequestSigner` and `PostgresMediaRetirement` define a separate,
+source-signed retirement command. The source must first verify the owner's
+accepted deletion and its independent checkpoint. Storage fixes the trusted
+issuer/tenant/source and key set, verifies the short-lived command, matches the
+original allocation, and atomically moves it into retiring state. Retries retain
+the same permanent command. Retiring objects still consume quota; this adapter
+neither deletes provider bytes nor marks cleanup complete. No HTTP route or
+runtime binding is enabled by these components.
