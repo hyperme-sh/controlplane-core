@@ -543,3 +543,18 @@ does not qualify a live provider. The Azure behavior follows
 [Put Blob](https://learn.microsoft.com/en-us/rest/api/storageservices/put-blob)
 and [soft delete](https://learn.microsoft.com/en-us/azure/storage/blobs/soft-delete-blob-overview);
 S3 create-only writes use [conditional writes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html).
+
+`PostgresMediaObjects` coordinates the dedicated provider adapters with durable
+references. A reference commits before uploading bytes; an unknown write result
+keeps its cleanup target and quota. Writes then take the tenant lock again and
+refuse retirement. Cleanup accepts only the command already stored in phase 1,
+loads digests from protected metadata, preserves references shared with other
+objects, confirms provider retirement, and commits reference removal plus phase 2
+atomically. A repeated completed cleanup changes nothing. The object/allocation
+binding remains permanent.
+
+Ciphertext retains the product limits of eight objects and 64 MiB per owner,
+256 MiB per tenant; wrap references are separately bounded to 128 per object
+and 64 KiB each. Quota remains charged for failed uploads and pending cleanup.
+This coordinator is not selected by runtime configuration and exposes no route.
+It does not import existing Blob indexes or activate credentials.
