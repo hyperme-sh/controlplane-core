@@ -55,3 +55,30 @@ issuer identity or change the pending production database binding.
 Unit contracts use generated/fixture keys only. CI measures line and branch
 coverage and runs the standard source, wheel and rebuilt-package checks. No
 operator key or provider credential is needed for these checks.
+
+## Private allocation registry
+
+`media_allocation_store.AllocationStore` adds the provider-conditional registry
+primitive. Its tenant-wide private prefix is outside public named-record and
+ciphertext namespaces. Source IDs do not partition it: one tenant/object cannot
+be allocated independently to multiple sources. It accepts at most 64 objects,
+matching the current protected source bound.
+
+Bootstrap is an explicit operator-only method, conditional on absence. Runtime
+reservation fails if the registry is missing. Never bootstrap automatically after
+loss; restore through controlled recovery. Concurrent writes use provider ETags
+and propagate conflicts. Each write carries a fresh nonce to prevent content-ETag
+ABA. All persisted entries are structurally and scope validated before use.
+
+A retry with the same complete scope returns the original allocation and validity
+window, including after expiry. It cannot renew or change the source, policy or
+ownership digest. Reusing an allocation ID for another object refuses. Entries
+remain charged against quota; there is no deletion or cancellation reclamation.
+An uncertain write can be reconciled by repeating the same authorized request.
+
+The caller must verify current requester/SEA ownership and configured policy,
+and supply a mandatory authority recheck immediately before dispatch or returning
+a prior reservation. This primitive neither authenticates callers nor signs
+proofs. A provider snapshot rollback still needs independent source checkpoints
+and controlled recovery; provider CAS alone does not prevent it. No route,
+operator bootstrap, credential, signer, or runtime binding is enabled here.
