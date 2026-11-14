@@ -44,12 +44,13 @@ async def retire(request:Request,service=Depends(retirement_service)):
             or request.headers.get('content-encoding','identity')!='identity'):
         raise HTTPException(415,'Expected uncompressed JSON',headers=PRIVATE)
     try:
-        with anyio.fail_after(4):
+        with anyio.fail_after(60):
             async with capacity:
                 data=bytearray()
-                async for chunk in request.stream():
-                    if len(data)+len(chunk)>8192:raise HTTPException(413,'Retirement request too large',headers=PRIVATE)
-                    data.extend(chunk)
+                with anyio.fail_after(1):
+                    async for chunk in request.stream():
+                        if len(data)+len(chunk)>8192:raise HTTPException(413,'Retirement request too large',headers=PRIVATE)
+                        data.extend(chunk)
                 try:
                     body=json.loads(bytes(data),object_pairs_hook=_unique)
                     if (type(body) is not dict or set(body)!={'object','owner','command','request'}
