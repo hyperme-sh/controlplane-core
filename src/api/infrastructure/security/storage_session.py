@@ -14,12 +14,15 @@ for audience in ("s3rch", "hypermesh", "portal"):
     for kind in ("cache", "outbox"):
         for operation in (("read",) if kind == "cache" else ("read", "write")):
             SCOPES[f"experiments.{audience}.{kind}.{operation}"] = f"storage:experiments:{audience}:{kind}:{operation}"
+SCOPES["media.payload.write"] = "storage:media:payload:write"
 SCOPES["media.retire"] = "storage:media:retire"
 SCOPES["allocations.issue"] = "storage:allocations:issue"
 SCOPES["replays.consume"] = "storage:replays:consume"
 
 
 def request_operation(method: str, path: str) -> str | None:
+    if method=="PUT" and re.fullmatch(r"/api/v1/storage/media/payloads/media_p_[0-9a-f]{128}_[0-9a-f]{32}/(ciphertext|wrap)/[0-9a-f]{64}",path):
+        return "media.payload.write"
     if path.startswith("/api/v1/storage/media/"):
         return "media.retire" if method == "POST" and path == "/api/v1/storage/media/retire" else None
     if path.startswith("/api/v1/storage/allocations/"):
