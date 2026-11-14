@@ -13,6 +13,18 @@ router = APIRouter(prefix='/storage/media', tags=['Media observation'])
 capacity = anyio.CapacityLimiter(2)
 
 
+async def observation_capacity():
+    # Refuse excess work before database/provider dependencies are evaluated.
+    try:
+        capacity.acquire_nowait()
+    except anyio.WouldBlock:
+        raise HTTPException(503, 'Media observation busy', headers=PRIVATE) from None
+    try:
+        yield
+    finally:
+        capacity.release()
+
+
 @router.post('/observe')
 async def observe(request: Request, media=Depends(media_objects_service)):
     if (request.headers.get('content-type', '').split(';')[0] != 'application/json' or
@@ -20,26 +32,25 @@ async def observe(request: Request, media=Depends(media_objects_service)):
         raise HTTPException(415, 'Expected uncompressed JSON', headers=PRIVATE)
     try:
         with anyio.fail_after(60):
-            async with capacity:
-                raw = bytearray()
-                with anyio.fail_after(1):
-                    async for chunk in request.stream():
-                        if len(raw) + len(chunk) > 4096:
-                            raise HTTPException(413, 'Observation request too large', headers=PRIVATE)
-                        raw.extend(chunk)
-                try:
-                    body = json.loads(raw, object_pairs_hook=_unique)
-                    if type(body) is not dict or set(body) != {'object', 'references'}:
-                        raise ValueError()
-                    observation_request(body['object'], body['references'])
-                except (ValueError, TypeError, RecursionError):
-                    raise HTTPException(400, 'Invalid observation request', headers=PRIVATE) from None
-                if await request.is_disconnected():
-                    raise HTTPException(408, 'Observation cancelled', headers=PRIVATE)
-                result = await observe_media(media, object=body['object'], references=body['references'], guard=lambda: None)
-                if await request.is_disconnected():
-                    raise HTTPException(408, 'Observation cancelled', headers=PRIVATE)
-                return JSONResponse(result, headers=PRIVATE)
+            raw = bytearray()
+            with anyio.fail_after(1):
+                async for chunk in request.stream():
+                    if len(raw) + len(chunk) > 4096:
+                        raise HTTPException(413, 'Observation request too large', headers=PRIVATE)
+                    raw.extend(chunk)
+            try:
+                body = json.loads(raw, object_pairs_hook=_unique)
+                if type(body) is not dict or set(body) != {'object', 'references'}:
+                    raise ValueError()
+                observation_request(body['object'], body['references'])
+            except (ValueError, TypeError, RecursionError):
+                raise HTTPException(400, 'Invalid observation request', headers=PRIVATE) from None
+            if await request.is_disconnected():
+                raise HTTPException(408, 'Observation cancelled', headers=PRIVATE)
+            result = await observe_media(media, object=body['object'], references=body['references'], guard=lambda: None)
+            if await request.is_disconnected():
+                raise HTTPException(408, 'Observation cancelled', headers=PRIVATE)
+            return JSONResponse(result, headers=PRIVATE)
     except AllocationRejected:
         raise HTTPException(403, 'Media observation refused', headers=PRIVATE) from None
     except RecordConflict:
