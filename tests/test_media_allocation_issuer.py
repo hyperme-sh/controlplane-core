@@ -114,3 +114,22 @@ def test_configuration_rejects_invalid_or_shared_trust_keys(issuer,grant):
                    {'request_keys':{}},{'request_keys':{'bad':None}},
                    {'signing_key':grant[1]}, {'policy_until':True}]:
         with pytest.raises(AllocationRejected):configured(**values)
+
+
+@pytest.mark.asyncio
+async def test_protected_source_signer_roundtrip_and_scope_refusal(issuer,grant):
+    from api.domain.media_allocation_issuer import AllocationRequestSigner
+    scope, _, store, _, key, _, _, issue=issuer
+    signer=AllocationRequestSigner(issuer=scope.issuer,source=scope.source,tenant=scope.tenant,
+        policy_digest=scope.policy_digest,key_id='source',signing_key=grant[1])
+    authorized={'tenant':scope.tenant,'object':scope.object,'owner':scope.owner,
+        'policyDigest':scope.policy_digest,'ownershipDigest':scope.ownership_digest,'issuedAt':1100,'expiresAt':1130}
+    await store.initialize()
+    raw=await issue(signer(authorized))
+    assert verify_allocation_grant(raw,expected=scope,keys={'storage':key.public_key()},now=1100).scope==scope
+    for wrong in [None,{**authorized,'extra':True},{**authorized,'tenant':str(UUID(int=9))},
+                  {**authorized,'policyDigest':'f'*64},{**authorized,'expiresAt':1131}]:
+        with pytest.raises(AllocationRejected):signer(wrong)
+    with pytest.raises(AllocationRejected):
+        AllocationRequestSigner(issuer=scope.issuer,source=scope.source,tenant=scope.tenant,
+            policy_digest='bad',key_id='source',signing_key=grant[1])

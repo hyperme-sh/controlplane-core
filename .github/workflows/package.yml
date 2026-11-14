@@ -99,6 +99,13 @@ jobs:
           path: ${{ runner.temp }}/package-test-results/*.xml
           if-no-files-found: error
           retention-days: 90
+      - name: Retain qualified development packages for exact consumer fixtures
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: qualified-development-packages
+          path: ${{ env.RELEASE_ARTIFACT_DIR }}/*
+          if-no-files-found: error
+          retention-days: 30
       - name: Remove job-owned local storage image
         if: always()
         run: docker image rm "storage:ci-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >/dev/null 2>&1 || true
