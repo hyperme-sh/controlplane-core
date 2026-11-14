@@ -24,15 +24,7 @@ def observation_request(object, references):
         seen.add(key)
 
 
-async def observe_media(media, *, object, references, guard):
-    """No state repair, allocation, retirement or provider mutation.
-
-    Requested digests select metadata in this tenant's bound namespace. After
-    cleanup their former object membership is no longer in the registry: callers
-    must bind them to a retained pre-cleanup snapshot, never infer that membership
-    from this response. The credential authorizes tenant-wide metadata inspection.
-    """
-    observation_request(object, references)
+async def _registry_snapshot(media, object, requires_location, guard):
     store = media.store
     guard()
     async with store._locked() as cursor:
@@ -62,7 +54,7 @@ async def observe_media(media, *, object, references, guard):
             held.append({'kind': kind, 'digest': digest, 'length': length})
         if sum(ref['kind'] == 'ciphertext' for ref in held) > 1 or (phase == 2 and held):
             raise ObjectUnavailable('Invalid media reference state')
-        if location is None and (held or references):
+        if location is None and (held or requires_location):
             raise RecordConflict('Media provider location requires reconciliation')
         await cursor.execute(sql.SQL("SELECT COUNT(*) FILTER (WHERE o.owner_principal=%s) AS owner_objects, COALESCE(SUM(r.byte_length) FILTER (WHERE o.owner_principal=%s),0)::bigint AS owner_bytes, COALESCE(SUM(r.byte_length),0)::bigint AS tenant_bytes FROM {} r JOIN {} o USING(tenant_id,object_id) WHERE r.tenant_id=%s AND r.kind='ciphertext'").format(media.refs, store._table()), (owner, owner, store.tenant))
         totals = await cursor.fetchone()
@@ -72,21 +64,39 @@ async def observe_media(media, *, object, references, guard):
             if type(value) is not int or not 0 <= value <= 2**53-1:
                 raise ObjectUnavailable('Invalid media quota observation')
             quota[name] = value
-        observed = []
-        for ref in references:
-            guard()
-            metadata = await media.backend.head(media_key(UUID(store.tenant), ref['kind'], ref['digest']))
-            if metadata is None:
-                state, length = 'missing', None
-            elif metadata == RETIRED:
-                state, length = 'retired', 0
-            elif (isinstance(metadata, ObjectMetadata) and metadata.sha256 == ref['digest'] and
-                  type(metadata.size) is int and (33 if ref['kind'] == 'ciphertext' else 1) <= metadata.size <= (64*1024*1024 if ref['kind'] == 'ciphertext' else 65536)):
-                state, length = 'present', metadata.size
-            else:
-                raise ObjectUnavailable('Invalid provider observation')
-            observed.append({**ref, 'state': state, 'length': length})
         guard()
         return {'tenant': store.tenant, 'issuer': store.issuer, 'object': object, 'owner': owner,
                 'phase': phase, 'command': command, 'providerLocation': media.location if location else None,
-                'references': held, 'quota': quota, 'observed': observed}
+                'references': held, 'quota': quota, 'observed': []}
+
+
+async def observe_media(media, *, object, references, guard):
+    """Observe tenant metadata without holding its lock during provider I/O.
+
+    Requested digests need the caller's retained pre-cleanup membership snapshot.
+    Registry snapshots must match before and after external observations; this
+    is not an atomic provider/registry transaction or an authorization to mutate.
+    """
+    observation_request(object, references)
+    first = await _registry_snapshot(media, object, bool(references), guard)
+    store = media.store
+    observed = []
+    for ref in references:
+        guard()
+        metadata = await media.backend.head(media_key(UUID(store.tenant), ref['kind'], ref['digest']))
+        if metadata is None:
+            state, length = 'missing', None
+        elif metadata == RETIRED:
+            state, length = 'retired', 0
+        elif (isinstance(metadata, ObjectMetadata) and metadata.sha256 == ref['digest'] and
+              type(metadata.size) is int and (33 if ref['kind'] == 'ciphertext' else 1) <= metadata.size <= (64*1024*1024 if ref['kind'] == 'ciphertext' else 65536)):
+            state, length = 'present', metadata.size
+        else:
+            raise ObjectUnavailable('Invalid provider observation')
+        observed.append({**ref, 'state': state, 'length': length})
+    guard()
+    if references:
+        second = await _registry_snapshot(media, object, True, guard)
+        if first != second:
+            raise RecordConflict('Media observation changed')
+    return {**first, 'observed': observed}

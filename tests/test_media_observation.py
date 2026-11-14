@@ -1,5 +1,6 @@
 """Read-only observation contracts with substituted cursor/provider metadata."""
 from contextlib import asynccontextmanager
+from itertools import cycle
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 from uuid import UUID
@@ -25,7 +26,7 @@ def fixture():
     backend=Mock(head=AsyncMock(return_value=RETIRED),put=AsyncMock(),retire=AsyncMock())
     media=SimpleNamespace(store=store,backend=backend,location=LOCATION,locations=sql.Identifier('storage_owner','storage_media_locations'),refs=sql.Identifier('storage_owner','storage_media_refs'),
         _object=AsyncMock(return_value={'owner_principal':OWNER,'phase':2,'deletion_command':'e'*64}))
-    cursor.fetchone.side_effect=[{'provider_location':LOCATION},{'owner_objects':0,'owner_bytes':0,'tenant_bytes':99}]
+    cursor.fetchone.side_effect=cycle([{'provider_location':LOCATION},{'owner_objects':0,'owner_bytes':0,'tenant_bytes':99}])
     return media,cursor,backend
 
 
@@ -79,7 +80,7 @@ async def test_active_snapshot_retains_charged_refs_and_missing_payload(fixture)
     media,cursor,backend=fixture
     media._object.return_value.update(phase=0,deletion_command=None)
     cursor.fetchall.return_value=[{'kind':'ciphertext','digest':DIGEST,'byte_length':33}]
-    cursor.fetchone.side_effect=[{'provider_location':LOCATION},{'owner_objects':1,'owner_bytes':33,'tenant_bytes':33}]
+    cursor.fetchone.side_effect=cycle([{'provider_location':LOCATION},{'owner_objects':1,'owner_bytes':33,'tenant_bytes':33}])
     backend.head.return_value=None
     result=await observe_media(media,object=OBJECT,references=[REF],guard=lambda:None)
     assert result['references']==[{**REF,'length':33}]
@@ -98,3 +99,45 @@ async def test_retired_refs_invalid_quota_and_provider_metadata_refuse(fixture):
     cursor.fetchone.side_effect=[{'provider_location':LOCATION},{'owner_objects':0,'owner_bytes':0,'tenant_bytes':0}]
     backend.head.return_value=ObjectMetadata(33,'f'*64)
     with pytest.raises(ObjectUnavailable):await observe_media(media,object=OBJECT,references=[REF],guard=lambda:None)
+
+
+@pytest.mark.asyncio
+async def test_provider_io_runs_without_tenant_lock_and_revalidates(fixture):
+    media, cursor, backend = fixture
+    locked = False
+    acquisitions = 0
+    @asynccontextmanager
+    async def lock():
+        nonlocal locked, acquisitions
+        assert not locked
+        locked = True
+        acquisitions += 1
+        try:
+            yield cursor
+        finally:
+            locked = False
+    media.store._locked = lock
+    async def head(key):
+        assert not locked
+        return RETIRED
+    backend.head.side_effect = head
+    await observe_media(media, object=OBJECT, references=[REF], guard=lambda:None)
+    assert acquisitions == 2 and not locked
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('change', ['quota', 'command', 'location'])
+async def test_registry_changes_during_provider_io_refuse(fixture, change):
+    media, cursor, backend = fixture
+    async def head(key):
+        if change == 'command':
+            media._object.return_value = {**media._object.return_value, 'deletion_command':'f'*64}
+        elif change == 'location':
+            cursor.fetchone.side_effect = [{'provider_location':'f'*64}]
+        else:
+            cursor.fetchone.side_effect = [{'provider_location':LOCATION},
+                {'owner_objects':1,'owner_bytes':33,'tenant_bytes':99}]
+        return RETIRED
+    backend.head.side_effect = head
+    with pytest.raises(RecordConflict):
+        await observe_media(media, object=OBJECT, references=[REF], guard=lambda:None)
