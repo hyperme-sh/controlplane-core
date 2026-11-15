@@ -12,12 +12,16 @@ COPY prepare_notices.py verify_notices.py /build/
 COPY notice-supplements/ /build/notice-supplements/
 RUN /opt/storage/bin/python /build/prepare_notices.py /build/legal/third-party /build/notice-supplements \
  && /opt/storage/bin/python /build/verify_notices.py /build/legal
+COPY sources/ /build/sources/
+COPY prepare_sources.py /build/
+RUN /opt/storage/bin/python -I /build/prepare_sources.py verify /build/sources
 RUN /opt/storage/bin/python -I -c "from api.storage_app import app; assert app.routes"
 
 FROM python:3.13-slim-bookworm@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f
 COPY --from=build /opt/storage /opt/storage
 COPY storage-schema/ /opt/storage-schema/
 COPY --from=build /build/legal /usr/share/doc/controlplane-core
+COPY --from=build /build/sources /usr/share/doc/controlplane-core/sources
 ENV PATH=/opt/storage/bin:$PATH PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 ARG GIT_SHA
 ARG WHEEL_SHA256

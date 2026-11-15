@@ -35,3 +35,12 @@ older-image and every-layer scans, base-image legal/source review and applicable
 LGPL/MPL corresponding-source and replacement checks. No repository/package
 visibility, history rewrite, manual release or TEST pin is authorized here.
 Integration/e2e remains in scheduled nightly CI.
+
+## LGPL/MPL source follow-up
+
+The storage image now bundles the five reviewed Python components' source/build
+materials and verifies their pairing with installed versions/native bytes.
+[Source and replacement preparation](../licenses/SOURCES.md) describes the exact
+scope and offline replacement checks. This completes that dependency follow-up;
+base-image source/legal review, retained-content disposition and full image-layer
+review remain separate. Existing notice texts are preserved.
