@@ -24,3 +24,17 @@ delivery and provider configuration remain required before activation. The issue
 the durable allocation ID independently of the request nonce. Missing storage
 or authorization must refuse service, without fallback to a media identifier.
 No route, credential, schema installation or runtime activation is added here.
+
+## Issuance transport
+
+`POST /api/v1/storage/group-allocations/issue` requires authenticated tenant
+scope `storage:group-allocations:issue` and a valid protected-source request.
+The body contains only `set`, `predicate`, `owner`, `creationDigest` and the
+canonical base64 `request`. No caller supplies tenant, issuer, policy or keys.
+
+`STORAGE_GROUP_ALLOCATION_FILE` is an explicit private version-1 issuer file
+with the same bounded binding fields as the media version-1 issuer format.
+Absence leaves group issuance unavailable. The private group registry must
+already exist; loading settings and serving requests never initialize it.
+Media allocation scope grants no group issuance permission. The browser never
+receives provider credentials. No deployment configuration is activated here.

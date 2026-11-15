@@ -18,6 +18,7 @@ SCOPES["media.payload.write"] = "storage:media:payload:write"
 SCOPES["media.payload.read"] = "storage:media:payload:read"
 SCOPES["media.observe"] = "storage:media:observe"
 SCOPES["media.retire"] = "storage:media:retire"
+SCOPES["group-allocations.issue"] = "storage:group-allocations:issue"
 SCOPES["allocations.issue"] = "storage:allocations:issue"
 SCOPES["replays.consume"] = "storage:replays:consume"
 
@@ -31,6 +32,8 @@ def request_operation(method: str, path: str) -> str | None:
         return "media.observe"
     if path.startswith("/api/v1/storage/media/"):
         return "media.retire" if method == "POST" and path == "/api/v1/storage/media/retire" else None
+    if path.startswith("/api/v1/storage/group-allocations/"):
+        return "group-allocations.issue" if method == "POST" and path == "/api/v1/storage/group-allocations/issue" else None
     if path.startswith("/api/v1/storage/allocations/"):
         return "allocations.issue" if method == "POST" and path == "/api/v1/storage/allocations/issue" else None
     if path.startswith("/api/v1/storage/replays/"):

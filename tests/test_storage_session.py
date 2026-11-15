@@ -206,3 +206,13 @@ def test_media_observer_is_separate_from_reads_writes_and_retirement(tokens):
     assert auth.storage_session(observer,'media.observe',now)==tenant
     for action in ['media.retire','media.payload.read','media.payload.write','allocations.issue']:
         with pytest.raises(HTTPException):auth.storage_session(observer,action,now)
+
+
+def test_group_allocation_requires_its_own_exact_operation_and_scope(tokens):
+    tenant,now,mint=tokens
+    assert auth.request_operation('POST','/api/v1/storage/group-allocations/issue')=='group-allocations.issue'
+    for method,path in [('GET','/api/v1/storage/group-allocations/issue'),('POST','/api/v1/storage/group-allocations/bootstrap')]:
+        assert auth.request_operation(method,path) is None
+    for scope in ['storage:allocations:issue','storage:records:write','storage:media:write']:
+        with pytest.raises(HTTPException):auth.storage_session(mint({'scope':scope}),'group-allocations.issue',now)
+    assert auth.storage_session(mint({'scope':'storage:group-allocations:issue'}),'group-allocations.issue',now)==tenant
