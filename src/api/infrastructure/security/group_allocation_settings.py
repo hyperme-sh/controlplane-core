@@ -30,7 +30,7 @@ class IssuerSettings:
 
 
 def load_issuers(environ=None):
-    path=(os.environ if environ is None else environ).get('STORAGE_MEDIA_ALLOCATION_FILE')
+    path=(os.environ if environ is None else environ).get('STORAGE_GROUP_ALLOCATION_FILE')
     if path is None:
         return {}
     try:
