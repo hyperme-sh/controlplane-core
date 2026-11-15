@@ -12858,6 +12858,17 @@
         ]
       },
       "classification": "upstream Makefile comment describing shared-library ABI versions; no credential"
+    },
+    {
+      "archive": "Python-3.13.18.tar.xz",
+      "member": "Python-3.13.18/Doc/library/ssl.rst",
+      "sha256": "47b3910ef17f460d3bfe54d5a22f3d01e3df86c1e1158562fb8b3db302a1b755",
+      "rules": {
+        "private-key": [
+          2263
+        ]
+      },
+      "classification": "Public ssl documentation placeholder; contains no private key bytes"
     }
   ]
 }

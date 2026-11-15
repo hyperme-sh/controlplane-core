@@ -1,0 +1,919 @@
+{
+  "schema_version": 1,
+  "publication_cleared": false,
+  "base": "python:3.13-slim-bookworm@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f",
+  "diff_ids": [
+    "sha256:44a87794b739d471ec360bec56cc0ceac640d06bbf579ee7d9061a0b88d09818",
+    "sha256:b06a5b1a9275f6ebda79d70a0fbe0a3800928d33c95b78893a4e1ab8e324cfaa",
+    "sha256:ce67d611a4fc6fe7be94f3b8040a92ae510f8839838a54b5d6bdc3bd8afef0fc",
+    "sha256:22edd123e053adb55a4ebd663d2d70d19f950d0df0fd3e7e20b5d52627f3739c"
+  ],
+  "status_sha256": "5b94dfeb2d5e308d6a5bf5f823bec5bb11ec317861ef9c91d9159352f3ab881c",
+  "packages": [
+    {
+      "package": "adduser",
+      "version": "3.134",
+      "source": "adduser",
+      "source_version": "3.134",
+      "source_reference": "https://snapshot.debian.org/package/adduser/3.134/",
+      "copyright": "usr/share/doc/adduser/copyright"
+    },
+    {
+      "package": "apt",
+      "version": "2.6.1",
+      "source": "apt",
+      "source_version": "2.6.1",
+      "source_reference": "https://snapshot.debian.org/package/apt/2.6.1/",
+      "copyright": "usr/share/doc/apt/copyright"
+    },
+    {
+      "package": "base-files",
+      "version": "12.4+deb12u15",
+      "source": "base-files",
+      "source_version": "12.4+deb12u15",
+      "source_reference": "https://snapshot.debian.org/package/base-files/12.4%2Bdeb12u15/",
+      "copyright": "usr/share/doc/base-files/copyright"
+    },
+    {
+      "package": "base-passwd",
+      "version": "3.6.1",
+      "source": "base-passwd",
+      "source_version": "3.6.1",
+      "source_reference": "https://snapshot.debian.org/package/base-passwd/3.6.1/",
+      "copyright": "usr/share/doc/base-passwd/copyright"
+    },
+    {
+      "package": "bash",
+      "version": "5.2.15-2+b13",
+      "source": "bash",
+      "source_version": "5.2.15-2",
+      "source_reference": "https://snapshot.debian.org/package/bash/5.2.15-2/",
+      "copyright": "usr/share/doc/bash/copyright"
+    },
+    {
+      "package": "bsdutils",
+      "version": "1:2.38.1-5+deb12u3",
+      "source": "util-linux",
+      "source_version": "2.38.1-5+deb12u3",
+      "source_reference": "https://snapshot.debian.org/package/util-linux/2.38.1-5%2Bdeb12u3/",
+      "copyright": "usr/share/doc/bsdutils/copyright"
+    },
+    {
+      "package": "ca-certificates",
+      "version": "20250419~deb12u2",
+      "source": "ca-certificates",
+      "source_version": "20250419~deb12u2",
+      "source_reference": "https://snapshot.debian.org/package/ca-certificates/20250419~deb12u2/",
+      "copyright": "usr/share/doc/ca-certificates/copyright"
+    },
+    {
+      "package": "coreutils",
+      "version": "9.1-1",
+      "source": "coreutils",
+      "source_version": "9.1-1",
+      "source_reference": "https://snapshot.debian.org/package/coreutils/9.1-1/",
+      "copyright": "usr/share/doc/coreutils/copyright"
+    },
+    {
+      "package": "dash",
+      "version": "0.5.12-2",
+      "source": "dash",
+      "source_version": "0.5.12-2",
+      "source_reference": "https://snapshot.debian.org/package/dash/0.5.12-2/",
+      "copyright": "usr/share/doc/dash/copyright"
+    },
+    {
+      "package": "debconf",
+      "version": "1.5.82",
+      "source": "debconf",
+      "source_version": "1.5.82",
+      "source_reference": "https://snapshot.debian.org/package/debconf/1.5.82/",
+      "copyright": "usr/share/doc/debconf/copyright"
+    },
+    {
+      "package": "debian-archive-keyring",
+      "version": "2023.3+deb12u2",
+      "source": "debian-archive-keyring",
+      "source_version": "2023.3+deb12u2",
+      "source_reference": "https://snapshot.debian.org/package/debian-archive-keyring/2023.3%2Bdeb12u2/",
+      "copyright": "usr/share/doc/debian-archive-keyring/copyright"
+    },
+    {
+      "package": "debianutils",
+      "version": "5.7-0.5~deb12u1",
+      "source": "debianutils",
+      "source_version": "5.7-0.5~deb12u1",
+      "source_reference": "https://snapshot.debian.org/package/debianutils/5.7-0.5~deb12u1/",
+      "copyright": "usr/share/doc/debianutils/copyright"
+    },
+    {
+      "package": "diffutils",
+      "version": "1:3.8-4",
+      "source": "diffutils",
+      "source_version": "1:3.8-4",
+      "source_reference": "https://snapshot.debian.org/package/diffutils/1%3A3.8-4/",
+      "copyright": "usr/share/doc/diffutils/copyright"
+    },
+    {
+      "package": "dpkg",
+      "version": "1.21.23",
+      "source": "dpkg",
+      "source_version": "1.21.23",
+      "source_reference": "https://snapshot.debian.org/package/dpkg/1.21.23/",
+      "copyright": "usr/share/doc/dpkg/copyright"
+    },
+    {
+      "package": "e2fsprogs",
+      "version": "1.47.0-2+b2",
+      "source": "e2fsprogs",
+      "source_version": "1.47.0-2",
+      "source_reference": "https://snapshot.debian.org/package/e2fsprogs/1.47.0-2/",
+      "copyright": "usr/share/doc/e2fsprogs/copyright"
+    },
+    {
+      "package": "findutils",
+      "version": "4.9.0-4",
+      "source": "findutils",
+      "source_version": "4.9.0-4",
+      "source_reference": "https://snapshot.debian.org/package/findutils/4.9.0-4/",
+      "copyright": "usr/share/doc/findutils/copyright"
+    },
+    {
+      "package": "gcc-12-base",
+      "version": "12.2.0-14+deb12u1",
+      "source": "gcc-12",
+      "source_version": "12.2.0-14+deb12u1",
+      "source_reference": "https://snapshot.debian.org/package/gcc-12/12.2.0-14%2Bdeb12u1/",
+      "copyright": "usr/share/doc/gcc-12-base/copyright"
+    },
+    {
+      "package": "gpgv",
+      "version": "2.2.40-1.1+deb12u2",
+      "source": "gnupg2",
+      "source_version": "2.2.40-1.1+deb12u2",
+      "source_reference": "https://snapshot.debian.org/package/gnupg2/2.2.40-1.1%2Bdeb12u2/",
+      "copyright": "usr/share/doc/gpgv/copyright"
+    },
+    {
+      "package": "grep",
+      "version": "3.8-5",
+      "source": "grep",
+      "source_version": "3.8-5",
+      "source_reference": "https://snapshot.debian.org/package/grep/3.8-5/",
+      "copyright": "usr/share/doc/grep/copyright"
+    },
+    {
+      "package": "gzip",
+      "version": "1.12-1",
+      "source": "gzip",
+      "source_version": "1.12-1",
+      "source_reference": "https://snapshot.debian.org/package/gzip/1.12-1/",
+      "copyright": "usr/share/doc/gzip/copyright"
+    },
+    {
+      "package": "hostname",
+      "version": "3.23+nmu1",
+      "source": "hostname",
+      "source_version": "3.23+nmu1",
+      "source_reference": "https://snapshot.debian.org/package/hostname/3.23%2Bnmu1/",
+      "copyright": "usr/share/doc/hostname/copyright"
+    },
+    {
+      "package": "init-system-helpers",
+      "version": "1.65.2+deb12u1",
+      "source": "init-system-helpers",
+      "source_version": "1.65.2+deb12u1",
+      "source_reference": "https://snapshot.debian.org/package/init-system-helpers/1.65.2%2Bdeb12u1/",
+      "copyright": "usr/share/doc/init-system-helpers/copyright"
+    },
+    {
+      "package": "libacl1",
+      "version": "2.3.1-3",
+      "source": "acl",
+      "source_version": "2.3.1-3",
+      "source_reference": "https://snapshot.debian.org/package/acl/2.3.1-3/",
+      "copyright": "usr/share/doc/libacl1/copyright"
+    },
+    {
+      "package": "libapt-pkg6.0",
+      "version": "2.6.1",
+      "source": "apt",
+      "source_version": "2.6.1",
+      "source_reference": "https://snapshot.debian.org/package/apt/2.6.1/",
+      "copyright": "usr/share/doc/libapt-pkg6.0/copyright"
+    },
+    {
+      "package": "libattr1",
+      "version": "1:2.5.1-4",
+      "source": "attr",
+      "source_version": "1:2.5.1-4",
+      "source_reference": "https://snapshot.debian.org/package/attr/1%3A2.5.1-4/",
+      "copyright": "usr/share/doc/libattr1/copyright"
+    },
+    {
+      "package": "libaudit-common",
+      "version": "1:3.0.9-1",
+      "source": "audit",
+      "source_version": "1:3.0.9-1",
+      "source_reference": "https://snapshot.debian.org/package/audit/1%3A3.0.9-1/",
+      "copyright": "usr/share/doc/libaudit-common/copyright"
+    },
+    {
+      "package": "libaudit1",
+      "version": "1:3.0.9-1",
+      "source": "audit",
+      "source_version": "1:3.0.9-1",
+      "source_reference": "https://snapshot.debian.org/package/audit/1%3A3.0.9-1/",
+      "copyright": "usr/share/doc/libaudit1/copyright"
+    },
+    {
+      "package": "libblkid1",
+      "version": "2.38.1-5+deb12u3",
+      "source": "util-linux",
+      "source_version": "2.38.1-5+deb12u3",
+      "source_reference": "https://snapshot.debian.org/package/util-linux/2.38.1-5%2Bdeb12u3/",
+      "copyright": "usr/share/doc/libblkid1/copyright"
+    },
+    {
+      "package": "libbz2-1.0",
+      "version": "1.0.8-5+b1",
+      "source": "bzip2",
+      "source_version": "1.0.8-5",
+      "source_reference": "https://snapshot.debian.org/package/bzip2/1.0.8-5/",
+      "copyright": "usr/share/doc/libbz2-1.0/copyright"
+    },
+    {
+      "package": "libc-bin",
+      "version": "2.36-9+deb12u14",
+      "source": "glibc",
+      "source_version": "2.36-9+deb12u14",
+      "source_reference": "https://snapshot.debian.org/package/glibc/2.36-9%2Bdeb12u14/",
+      "copyright": "usr/share/doc/libc-bin/copyright"
+    },
+    {
+      "package": "libc6",
+      "version": "2.36-9+deb12u14",
+      "source": "glibc",
+      "source_version": "2.36-9+deb12u14",
+      "source_reference": "https://snapshot.debian.org/package/glibc/2.36-9%2Bdeb12u14/",
+      "copyright": "usr/share/doc/libc6/copyright"
+    },
+    {
+      "package": "libcap-ng0",
+      "version": "0.8.3-1+b3",
+      "source": "libcap-ng",
+      "source_version": "0.8.3-1",
+      "source_reference": "https://snapshot.debian.org/package/libcap-ng/0.8.3-1/",
+      "copyright": "usr/share/doc/libcap-ng0/copyright"
+    },
+    {
+      "package": "libcap2",
+      "version": "1:2.66-4+deb12u3+b1",
+      "source": "libcap2",
+      "source_version": "1:2.66-4+deb12u3",
+      "source_reference": "https://snapshot.debian.org/package/libcap2/1%3A2.66-4%2Bdeb12u3/",
+      "copyright": "usr/share/doc/libcap2/copyright"
+    },
+    {
+      "package": "libcom-err2",
+      "version": "1.47.0-2+b2",
+      "source": "e2fsprogs",
+      "source_version": "1.47.0-2",
+      "source_reference": "https://snapshot.debian.org/package/e2fsprogs/1.47.0-2/",
+      "copyright": "usr/share/doc/libcom-err2/copyright"
+    },
+    {
+      "package": "libcrypt1",
+      "version": "1:4.4.33-2",
+      "source": "libxcrypt",
+      "source_version": "1:4.4.33-2",
+      "source_reference": "https://snapshot.debian.org/package/libxcrypt/1%3A4.4.33-2/",
+      "copyright": "usr/share/doc/libcrypt1/copyright"
+    },
+    {
+      "package": "libdb5.3",
+      "version": "5.3.28+dfsg2-1",
+      "source": "db5.3",
+      "source_version": "5.3.28+dfsg2-1",
+      "source_reference": "https://snapshot.debian.org/package/db5.3/5.3.28%2Bdfsg2-1/",
+      "copyright": "usr/share/doc/libdb5.3/copyright"
+    },
+    {
+      "package": "libdebconfclient0",
+      "version": "0.270",
+      "source": "cdebconf",
+      "source_version": "0.270",
+      "source_reference": "https://snapshot.debian.org/package/cdebconf/0.270/",
+      "copyright": "usr/share/doc/libdebconfclient0/copyright"
+    },
+    {
+      "package": "libext2fs2",
+      "version": "1.47.0-2+b2",
+      "source": "e2fsprogs",
+      "source_version": "1.47.0-2",
+      "source_reference": "https://snapshot.debian.org/package/e2fsprogs/1.47.0-2/",
+      "copyright": "usr/share/doc/libext2fs2/copyright"
+    },
+    {
+      "package": "libffi8",
+      "version": "3.4.4-1",
+      "source": "libffi",
+      "source_version": "3.4.4-1",
+      "source_reference": "https://snapshot.debian.org/package/libffi/3.4.4-1/",
+      "copyright": "usr/share/doc/libffi8/copyright"
+    },
+    {
+      "package": "libgcc-s1",
+      "version": "12.2.0-14+deb12u1",
+      "source": "gcc-12",
+      "source_version": "12.2.0-14+deb12u1",
+      "source_reference": "https://snapshot.debian.org/package/gcc-12/12.2.0-14%2Bdeb12u1/",
+      "copyright": "usr/share/doc/libgcc-s1/copyright"
+    },
+    {
+      "package": "libgcrypt20",
+      "version": "1.10.1-3+deb12u1",
+      "source": "libgcrypt20",
+      "source_version": "1.10.1-3+deb12u1",
+      "source_reference": "https://snapshot.debian.org/package/libgcrypt20/1.10.1-3%2Bdeb12u1/",
+      "copyright": "usr/share/doc/libgcrypt20/copyright"
+    },
+    {
+      "package": "libgdbm6",
+      "version": "1.23-3",
+      "source": "gdbm",
+      "source_version": "1.23-3",
+      "source_reference": "https://snapshot.debian.org/package/gdbm/1.23-3/",
+      "copyright": "usr/share/doc/libgdbm6/copyright"
+    },
+    {
+      "package": "libgmp10",
+      "version": "2:6.2.1+dfsg1-1.1",
+      "source": "gmp",
+      "source_version": "2:6.2.1+dfsg1-1.1",
+      "source_reference": "https://snapshot.debian.org/package/gmp/2%3A6.2.1%2Bdfsg1-1.1/",
+      "copyright": "usr/share/doc/libgmp10/copyright"
+    },
+    {
+      "package": "libgnutls30",
+      "version": "3.7.9-2+deb12u7",
+      "source": "gnutls28",
+      "source_version": "3.7.9-2+deb12u7",
+      "source_reference": "https://snapshot.debian.org/package/gnutls28/3.7.9-2%2Bdeb12u7/",
+      "copyright": "usr/share/doc/libgnutls30/copyright"
+    },
+    {
+      "package": "libgpg-error0",
+      "version": "1.46-1",
+      "source": "libgpg-error",
+      "source_version": "1.46-1",
+      "source_reference": "https://snapshot.debian.org/package/libgpg-error/1.46-1/",
+      "copyright": "usr/share/doc/libgpg-error0/copyright"
+    },
+    {
+      "package": "libhogweed6",
+      "version": "3.8.1-2",
+      "source": "nettle",
+      "source_version": "3.8.1-2",
+      "source_reference": "https://snapshot.debian.org/package/nettle/3.8.1-2/",
+      "copyright": "usr/share/doc/libhogweed6/copyright"
+    },
+    {
+      "package": "libidn2-0",
+      "version": "2.3.3-1+b1",
+      "source": "libidn2",
+      "source_version": "2.3.3-1",
+      "source_reference": "https://snapshot.debian.org/package/libidn2/2.3.3-1/",
+      "copyright": "usr/share/doc/libidn2-0/copyright"
+    },
+    {
+      "package": "liblz4-1",
+      "version": "1.9.4-1",
+      "source": "lz4",
+      "source_version": "1.9.4-1",
+      "source_reference": "https://snapshot.debian.org/package/lz4/1.9.4-1/",
+      "copyright": "usr/share/doc/liblz4-1/copyright"
+    },
+    {
+      "package": "liblzma5",
+      "version": "5.4.1-1+deb12u2",
+      "source": "xz-utils",
+      "source_version": "5.4.1-1+deb12u2",
+      "source_reference": "https://snapshot.debian.org/package/xz-utils/5.4.1-1%2Bdeb12u2/",
+      "copyright": "usr/share/doc/liblzma5/copyright"
+    },
+    {
+      "package": "libmd0",
+      "version": "1.0.4-2",
+      "source": "libmd",
+      "source_version": "1.0.4-2",
+      "source_reference": "https://snapshot.debian.org/package/libmd/1.0.4-2/",
+      "copyright": "usr/share/doc/libmd0/copyright"
+    },
+    {
+      "package": "libmount1",
+      "version": "2.38.1-5+deb12u3",
+      "source": "util-linux",
+      "source_version": "2.38.1-5+deb12u3",
+      "source_reference": "https://snapshot.debian.org/package/util-linux/2.38.1-5%2Bdeb12u3/",
+      "copyright": "usr/share/doc/libmount1/copyright"
+    },
+    {
+      "package": "libncursesw6",
+      "version": "6.4-4",
+      "source": "ncurses",
+      "source_version": "6.4-4",
+      "source_reference": "https://snapshot.debian.org/package/ncurses/6.4-4/",
+      "copyright": "usr/share/doc/libncursesw6/copyright"
+    },
+    {
+      "package": "libnettle8",
+      "version": "3.8.1-2",
+      "source": "nettle",
+      "source_version": "3.8.1-2",
+      "source_reference": "https://snapshot.debian.org/package/nettle/3.8.1-2/",
+      "copyright": "usr/share/doc/libnettle8/copyright"
+    },
+    {
+      "package": "libp11-kit0",
+      "version": "0.24.1-2",
+      "source": "p11-kit",
+      "source_version": "0.24.1-2",
+      "source_reference": "https://snapshot.debian.org/package/p11-kit/0.24.1-2/",
+      "copyright": "usr/share/doc/libp11-kit0/copyright"
+    },
+    {
+      "package": "libpam-modules",
+      "version": "1.5.2-6+deb12u2",
+      "source": "pam",
+      "source_version": "1.5.2-6+deb12u2",
+      "source_reference": "https://snapshot.debian.org/package/pam/1.5.2-6%2Bdeb12u2/",
+      "copyright": "usr/share/doc/libpam-modules/copyright"
+    },
+    {
+      "package": "libpam-modules-bin",
+      "version": "1.5.2-6+deb12u2",
+      "source": "pam",
+      "source_version": "1.5.2-6+deb12u2",
+      "source_reference": "https://snapshot.debian.org/package/pam/1.5.2-6%2Bdeb12u2/",
+      "copyright": "usr/share/doc/libpam-modules-bin/copyright"
+    },
+    {
+      "package": "libpam-runtime",
+      "version": "1.5.2-6+deb12u2",
+      "source": "pam",
+      "source_version": "1.5.2-6+deb12u2",
+      "source_reference": "https://snapshot.debian.org/package/pam/1.5.2-6%2Bdeb12u2/",
+      "copyright": "usr/share/doc/libpam-runtime/copyright"
+    },
+    {
+      "package": "libpam0g",
+      "version": "1.5.2-6+deb12u2",
+      "source": "pam",
+      "source_version": "1.5.2-6+deb12u2",
+      "source_reference": "https://snapshot.debian.org/package/pam/1.5.2-6%2Bdeb12u2/",
+      "copyright": "usr/share/doc/libpam0g/copyright"
+    },
+    {
+      "package": "libpcre2-8-0",
+      "version": "10.42-1+deb12u2",
+      "source": "pcre2",
+      "source_version": "10.42-1+deb12u2",
+      "source_reference": "https://snapshot.debian.org/package/pcre2/10.42-1%2Bdeb12u2/",
+      "copyright": "usr/share/doc/libpcre2-8-0/copyright"
+    },
+    {
+      "package": "libreadline8",
+      "version": "8.2-1.3",
+      "source": "readline",
+      "source_version": "8.2-1.3",
+      "source_reference": "https://snapshot.debian.org/package/readline/8.2-1.3/",
+      "copyright": "usr/share/doc/libreadline8/copyright"
+    },
+    {
+      "package": "libseccomp2",
+      "version": "2.5.4-1+deb12u1",
+      "source": "libseccomp",
+      "source_version": "2.5.4-1+deb12u1",
+      "source_reference": "https://snapshot.debian.org/package/libseccomp/2.5.4-1%2Bdeb12u1/",
+      "copyright": "usr/share/doc/libseccomp2/copyright"
+    },
+    {
+      "package": "libselinux1",
+      "version": "3.4-1+b6",
+      "source": "libselinux",
+      "source_version": "3.4-1",
+      "source_reference": "https://snapshot.debian.org/package/libselinux/3.4-1/",
+      "copyright": "usr/share/doc/libselinux1/copyright"
+    },
+    {
+      "package": "libsemanage-common",
+      "version": "3.4-1",
+      "source": "libsemanage",
+      "source_version": "3.4-1",
+      "source_reference": "https://snapshot.debian.org/package/libsemanage/3.4-1/",
+      "copyright": "usr/share/doc/libsemanage-common/copyright"
+    },
+    {
+      "package": "libsemanage2",
+      "version": "3.4-1+b5",
+      "source": "libsemanage",
+      "source_version": "3.4-1",
+      "source_reference": "https://snapshot.debian.org/package/libsemanage/3.4-1/",
+      "copyright": "usr/share/doc/libsemanage2/copyright"
+    },
+    {
+      "package": "libsepol2",
+      "version": "3.4-2.1",
+      "source": "libsepol",
+      "source_version": "3.4-2.1",
+      "source_reference": "https://snapshot.debian.org/package/libsepol/3.4-2.1/",
+      "copyright": "usr/share/doc/libsepol2/copyright"
+    },
+    {
+      "package": "libsmartcols1",
+      "version": "2.38.1-5+deb12u3",
+      "source": "util-linux",
+      "source_version": "2.38.1-5+deb12u3",
+      "source_reference": "https://snapshot.debian.org/package/util-linux/2.38.1-5%2Bdeb12u3/",
+      "copyright": "usr/share/doc/libsmartcols1/copyright"
+    },
+    {
+      "package": "libsqlite3-0",
+      "version": "3.40.1-2+deb12u2",
+      "source": "sqlite3",
+      "source_version": "3.40.1-2+deb12u2",
+      "source_reference": "https://snapshot.debian.org/package/sqlite3/3.40.1-2%2Bdeb12u2/",
+      "copyright": "usr/share/doc/libsqlite3-0/copyright"
+    },
+    {
+      "package": "libss2",
+      "version": "1.47.0-2+b2",
+      "source": "e2fsprogs",
+      "source_version": "1.47.0-2",
+      "source_reference": "https://snapshot.debian.org/package/e2fsprogs/1.47.0-2/",
+      "copyright": "usr/share/doc/libss2/copyright"
+    },
+    {
+      "package": "libssl3",
+      "version": "3.0.22-1~deb12u2",
+      "source": "openssl",
+      "source_version": "3.0.22-1~deb12u2",
+      "source_reference": "https://snapshot.debian.org/package/openssl/3.0.22-1~deb12u2/",
+      "copyright": "usr/share/doc/libssl3/copyright"
+    },
+    {
+      "package": "libstdc++6",
+      "version": "12.2.0-14+deb12u1",
+      "source": "gcc-12",
+      "source_version": "12.2.0-14+deb12u1",
+      "source_reference": "https://snapshot.debian.org/package/gcc-12/12.2.0-14%2Bdeb12u1/",
+      "copyright": "usr/share/doc/libstdc++6/copyright"
+    },
+    {
+      "package": "libsystemd0",
+      "version": "252.39-1~deb12u2",
+      "source": "systemd",
+      "source_version": "252.39-1~deb12u2",
+      "source_reference": "https://snapshot.debian.org/package/systemd/252.39-1~deb12u2/",
+      "copyright": "usr/share/doc/libsystemd0/copyright"
+    },
+    {
+      "package": "libtasn1-6",
+      "version": "4.19.0-2+deb12u1",
+      "source": "libtasn1-6",
+      "source_version": "4.19.0-2+deb12u1",
+      "source_reference": "https://snapshot.debian.org/package/libtasn1-6/4.19.0-2%2Bdeb12u1/",
+      "copyright": "usr/share/doc/libtasn1-6/copyright"
+    },
+    {
+      "package": "libtinfo6",
+      "version": "6.4-4",
+      "source": "ncurses",
+      "source_version": "6.4-4",
+      "source_reference": "https://snapshot.debian.org/package/ncurses/6.4-4/",
+      "copyright": "usr/share/doc/libtinfo6/copyright"
+    },
+    {
+      "package": "libudev1",
+      "version": "252.39-1~deb12u2",
+      "source": "systemd",
+      "source_version": "252.39-1~deb12u2",
+      "source_reference": "https://snapshot.debian.org/package/systemd/252.39-1~deb12u2/",
+      "copyright": "usr/share/doc/libudev1/copyright"
+    },
+    {
+      "package": "libunistring2",
+      "version": "1.0-2",
+      "source": "libunistring",
+      "source_version": "1.0-2",
+      "source_reference": "https://snapshot.debian.org/package/libunistring/1.0-2/",
+      "copyright": "usr/share/doc/libunistring2/copyright"
+    },
+    {
+      "package": "libuuid1",
+      "version": "2.38.1-5+deb12u3",
+      "source": "util-linux",
+      "source_version": "2.38.1-5+deb12u3",
+      "source_reference": "https://snapshot.debian.org/package/util-linux/2.38.1-5%2Bdeb12u3/",
+      "copyright": "usr/share/doc/libuuid1/copyright"
+    },
+    {
+      "package": "libxxhash0",
+      "version": "0.8.1-1",
+      "source": "xxhash",
+      "source_version": "0.8.1-1",
+      "source_reference": "https://snapshot.debian.org/package/xxhash/0.8.1-1/",
+      "copyright": "usr/share/doc/libxxhash0/copyright"
+    },
+    {
+      "package": "libzstd1",
+      "version": "1.5.4+dfsg2-5",
+      "source": "libzstd",
+      "source_version": "1.5.4+dfsg2-5",
+      "source_reference": "https://snapshot.debian.org/package/libzstd/1.5.4%2Bdfsg2-5/",
+      "copyright": "usr/share/doc/libzstd1/copyright"
+    },
+    {
+      "package": "login",
+      "version": "1:4.13+dfsg1-1+deb12u2",
+      "source": "shadow",
+      "source_version": "1:4.13+dfsg1-1+deb12u2",
+      "source_reference": "https://snapshot.debian.org/package/shadow/1%3A4.13%2Bdfsg1-1%2Bdeb12u2/",
+      "copyright": "usr/share/doc/login/copyright"
+    },
+    {
+      "package": "logsave",
+      "version": "1.47.0-2+b2",
+      "source": "e2fsprogs",
+      "source_version": "1.47.0-2",
+      "source_reference": "https://snapshot.debian.org/package/e2fsprogs/1.47.0-2/",
+      "copyright": "usr/share/doc/logsave/copyright"
+    },
+    {
+      "package": "mawk",
+      "version": "1.3.4.20200120-3.1",
+      "source": "mawk",
+      "source_version": "1.3.4.20200120-3.1",
+      "source_reference": "https://snapshot.debian.org/package/mawk/1.3.4.20200120-3.1/",
+      "copyright": "usr/share/doc/mawk/copyright"
+    },
+    {
+      "package": "mount",
+      "version": "2.38.1-5+deb12u3",
+      "source": "util-linux",
+      "source_version": "2.38.1-5+deb12u3",
+      "source_reference": "https://snapshot.debian.org/package/util-linux/2.38.1-5%2Bdeb12u3/",
+      "copyright": "usr/share/doc/mount/copyright"
+    },
+    {
+      "package": "ncurses-base",
+      "version": "6.4-4",
+      "source": "ncurses",
+      "source_version": "6.4-4",
+      "source_reference": "https://snapshot.debian.org/package/ncurses/6.4-4/",
+      "copyright": "usr/share/doc/ncurses-base/copyright"
+    },
+    {
+      "package": "ncurses-bin",
+      "version": "6.4-4",
+      "source": "ncurses",
+      "source_version": "6.4-4",
+      "source_reference": "https://snapshot.debian.org/package/ncurses/6.4-4/",
+      "copyright": "usr/share/doc/ncurses-bin/copyright"
+    },
+    {
+      "package": "netbase",
+      "version": "6.4",
+      "source": "netbase",
+      "source_version": "6.4",
+      "source_reference": "https://snapshot.debian.org/package/netbase/6.4/",
+      "copyright": "usr/share/doc/netbase/copyright"
+    },
+    {
+      "package": "openssl",
+      "version": "3.0.22-1~deb12u2",
+      "source": "openssl",
+      "source_version": "3.0.22-1~deb12u2",
+      "source_reference": "https://snapshot.debian.org/package/openssl/3.0.22-1~deb12u2/",
+      "copyright": "usr/share/doc/openssl/copyright"
+    },
+    {
+      "package": "passwd",
+      "version": "1:4.13+dfsg1-1+deb12u2",
+      "source": "shadow",
+      "source_version": "1:4.13+dfsg1-1+deb12u2",
+      "source_reference": "https://snapshot.debian.org/package/shadow/1%3A4.13%2Bdfsg1-1%2Bdeb12u2/",
+      "copyright": "usr/share/doc/passwd/copyright"
+    },
+    {
+      "package": "perl-base",
+      "version": "5.36.0-7+deb12u4",
+      "source": "perl",
+      "source_version": "5.36.0-7+deb12u4",
+      "source_reference": "https://snapshot.debian.org/package/perl/5.36.0-7%2Bdeb12u4/",
+      "copyright": "usr/share/doc/perl-base/copyright"
+    },
+    {
+      "package": "readline-common",
+      "version": "8.2-1.3",
+      "source": "readline",
+      "source_version": "8.2-1.3",
+      "source_reference": "https://snapshot.debian.org/package/readline/8.2-1.3/",
+      "copyright": "usr/share/doc/readline-common/copyright"
+    },
+    {
+      "package": "sed",
+      "version": "4.9-1+deb12u1",
+      "source": "sed",
+      "source_version": "4.9-1+deb12u1",
+      "source_reference": "https://snapshot.debian.org/package/sed/4.9-1%2Bdeb12u1/",
+      "copyright": "usr/share/doc/sed/copyright"
+    },
+    {
+      "package": "sysvinit-utils",
+      "version": "3.06-4",
+      "source": "sysvinit",
+      "source_version": "3.06-4",
+      "source_reference": "https://snapshot.debian.org/package/sysvinit/3.06-4/",
+      "copyright": "usr/share/doc/sysvinit-utils/copyright"
+    },
+    {
+      "package": "tar",
+      "version": "1.34+dfsg-1.2+deb12u1",
+      "source": "tar",
+      "source_version": "1.34+dfsg-1.2+deb12u1",
+      "source_reference": "https://snapshot.debian.org/package/tar/1.34%2Bdfsg-1.2%2Bdeb12u1/",
+      "copyright": "usr/share/doc/tar/copyright"
+    },
+    {
+      "package": "tzdata",
+      "version": "2026e-0+deb12u1",
+      "source": "tzdata",
+      "source_version": "2026e-0+deb12u1",
+      "source_reference": "https://snapshot.debian.org/package/tzdata/2026e-0%2Bdeb12u1/",
+      "copyright": "usr/share/doc/tzdata/copyright"
+    },
+    {
+      "package": "usr-is-merged",
+      "version": "37~deb12u1",
+      "source": "usrmerge",
+      "source_version": "37~deb12u1",
+      "source_reference": "https://snapshot.debian.org/package/usrmerge/37~deb12u1/",
+      "copyright": "usr/share/doc/usr-is-merged/copyright"
+    },
+    {
+      "package": "util-linux",
+      "version": "2.38.1-5+deb12u3",
+      "source": "util-linux",
+      "source_version": "2.38.1-5+deb12u3",
+      "source_reference": "https://snapshot.debian.org/package/util-linux/2.38.1-5%2Bdeb12u3/",
+      "copyright": "usr/share/doc/util-linux/copyright"
+    },
+    {
+      "package": "util-linux-extra",
+      "version": "2.38.1-5+deb12u3",
+      "source": "util-linux",
+      "source_version": "2.38.1-5+deb12u3",
+      "source_reference": "https://snapshot.debian.org/package/util-linux/2.38.1-5%2Bdeb12u3/",
+      "copyright": "usr/share/doc/util-linux-extra/copyright"
+    },
+    {
+      "package": "zlib1g",
+      "version": "1:1.2.13.dfsg-1",
+      "source": "zlib",
+      "source_version": "1:1.2.13.dfsg-1",
+      "source_reference": "https://snapshot.debian.org/package/zlib/1%3A1.2.13.dfsg-1/",
+      "copyright": "usr/share/doc/zlib1g/copyright"
+    }
+  ],
+  "legal_sha256": {
+    "usr/share/doc/adduser/copyright": "b143053a4862ab354831487b5f8bd31dc9ffdc589d15de9d9c764332a0209796",
+    "usr/share/doc/apt/copyright": "b4701305243d8d746f4acaafe15d94f946251b05691bd6917fef41dd15e9ee12",
+    "usr/share/doc/base-files/copyright": "fd7e4aae7e7b05f217bcf2d02322825c360e66c52c4c2f1b28d784d6297a1c23",
+    "usr/share/doc/base-passwd/copyright": "0f1cde79bd80a75f9029ae9a8c252b642223027ef36f6989c63a8230aae576a7",
+    "usr/share/doc/bash/copyright": "06319d84c3e5ed096036f6a9310a030c7e84e50dff2b8a6792285c83ec0ada73",
+    "usr/share/doc/bsdutils/copyright": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c",
+    "usr/share/doc/ca-certificates/copyright": "e85e1bcad3a915dc7e6f41412bc5bdeba275cadd817896ea0451f2140a93967c",
+    "usr/share/doc/coreutils/copyright": "24e86c5ca53d6bfd8e0c47988160daa62d10a74997fe11f651e1d9533c78bff6",
+    "usr/share/doc/dash/copyright": "d98c53f281321baad38164aa9ae6e368a9253be6ec51bd26a759b5e72b326f4a",
+    "usr/share/doc/debconf/copyright": "57163c71bd8a5289660892827dd0dfaa7fef47f89deedc9dc6711ced7d0a28d7",
+    "usr/share/doc/debian-archive-keyring/copyright": "b32aecaae84643700a33bc9ee83fa9b36938d35aa7b61b5042092eca77ddb732",
+    "usr/share/doc/debianutils/copyright": "fd2d797e208bcfb713510e47a89867191180943e1167d44c2acd8ff1b88e5c10",
+    "usr/share/doc/diffutils/copyright": "8654d7cc7cdae1f31bb67a3ce5bf35d512c0bdfffd071df757edc54153cc7930",
+    "usr/share/doc/dpkg/copyright": "7442bdadcd44e818fddd786057db07639cc68225c389c7c240d3bb3984b05173",
+    "usr/share/doc/e2fsprogs/copyright": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db",
+    "usr/share/doc/findutils/copyright": "8fbcc77ed31f480a85654e9b6d1d25cbb95b62e9dc5159ae1565bca684c3e1dc",
+    "usr/share/doc/gcc-12-base/copyright": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3",
+    "usr/share/doc/gpgv/copyright": "84dab06b5c1baf3a7a45c3cdc5f98fb121234e98fdd6266c3f773d54fcdc4f54",
+    "usr/share/doc/grep/copyright": "42d9b4d610396b1e8d1303dcb9487af3f5a2d2709623cf03a04cf76acdf6c5e3",
+    "usr/share/doc/gzip/copyright": "1ca5dd5098fe2e1c0f0d05196f5b3da8b414a807702e6ca8b536eb5fd3059130",
+    "usr/share/doc/hostname/copyright": "94189fc5a9a7b7224d96e1a0cfdfe9be0df2018b04bf21d591627ab96b30cad1",
+    "usr/share/doc/init-system-helpers/copyright": "7534601cc4fa513804d16490359f5831e7b6a1212da3bbf948bebdd4c8799783",
+    "usr/share/doc/libacl1/copyright": "9a2dfb4a5abc7e84be2cc41f1089be665519c9409549296f6c19de57ab1d37c2",
+    "usr/share/doc/libapt-pkg6.0/copyright": "b4701305243d8d746f4acaafe15d94f946251b05691bd6917fef41dd15e9ee12",
+    "usr/share/doc/libattr1/copyright": "0cbec745d85ea775450b2d54fac55277197f429e52d611f72852ed420450620e",
+    "usr/share/doc/libaudit-common/copyright": "6c7011e93f643b112c4cc3622131e28a30477afad6c4f5efe466b13aa7f603cc",
+    "usr/share/doc/libaudit1/copyright": "6c7011e93f643b112c4cc3622131e28a30477afad6c4f5efe466b13aa7f603cc",
+    "usr/share/doc/libblkid1/copyright": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c",
+    "usr/share/doc/libbz2-1.0/copyright": "832ed535ff3c3d025a8d2348eb1b697b89addcf2eaadbc17650262040b9145e2",
+    "usr/share/doc/libc-bin/copyright": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987",
+    "usr/share/doc/libc6/copyright": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987",
+    "usr/share/doc/libcap-ng0/copyright": "49b5db19990a3e3cc1a9ed716aed231f6f3c1c217e58f62ae4dc2818c6d3e9cc",
+    "usr/share/doc/libcap2/copyright": "e60a5642e12e340060e4e519a65b2eb0330be2917854841c644e36268f607d54",
+    "usr/share/doc/libcom-err2/copyright": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db",
+    "usr/share/doc/libcrypt1/copyright": "5a5e7ca0e9f3f9679977e3a3e9ede45ad92885a3297ea78e766979f9866c5a16",
+    "usr/share/doc/libdb5.3/copyright": "8b53da37d73289d9df7317b3a2dbe16491f1fa9fec8b77b86d69704b40ce2c26",
+    "usr/share/doc/libdebconfclient0/copyright": "cf63099896d1c0f6529c41b8d95738e6fea342ffba609187d339c4f38ce36ecc",
+    "usr/share/doc/libext2fs2/copyright": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db",
+    "usr/share/doc/libffi8/copyright": "f83d2ecba1ea4d99957e81c50bebbd076a128194288a3ec22cc8ccdb77c43087",
+    "usr/share/doc/libgcc-s1/copyright": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3",
+    "usr/share/doc/libgcrypt20/copyright": "95db2f9da663f2bfe2aabe9c72fce9d6c9ae767b912f397d7823f50bd55a1a7d",
+    "usr/share/doc/libgdbm6/copyright": "8bea8cf2f94cd8b37a0b8b3a2b974122b9194c1165e6ad508e366c74679e8817",
+    "usr/share/doc/libgmp10/copyright": "7d366aef5ba325150246de1d7820c4c9926cd27ca61a69948492b26cd3b61601",
+    "usr/share/doc/libgnutls30/copyright": "bb7e5c24b3e27bbba5671dd710d159a0066833bda4caa1d55d8027ffed539337",
+    "usr/share/doc/libgpg-error0/copyright": "8760fd36efa1d7186f8769d4e76a3e678045b94d54465bf6f2db5eb871c7c27f",
+    "usr/share/doc/libhogweed6/copyright": "ca2ca597320220c00ef6dc0fe5d0d82025548d6d4ba80e85615eb691f9021f93",
+    "usr/share/doc/libidn2-0/copyright": "41702469f28e8ff406345e3d1dd0c741f11bdfca319264f67036efd6aaa79e4b",
+    "usr/share/doc/liblz4-1/copyright": "d3be0f43fe14da244f97c451bbae789c0acf868612598a69f5f22a289abeca40",
+    "usr/share/doc/liblzma5/copyright": "a2dc8fac0f496e1c58aff67018cf0c6b88336316afa5642f9335b71642e28aa8",
+    "usr/share/doc/libmd0/copyright": "4365ef6255ad553fce69dd4bc0e093472c5d0e41b8ea493a545cc926ce171aa6",
+    "usr/share/doc/libmount1/copyright": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c",
+    "usr/share/doc/libncursesw6/copyright": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e",
+    "usr/share/doc/libnettle8/copyright": "ca2ca597320220c00ef6dc0fe5d0d82025548d6d4ba80e85615eb691f9021f93",
+    "usr/share/doc/libp11-kit0/copyright": "ed139379f7c874f0ee75f3ddcc2e01091dd828d84ee1a0bdff6a1c5673ee6e58",
+    "usr/share/doc/libpam-modules/copyright": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce",
+    "usr/share/doc/libpam-modules-bin/copyright": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce",
+    "usr/share/doc/libpam-runtime/copyright": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce",
+    "usr/share/doc/libpam0g/copyright": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce",
+    "usr/share/doc/libpcre2-8-0/copyright": "030511beb4d9d620ad09914c369c36ec0528dcf301d1923cc643c948ee7c6a38",
+    "usr/share/doc/libreadline8/copyright": "3591a8e4de849d910c5ee9045388344ef151c23b10cf8c6b1950f89f1ba1569c",
+    "usr/share/doc/libseccomp2/copyright": "6da0653a365b80ab31478dbfe9e7c358e80d58b6d2b52b4e16b4dbb42d7d9f5c",
+    "usr/share/doc/libselinux1/copyright": "641806738b0c6a3d03168c2649e6b94205198bb66cd557e6bae3a20b71c9bb0b",
+    "usr/share/doc/libsemanage-common/copyright": "e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51",
+    "usr/share/doc/libsemanage2/copyright": "e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51",
+    "usr/share/doc/libsepol2/copyright": "78d2a34606a0302057ec499a3b3c07bcbc43ca334064ce4c80891a0f69c8f6c6",
+    "usr/share/doc/libsmartcols1/copyright": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c",
+    "usr/share/doc/libsqlite3-0/copyright": "78e9df8f8153c91c762ec970b82d224ac4d30f05aa7773e7e17e268141e53873",
+    "usr/share/doc/libss2/copyright": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db",
+    "usr/share/doc/libssl3/copyright": "6a7da622fe0637a334d2a8fc470852d2ffb77d9a2b2f930f854e32a41ad6ef35",
+    "usr/share/doc/libstdc++6/copyright": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3",
+    "usr/share/doc/libsystemd0/copyright": "a7d06854714a1ca99f6dbd1a1641dde5bcf28635be149f6554449618f8f427f3",
+    "usr/share/doc/libtasn1-6/copyright": "572ad60ad184d8f52c6dc66d83a61a68f137db560b3452ce00588c9ecf128a65",
+    "usr/share/doc/libtinfo6/copyright": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e",
+    "usr/share/doc/libudev1/copyright": "a7d06854714a1ca99f6dbd1a1641dde5bcf28635be149f6554449618f8f427f3",
+    "usr/share/doc/libunistring2/copyright": "0035f89e5317f3cec389383e8727788521b0fde3e75cea881fa0e92e1d48cb57",
+    "usr/share/doc/libuuid1/copyright": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c",
+    "usr/share/doc/libxxhash0/copyright": "a123c93b07e781919ae996276ac02bb1c8b19dfde88176cd1240ab277c14a4ce",
+    "usr/share/doc/libzstd1/copyright": "35e85e8e9bbb71492c5f5dddf39ed65b68775a02ad8d710c25d097b497f06c49",
+    "usr/share/doc/login/copyright": "a4c3e5b19700dd3cc5961663d204bd7150f65f913314682aede5931548c436d5",
+    "usr/share/doc/logsave/copyright": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db",
+    "usr/share/doc/mawk/copyright": "167d04422f2fdf76ab565878c23be8ba0c2ebb2c57a5dac0a5a59ccd27e747a5",
+    "usr/share/doc/mount/copyright": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c",
+    "usr/share/doc/ncurses-base/copyright": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e",
+    "usr/share/doc/ncurses-bin/copyright": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e",
+    "usr/share/doc/netbase/copyright": "795b66147ea5ad692991caa7008ece551fb0fa88b9c53656223bd1518dc58ab2",
+    "usr/share/doc/openssl/copyright": "6a7da622fe0637a334d2a8fc470852d2ffb77d9a2b2f930f854e32a41ad6ef35",
+    "usr/share/doc/passwd/copyright": "a4c3e5b19700dd3cc5961663d204bd7150f65f913314682aede5931548c436d5",
+    "usr/share/doc/perl-base/copyright": "b52f3ca17b45473cb0da6ec46748949101fcf0dda1fd5d8b306e6c97fd41af4d",
+    "usr/share/doc/readline-common/copyright": "3591a8e4de849d910c5ee9045388344ef151c23b10cf8c6b1950f89f1ba1569c",
+    "usr/share/doc/sed/copyright": "719320e425e8e6da53a55e0fcfa2f2ed9b1332cea16abd65321bd651b2a88568",
+    "usr/share/doc/sysvinit-utils/copyright": "ad7cb339e58a88918a883d553ca236795191f027e158788a8b33f747ff502fb2",
+    "usr/share/doc/tar/copyright": "bea61e0c172868e07845cf50423f97f093a9a46de167dbbe333a38be610c8e00",
+    "usr/share/doc/tzdata/copyright": "cb61132bc0fc7b26ef5a82ee18b2fb644a1362f4f286ed980ff22e408471f59a",
+    "usr/share/doc/usr-is-merged/copyright": "9836bfe2ef94505bbf29701e8c90799ab1a5fd966d26d60d019a822cdbf3d61a",
+    "usr/share/doc/util-linux/copyright": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c",
+    "usr/share/doc/util-linux-extra/copyright": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c",
+    "usr/share/doc/zlib1g/copyright": "9e5b96d63773a5d177ba264254390f792be07e41748ebd94730981c6cac31cc6",
+    "usr/share/common-licenses/Apache-2.0": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "usr/share/common-licenses/Artistic": "b7fd9b73ea99602016a326e0b62e6646060d18febdd065ceca8bb482208c3d88",
+    "usr/share/common-licenses/BSD": "5d588eb3b157d52112afea935c88a7ff9efddc1e2d95a42c25d3b96ad9055008",
+    "usr/share/common-licenses/CC0-1.0": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+    "usr/share/common-licenses/GFDL": "110535522396708cea37c72a802c5e7e81391139f5f7985631c93ef242b206a4",
+    "usr/share/common-licenses/GFDL-1.2": "d8e94ae5fdb5433fcae2961aeb1a8cf17174d6f4a0465d24bf37dd8a038bd439",
+    "usr/share/common-licenses/GFDL-1.3": "110535522396708cea37c72a802c5e7e81391139f5f7985631c93ef242b206a4",
+    "usr/share/common-licenses/GPL": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+    "usr/share/common-licenses/GPL-1": "d77d235e41d54594865151f4751e835c5a82322b0e87ace266567c3391a4b912",
+    "usr/share/common-licenses/GPL-2": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+    "usr/share/common-licenses/GPL-3": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+    "usr/share/common-licenses/LGPL": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+    "usr/share/common-licenses/LGPL-2": "681e386e44a19d7d0674b4320272c90e66b6610b741e7e6305f8219c42e85366",
+    "usr/share/common-licenses/LGPL-2.1": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551",
+    "usr/share/common-licenses/LGPL-3": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+    "usr/share/common-licenses/MPL-1.1": "f849fc26a7a99981611a3a370e83078deb617d12a45776d6c4cada4d338be469",
+    "usr/share/common-licenses/MPL-2.0": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85",
+    "usr/local/lib/python3.13/LICENSE.txt": "78b12c3a81360b357002334f0e70ea0e92eebf7a9b358805c03c48484945f3bb"
+  },
+  "python": {
+    "version": "3.13.18",
+    "source_url": "https://www.python.org/ftp/python/3.13.18/Python-3.13.18.tar.xz",
+    "source_sha256": "abb0102e6d4ae027509bcb82327d9dd85515b44a3ba8ad538cfc5e9847029f68"
+  },
+  "remaining": [
+    "Debian source URLs identify exact source package versions; Debian source archives are not yet bundled or rebuilt",
+    "No complete native/base bit-identical rebuild claim"
+  ],
+  "platform": "linux/amd64",
+  "selected_manifest_digest": "sha256:70bda1e795ded2a684ef9815955e05829b14ee5bb5c3eb2a940648e88f10fce9",
+  "config_digest": "sha256:b7ddb46f14cdb6312b0ac3816e0513fe55904bd66e4525b8845058d3c1aa0f79"
+}

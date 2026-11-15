@@ -31,7 +31,7 @@ matches fail. Scanner output contains only counts and coordinates, never source
 or credential values. This does not clear the separately reported hosted content.
 
 Remaining work under FyberLabs/infra#993 includes historical-content disposition,
-older-image and every-layer scans, and base-image legal/source review. The scoped
+older-image and every-layer scans, and Debian source archive bundling. The scoped
 Python dependency source/replacement work is described below. No repository/package
 visibility, history rewrite, manual release or TEST pin is authorized here.
 Integration/e2e remains in scheduled nightly CI.
@@ -42,5 +42,13 @@ The storage image now bundles the five reviewed Python components' source/build
 materials and verifies their pairing with installed versions/native bytes.
 [Source and replacement preparation](../licenses/SOURCES.md) describes the exact
 scope and offline replacement checks. This completes that dependency follow-up;
-base-image source/legal review, retained-content disposition and full image-layer
+Debian source archive bundling, retained-content disposition and full image-layer
 review remain separate. Existing notice texts are preserved.
+
+
+## Base source/legal follow-up
+
+[The Core base review](../licenses/BASE.md) records this image's own package/source
+versions, legal files and retained layers, and adds matching CPython sources.
+Debian source archive bundling remains a follow-up, along with full image-layer
+and historical/older-image review. No base digest or TEST channel was changed.
