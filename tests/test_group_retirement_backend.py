@@ -12,7 +12,8 @@ from api.infrastructure.externals.group_retirement_backend import AzureGroupObje
 
 DATA=b'x'*33
 DIGEST=hashlib.sha256(DATA).hexdigest()
-KEY=group_key(UUID(int=1),DIGEST)
+SET='set_p_'+'a'*128+'_'+'b'*32
+KEY=group_key(UUID(int=1),SET,DIGEST)
 
 
 @pytest.mark.asyncio
@@ -53,7 +54,7 @@ async def test_namespace_bounds_and_reads():
         with pytest.raises(ObjectInputError):_=[x async for x in backend.read(key,0,1)]
     for metadata in [ObjectMetadata(True,DIGEST),ObjectMetadata(0,DIGEST),ObjectMetadata(65537,DIGEST),ObjectMetadata(33,'f'*64)]:
         with pytest.raises(ObjectInputError):await backend.put(KEY,BytesIO(DATA),metadata)
-    wrap=group_key(UUID(int=1),DIGEST)
+    wrap=group_key(UUID(int=1),SET,DIGEST)
     with pytest.raises(ObjectInputError):await backend.put(wrap,BytesIO(DATA),ObjectMetadata(65537,DIGEST))
     closed=[]
     async def chunks():
@@ -65,9 +66,10 @@ async def test_namespace_bounds_and_reads():
 
 
 def test_key_validation():
-    for args in [(UUID(int=0),DIGEST),('tenant',DIGEST),(UUID(int=1),'bad'),(UUID(int=1),None)]:
+    for args in [(UUID(int=0),SET,DIGEST),('tenant',SET,DIGEST),(UUID(int=1),SET,'bad'),(UUID(int=1),SET,None),(UUID(int=1),'bad',DIGEST)]:
         with pytest.raises(ObjectInputError):group_key(*args)
     assert checked(KEY)==('wrap',DIGEST)
+    assert group_key(UUID(int=1),SET[:-1]+'c',DIGEST)!=KEY
 
 
 @pytest.mark.asyncio

@@ -14,19 +14,22 @@ EMPTY_DIGEST=hashlib.sha256(b'').hexdigest()
 RETIRED=ObjectMetadata(0,EMPTY_DIGEST)
 
 
-def group_key(tenant,digest):
+def group_key(tenant,set_id,digest):
     if not isinstance(tenant,UUID) or not tenant.int or type(digest) is not str or not re.fullmatch('[0-9a-f]{64}',digest):
         raise ObjectInputError('Invalid group storage key')
-    return f'tenant-group/v1/{tenant.hex}/wrap/{digest}'
+    if type(set_id) is not str or not re.fullmatch(r'set_p_[a-f0-9]{128}_[a-f0-9]{32}',set_id):
+        raise ObjectInputError('Invalid group storage key')
+    group=hashlib.sha256(set_id.encode('ascii')).hexdigest()
+    return f'tenant-group/v1/{tenant.hex}/{group}/wrap/{digest}'
 
 
 def checked(key):
     if type(key) is not str:
         raise ObjectInputError('Invalid group storage key')
-    match=re.fullmatch(r'tenant-group/v1/([0-9a-f]{32})/(wrap)/([0-9a-f]{64})',key)
+    match=re.fullmatch(r'tenant-group/v1/([0-9a-f]{32})/([0-9a-f]{64})/(wrap)/([0-9a-f]{64})',key)
     if not match or not UUID(hex=match[1]).int:
         raise ObjectInputError('Invalid group storage key')
-    return match[2],match[3]
+    return match[3],match[4]
 
 
 class GroupNamespace:
