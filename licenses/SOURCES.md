@@ -3,7 +3,7 @@
 The Linux amd64 CPython 3.13 storage image includes certifi 2026.10.23 (MPL-2.0),
 jwcrypto 1.6.1 (LGPL-3.0), orjson 3.13.0 (Apache-2.0 OR MIT with MPL-2.0 bundled
 components), and psycopg/psycopg-binary 3.3.6 (LGPL-3.0). Existing legal texts and
-notices remain unchanged. The separate base review adds CPython sources; Debian archives remain a follow-up.
+notices remain unchanged. The separate base review adds CPython sources; Debian archives are covered by the separate base review.
 
 `sources.json` records 17 exact upstream source/build materials, package versions,
 URLs, sizes and SHA-256 hashes. They are bundled at

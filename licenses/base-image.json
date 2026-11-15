@@ -910,8 +910,9 @@
     "source_sha256": "abb0102e6d4ae027509bcb82327d9dd85515b44a3ba8ad538cfc5e9847029f68"
   },
   "remaining": [
-    "Debian source URLs identify exact source package versions; Debian source archives are not yet bundled or rebuilt",
-    "No complete native/base bit-identical rebuild claim"
+    "Descriptor signatures retained but signer trust chain not verified",
+    "No complete native/base bit-identical rebuild claim",
+    "Full image-layer scanning, historical content and older-image disposition remain separate"
   ],
   "platform": "linux/amd64",
   "selected_manifest_digest": "sha256:70bda1e795ded2a684ef9815955e05829b14ee5bb5c3eb2a940648e88f10fce9",

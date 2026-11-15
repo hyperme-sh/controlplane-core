@@ -28,8 +28,10 @@ retain the exact upstream ssl-documentation private-key placeholder; its excepti
 is bound to the archive/member hashes, rule and line, not runtime files.
 
 The 97 Debian binary packages map to 69 exact source-version pairs, with source
-references in the inventory. Debian source archives are not bundled by this slice;
-that remains a follow-up. No Debian signer trust-chain validation or bit-identical
+references in the inventory. All 69 source descriptors and 153 referenced files are now bundled under
+`/usr/share/doc/controlplane-core/debian-sources`. CI checks full source coverage,
+descriptor Source/Version and Checksums-Sha256 fields, file sizes and actual bytes.
+The bundle includes upstream signatures and Debian patches where listed. No Debian signer trust-chain validation or bit-identical
 base/native rebuild is claimed. The wheel-bundled libcrypt is separately paired
 with libxcrypt 4.5.2; Debian libcrypt1 is recorded as libxcrypt 1:4.4.33-2.
 
@@ -37,3 +39,19 @@ Full image-layer secret scanning, retained historical-content disposition,
 older-image review and public distribution clearance remain separate under Infra
 #993. This review changes no visibility, historical refs, service pins or manual
 release settings. GHCR storage:test remains moving; integration/e2e remains nightly.
+
+
+Sources use official Debian main/security mirrors. The exact tzdata
+2026e-0+deb12u1 files have left those mirrors and are retrieved from Debian
+Snapshot's content-addressed `/file/<hash>` paths. The manifest retains SHA-256
+checksums from the original descriptor; snapshot names alone are not the byte
+check. Redirects and other snapshot endpoints are refused.
+
+Source scanning preserves public upstream cryptographic test/demo fixtures,
+signing fingerprints, documentation and code identifiers. Exceptions require
+whole-archive SHA-256 plus complete nested member/rule/start/end coordinates.
+The apt 2.6.1 public test key is byte-identical to the previously reviewed apt 2.6.2
+fixture; only its actual Core archive coordinates are allowed. Runtime files and
+changed archives are never exempted. Scanning is bounded to three archive levels;
+deliberately malformed compression fixtures cannot all be recursively decoded.
+Their unchanged bytes remain bound to reviewed archive hashes.
