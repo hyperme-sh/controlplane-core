@@ -21,6 +21,8 @@ from api.interfaces.api_controllers.tenant_records_endpoint import router as rec
 from api.interfaces.api_controllers.tenant_replays_endpoint import router as replays
 from api.interfaces.api_controllers.media_allocation_endpoint import router as allocations
 from api.infrastructure.security.media_allocation_settings import load_issuers
+from api.infrastructure.security.group_allocation_settings import load_issuers as load_group_issuers
+from api.interfaces.api_controllers.group_allocation_endpoint import router as group_allocations
 from api.interfaces.api_controllers.media_retirement_endpoint import router as retirement
 from api.interfaces.api_controllers.media_payload_endpoint import router as payloads
 from api.interfaces.api_controllers.media_observation_endpoint import router as observations, observation_capacity
@@ -29,6 +31,7 @@ from api.interfaces.api_controllers.media_observation_endpoint import router as 
 @asynccontextmanager
 async def startup(app: FastAPI):
     app.state.media_allocation_issuers = load_issuers()
+    app.state.group_allocation_issuers = load_group_issuers()
     engine = create_async_engine(normalize_database_url(settings.database_url))
     configure_session_maker(async_sessionmaker(engine, expire_on_commit=False, autoflush=False))
     try:
@@ -70,6 +73,7 @@ app.include_router(administration, prefix='/api/v1', dependencies=[Depends(reque
 app.include_router(records, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 app.include_router(replays, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 app.include_router(allocations, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
+app.include_router(group_allocations, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 app.include_router(retirement, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 
 
