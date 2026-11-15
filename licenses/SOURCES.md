@@ -3,9 +3,9 @@
 The Linux amd64 CPython 3.13 storage image includes certifi 2026.10.23 (MPL-2.0),
 jwcrypto 1.6.1 (LGPL-3.0), orjson 3.13.0 (Apache-2.0 OR MIT with MPL-2.0 bundled
 components), and psycopg/psycopg-binary 3.3.6 (LGPL-3.0). Existing legal texts and
-notices remain unchanged. This scope does not include Debian/base-image sources.
+notices remain unchanged. The separate base review adds CPython sources; Debian archives remain a follow-up.
 
-`sources.json` records 16 exact upstream source/build materials, package versions,
+`sources.json` records 17 exact upstream source/build materials, package versions,
 URLs, sizes and SHA-256 hashes. They are bundled at
 `/usr/share/doc/controlplane-core/sources`. CI verifies the archive bytes, installed
 package versions, native member inventory/hashes and locked wheel SBOM before and
@@ -38,3 +38,6 @@ Retained hosted content, older-image review, runtime every-layer scanning,
 base-image source/legal review and public distribution clearance remain separate
 under Infra #993. TEST continues following the moving GHCR storage:test channel.
 No visibility changes, history rewrites or manual release operations occur here.
+
+[Base review](BASE.md) records the existing Python image, Debian package/source
+versions and legal-file checks separately from wheel-native provenance.

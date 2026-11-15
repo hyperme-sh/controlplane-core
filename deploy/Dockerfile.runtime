@@ -13,8 +13,9 @@ COPY notice-supplements/ /build/notice-supplements/
 RUN /opt/storage/bin/python /build/prepare_notices.py /build/legal/third-party /build/notice-supplements \
  && /opt/storage/bin/python /build/verify_notices.py /build/legal
 COPY sources/ /build/sources/
-COPY prepare_sources.py /build/
-RUN /opt/storage/bin/python -I /build/prepare_sources.py verify /build/sources
+COPY prepare_sources.py verify_base.py /build/
+RUN /opt/storage/bin/python -I /build/prepare_sources.py verify /build/sources \
+ && /opt/storage/bin/python -I /build/verify_base.py installed /build/sources/base-image.json /build/sources
 RUN /opt/storage/bin/python -I -c "from api.storage_app import app; assert app.routes"
 
 FROM python:3.13-slim-bookworm@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f

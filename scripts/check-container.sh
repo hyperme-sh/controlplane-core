@@ -21,6 +21,14 @@ test "$(docker image inspect "$image" --format '{{.Config.User}}')" = '65532:655
 docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges "$image" python -I - /usr/share/doc/controlplane-core < scripts/verify_notices.py
 docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges "$image" python -I /opt/storage-schema/migrate.py --help >/dev/null
 docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges "$image" python -I - verify /usr/share/doc/controlplane-core/sources < scripts/prepare_sources.py
+docker image inspect "$image" --format '{{json .RootFS.Layers}}' > "$scratch/base-layers.json"
+python3 - "$scratch/base-layers.json" <<'BASE'
+import json, sys
+sys.path.insert(0, 'scripts')
+from verify_base import verify_layers
+verify_layers({'rootfs': {'diff_ids': json.load(open(sys.argv[1]))}}, json.load(open('licenses/base-image.json')))
+BASE
+docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges "$image" python -I - installed /usr/share/doc/controlplane-core/sources/base-image.json /usr/share/doc/controlplane-core/sources < scripts/verify_base.py
 bash scripts/check-library-replacement.sh "$image"
 container=$(docker run -d --read-only --cap-drop ALL --security-opt no-new-privileges --tmpfs /tmp:rw,noexec,nosuid --add-host host.docker.internal:host-gateway -e "DATABASE_URL=$STORAGE_TEST_DATABASE_URL" "$image")
 for attempt in $(seq 1 60); do
