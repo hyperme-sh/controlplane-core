@@ -18,6 +18,7 @@ wheel=$(sha256sum "$scratch"/context/*.whl | cut -d ' ' -f 1)
 docker build --build-arg "GIT_SHA=$GITHUB_SHA" --build-arg "WHEEL_SHA256=$wheel" -t "$QUALIFIED_IMAGE_REF" "$scratch/context"
 image=$(docker image inspect "$QUALIFIED_IMAGE_REF" --format '{{.Id}}')
 test "$(docker image inspect "$image" --format '{{.Config.User}}')" = '65532:65532'
+docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges "$image" python -I - /usr/share/doc/controlplane-core < scripts/verify_notices.py
 docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges "$image" python -I /opt/storage-schema/migrate.py --help >/dev/null
 container=$(docker run -d --read-only --cap-drop ALL --security-opt no-new-privileges --tmpfs /tmp:rw,noexec,nosuid --add-host host.docker.internal:host-gateway -e "DATABASE_URL=$STORAGE_TEST_DATABASE_URL" "$image")
 for attempt in $(seq 1 60); do

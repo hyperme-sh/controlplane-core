@@ -7,7 +7,21 @@ jobs:
   package:
     runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64", "debrunner"]') || 'ubuntu-24.04' }}
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17@sha256:3b0cda93be7c8dba2ed484d19393d93845dc3dafb88973e248ba8e6d99d784e1
+        env:
+          POSTGRES_PASSWORD: package-test-only
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
+      - name: Prepare job-local container input
+        run: echo "RELEASE_ARTIFACT_DIR=$(mktemp -d "$RUNNER_TEMP/core-dist.XXXXXX")" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
@@ -17,4 +31,14 @@ jobs:
           version: '0.11.26'
           python-version: '3.13'
       - name: Qualify locked public dependencies and all package forms
-        run: bash scripts/anonymous-command.sh bash scripts/check-package.sh --contracts
+        run: >-
+          bash scripts/anonymous-command.sh env RELEASE_ARTIFACT_DIR="$RELEASE_ARTIFACT_DIR"
+          bash scripts/check-package.sh --contracts
+      - name: Qualify storage container and installed notice bytes
+        env:
+          QUALIFIED_IMAGE_REF: storage:ci-${{ github.run_id }}-${{ github.run_attempt }}
+          STORAGE_TEST_DATABASE_URL: postgresql+psycopg://postgres:package-test-only@host.docker.internal:${{ job.services.postgres.ports['5432'] }}/postgres
+        run: bash scripts/check-container.sh
+      - name: Remove job-owned local storage image
+        if: always()
+        run: docker image rm "storage:ci-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >/dev/null 2>&1 || true

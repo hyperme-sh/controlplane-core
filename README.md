@@ -689,3 +689,7 @@ scanning and applicable corresponding-source work remain follow-ups under
 [FyberLabs/infra#993](https://github.com/FyberLabs/infra/issues/993). No repository
 visibility, registry access or historical refs change. Integration/e2e remains
 in scheduled nightly CI.
+
+[Notice and history preparation](docs/public-distribution.md) describes the
+installed legal-text checks, retained-content findings and remaining publication
+limits. The storage image includes the owner and Python dependency notice bundle.
