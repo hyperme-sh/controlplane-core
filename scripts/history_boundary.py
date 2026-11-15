@@ -14,4 +14,3 @@ def check_member(name, data):
             raise ValueError('Provider implementation in ' + name)
     if name.endswith('.dist-info/METADATA') and re.search(rb'^Requires-Dist: (stripe|controlplane-billing|payment-service)\b', data, re.M | re.I):
         raise ValueError('Hosted dependency in ' + name)
-

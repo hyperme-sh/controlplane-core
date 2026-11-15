@@ -1,6 +1,6 @@
 {
   "distribution": "psycopg-binary",
-  "version": "3.3.7",
+  "version": "3.3.6",
   "repository": "https://github.com/spdx/license-list-data",
   "commit": "31846481de7ea17d92f2f46fad76abe58b2e9bb0",
   "files": {
@@ -12,6 +12,7 @@
   "native_source": {
     "url": "https://github.com/besser82/libxcrypt/releases/download/v4.5.2/libxcrypt-4.5.2.tar.xz",
     "sha256": "71513a31c01a428bccd5367a32fd95f115d6dac50fb5b60c779d5c7942aec071",
-    "version": "4.5.2"
+    "version": "4.5.2",
+    "provenance_review": "https://github.com/hyperme-sh/controlplane-api/pull/42"
   }
 }
