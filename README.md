@@ -649,3 +649,13 @@ required before wiring delivery.
 Provider keys include the canonical group identifier hash. Identical encrypted
 bytes in different groups occupy distinct objects, so a delayed retirement can
 never erase another group's newly uploaded copy.
+
+The durable group wrap store commits a bounded reference before provider writes
+and retains quota after uncertain failures. Reads require an active allocation,
+its permanent provider binding and the exact digest/length reference, then verify
+the complete bytes before yielding them. Cleanup holds the same tenant lock,
+uses group-specific provider keys and requires a previously stored retirement command.
+Callers must authenticate current protected group authority before using this
+internal adapter; it does not grant membership or expose a public delivery route.
+The CI contracts use controlplane-db #51 and test recovery, provider changes and
+isolated group cleanup without installing any deployed schema.

@@ -17,7 +17,7 @@ class GroupRegistrySettings:
     tenant: str
     issuer: str
 
-    def store(self, connect=None):
+    def store(self, connect=None, *, require_locations=False):
         @asynccontextmanager
         async def raw_connection():
             url=make_url(self.database_url).set(drivername='postgresql').render_as_string(hide_password=False)
@@ -35,6 +35,7 @@ class GroupRegistrySettings:
                         role=await cursor.fetchone()
                         if not role or any(role.values()):raise ValueError('Restricted group runtime role required')
                         names=['tenants','storage_group_objects','storage_group_refs']
+                        if require_locations:names.append('storage_group_locations')
                         await cursor.execute("SELECT c.relname,c.relrowsecurity,c.relforcerowsecurity,pg_has_role(c.relowner,'MEMBER') AS owns_table FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=%s AND c.relname=ANY(%s) AND c.relkind='r'",(self.schema,names))
                         tables=await cursor.fetchall()
                         if len(tables)!=len(names) or any(not row['relrowsecurity'] or not row['relforcerowsecurity'] or row['owns_table'] for row in tables):
