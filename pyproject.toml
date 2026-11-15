@@ -7,7 +7,7 @@ name = "controlplane-core"
 version = "0.1.0"
 requires-python = ">=3.13"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "NOTICE"]
 dependencies = [
     "operator-ban-store @ git+https://github.com/hyperme-sh/user-service.git@17b11625766e6ceb2c631f58d02211d776f94bae#subdirectory=core/user-service/contracts",
     "controlplane-api @ git+https://github.com/hyperme-sh/controlplane-api.git@e7b798a045ca899147a8b1eafb6b9f83565e030f",
@@ -54,7 +54,7 @@ servicebus = [] # Retained extra name for independently upgraded consumers.
 packages = ["src/api"]
 
 [tool.hatch.build.targets.sdist]
-include = ["LICENSE", "/deploy", "/src", "/integration", "/nightly", "/tests", "/scripts", "/pyproject.toml", "/uv.lock", "/README.md"]
+include = ["LICENSE", "NOTICE", "/deploy", "/src", "/integration", "/nightly", "/tests", "/scripts", "/pyproject.toml", "/uv.lock", "/README.md"]
 
 [tool.hatch.metadata]
 allow-direct-references = true

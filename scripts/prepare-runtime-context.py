@@ -37,6 +37,11 @@ def prepare(distribution, output):
         shutil.copyfile(source, output / "private" / source.name)
     shutil.copyfile(wheel, output / wheel.name)
     shutil.copyfile(root / "deploy/Dockerfile.runtime", output / "Dockerfile")
+    for name in ("LICENSE", "NOTICE"):
+        shutil.copyfile(root / name, output / name)
+    for name in ("prepare_notices.py", "verify_notices.py"):
+        shutil.copyfile(root / "scripts" / name, output / name)
+    shutil.copytree(root / ".github/workflows/third-party-notices", output / "notice-supplements")
     (output / "requirements.txt").write_text(public)
     subprocess.run([
         sys.executable, str(root / "scripts/prepare-storage-schema.py"),

@@ -1,0 +1,8 @@
+Hypermesh Controlplane Core
+Copyright 2026 Fyber Labs
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+Third-party dependencies retain their own licenses and notices.
+History scanning tooling is adapted from hyperme-sh/hypermesh-cli (Apache-2.0).
+Notice preparation tooling is adapted from hyperme-sh/product-template and
+hyperme-sh/controlplane-api (Apache-2.0).
