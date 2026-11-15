@@ -31,7 +31,16 @@ matches fail. Scanner output contains only counts and coordinates, never source
 or credential values. This does not clear the separately reported hosted content.
 
 Remaining work under FyberLabs/infra#993 includes historical-content disposition,
-older-image and every-layer scans, base-image legal/source review and applicable
-LGPL/MPL corresponding-source and replacement checks. No repository/package
+older-image and every-layer scans, and base-image legal/source review. The scoped
+Python dependency source/replacement work is described below. No repository/package
 visibility, history rewrite, manual release or TEST pin is authorized here.
 Integration/e2e remains in scheduled nightly CI.
+
+## LGPL/MPL source follow-up
+
+The storage image now bundles the five reviewed Python components' source/build
+materials and verifies their pairing with installed versions/native bytes.
+[Source and replacement preparation](../licenses/SOURCES.md) describes the exact
+scope and offline replacement checks. This completes that dependency follow-up;
+base-image source/legal review, retained-content disposition and full image-layer
+review remain separate. Existing notice texts are preserved.

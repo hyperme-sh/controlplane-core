@@ -20,6 +20,8 @@ image=$(docker image inspect "$QUALIFIED_IMAGE_REF" --format '{{.Id}}')
 test "$(docker image inspect "$image" --format '{{.Config.User}}')" = '65532:65532'
 docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges "$image" python -I - /usr/share/doc/controlplane-core < scripts/verify_notices.py
 docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges "$image" python -I /opt/storage-schema/migrate.py --help >/dev/null
+docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges "$image" python -I - verify /usr/share/doc/controlplane-core/sources < scripts/prepare_sources.py
+bash scripts/check-library-replacement.sh "$image"
 container=$(docker run -d --read-only --cap-drop ALL --security-opt no-new-privileges --tmpfs /tmp:rw,noexec,nosuid --add-host host.docker.internal:host-gateway -e "DATABASE_URL=$STORAGE_TEST_DATABASE_URL" "$image")
 for attempt in $(seq 1 60); do
   if docker exec "$container" python -c 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=2)' >/dev/null 2>&1; then break; fi
