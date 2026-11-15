@@ -169,7 +169,28 @@ async def test_observer_capacity_refuses_before_database_and_releases(db, monkey
         limiter.release_on_behalf_of(second)
 
 
-def test_group_admission_is_before_database_setup():
-    from api.interfaces.api_controllers.group_allocation_endpoint import group_allocation_capacity
-    route=next(route for route in runtime.app.routes if getattr(route,'path',None)=='/api/v1/storage/group-allocations/issue')
-    assert [dependency.call for dependency in route.dependant.dependencies][:2]==[group_allocation_capacity,runtime.request_database]
+@pytest.mark.asyncio
+async def test_group_admission_is_before_database_setup(monkeypatch):
+    import httpx
+    from api.interfaces.api_controllers import group_allocation_endpoint as endpoint
+    calls=[]
+    async def database():
+        assert endpoint.capacity.borrowed_tokens==1
+        calls.append('database')
+        yield
+    async def provider():
+        assert endpoint.capacity.borrowed_tokens==1
+        calls.append('provider')
+        return SimpleNamespace(tenant=uuid4(),backend=None)
+    monkeypatch.setattr(runtime.app.state,'group_allocation_issuers',{},raising=False)
+    runtime.app.dependency_overrides[runtime.request_database]=database
+    runtime.app.dependency_overrides[endpoint.records_store]=provider
+    try:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=runtime.app),base_url='http://unit') as client:
+            response=await client.post('/api/v1/storage/group-allocations/issue',json={})
+        assert response.status_code==503
+        assert calls==['database','provider']
+        assert endpoint.capacity.borrowed_tokens==0
+    finally:
+        runtime.app.dependency_overrides.pop(runtime.request_database,None)
+        runtime.app.dependency_overrides.pop(endpoint.records_store,None)
