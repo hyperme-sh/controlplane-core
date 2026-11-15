@@ -29,6 +29,7 @@ from verify_base import verify_layers
 verify_layers({'rootfs': {'diff_ids': json.load(open(sys.argv[1]))}}, json.load(open('licenses/base-image.json')))
 BASE
 docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges "$image" python -I - installed /usr/share/doc/controlplane-core/sources/base-image.json /usr/share/doc/controlplane-core/sources < scripts/verify_base.py
+docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges "$image" python -I - verify /usr/share/doc/controlplane-core/debian-sources < scripts/prepare_debian_sources.py
 bash scripts/check-library-replacement.sh "$image"
 container=$(docker run -d --read-only --cap-drop ALL --security-opt no-new-privileges --tmpfs /tmp:rw,noexec,nosuid --add-host host.docker.internal:host-gateway -e "DATABASE_URL=$STORAGE_TEST_DATABASE_URL" "$image")
 for attempt in $(seq 1 60); do
