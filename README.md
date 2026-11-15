@@ -622,3 +622,17 @@ references may legitimately retain a payload; an empty current reference list or
 an HTTP cleanup success alone does not prove terminal cleanup. Snapshots of quota
 can include unrelated activity and must not be treated as an isolated per-run
 refund counter. No observer credential is provisioned or activated by this change.
+
+
+Group allocation PostgreSQL configuration uses version 2 of
+`STORAGE_GROUP_ALLOCATION_FILE`, adding a private `registryFile` to every
+binding. The registry file has version 1, the same tenant and issuer, a schema,
+and a `postgresql+psycopg` database URL. Version 1 issuer configurations retain
+provider CAS behavior. Missing schema or tenant state is refused; runtime code
+never installs tables or initializes a replacement registry. Group mutations
+require READ COMMITTED and a restricted role with forced tenant RLS.
+
+The independent group tables come from controlplane-db #50. CI covers original
+allocation replay, permanent scope and retirement, concurrent source claims,
+quota serialization and authorization-guard rollback. This change configures no
+deployed provider or credentials and does not enable group wrap delivery.
