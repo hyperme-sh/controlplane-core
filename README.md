@@ -668,3 +668,24 @@ concurrent operations, eight seconds and 64 KiB. Uploads require the allocated
 owner; downloads return only verified bytes from the durable group store. The
 calling ACL service must still enforce current member authority and its final
 protected delivery commit. No browser receives these service credentials.
+
+
+## Container publication preparation
+
+PR and main CI qualify the real locked public dependency graph with a fresh home
+and cache and no inherited credentials. The fixture lane independently checks
+its exact recorded dependency bytes. Source, fresh-wheel and rebuilt-source
+contracts remain internal build checks; service distribution uses GHCR containers,
+not Actions package archives.
+
+Main retains its existing storage-only image qualification and publishes that
+same image to `ghcr.io/hyperme-sh/controlplane-core/storage:test`. TEST follows
+that moving channel. Image revisions and hashes identify the checked bytes and
+are not deployment pins. Only a current-main push advances the channel.
+
+This credential cleanup does not establish full publication clearance. Owner and
+third-party notice preservation, historical-content review, every-layer secret
+scanning and applicable corresponding-source work remain follow-ups under
+[FyberLabs/infra#993](https://github.com/FyberLabs/infra/issues/993). No repository
+visibility, registry access or historical refs change. Integration/e2e remains
+in scheduled nightly CI.

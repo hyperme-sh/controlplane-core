@@ -1,0 +1,20 @@
+name: Anonymous package qualification
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64", "debrunner"]') || 'ubuntu-24.04' }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          enable-cache: false
+          version: '0.11.26'
+          python-version: '3.13'
+      - name: Qualify locked public dependencies and all package forms
+        run: bash scripts/anonymous-command.sh bash scripts/check-package.sh --contracts

@@ -58,7 +58,7 @@ The user is the sole developer. Never add or enable GitHub required reviewers, b
 
 Hosted pull-request consumer checks may use disposable Ubuntu/PostgreSQL and
 verified published dependency fixtures with read-only contents and no private
-credentials. Existing main private dependency scope and runner policy remain
+credentials. Main qualifies anonymous public dependencies in a fresh home/cache; runner policy remains
 unchanged. Fixtures must match standard metadata pins, the lock and actual bytes.
 
 ## Private CI runner policy
@@ -95,3 +95,12 @@ repeat those jobs by hand on shared hosts.
 Each TEST service automatically tracks the latest PR merged into its repository's default branch. Deploy the tested build through a moving TEST channel. Do not pin running services to versions, commit SHAs or image digests, require manual pin updates, or require peer services to run matching builds. Preserve patch compatibility, including during early development, and verify it through the service contract.
 
 Use exact versions and digests for downloadable bundles and to record or verify which binary was built, tested or released. A running service may report its revision for diagnostics. Production follows its existing promotion policy and explicit release authorization.
+
+## Public dependency preparation
+
+PR and main qualify real locked dependencies anonymously without an App token or
+an environment credential. The fixture lane remains a separate contract check.
+Build-local packages are inputs to the storage container, not service distribution
+archives. Do not upload them to Actions. GHCR storage:test remains the moving TEST
+channel. Full history, dependency notices and every-layer review remain separate
+publication work; anonymous installation alone does not grant public clearance.
