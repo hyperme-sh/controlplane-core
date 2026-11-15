@@ -76,3 +76,39 @@ async def test_uncertain_provider_errors_do_not_implicitly_retry(issuer,error,st
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='https://storage.example') as client:
         assert (await client.post('/storage/group-allocations/issue',json=body)).status_code==status
     assert backend.writes==0
+
+
+@pytest.mark.asyncio
+async def test_admission_precedes_provider_setup_and_retains_shielded_capacity(monkeypatch):
+    import asyncio
+    import anyio
+    from fastapi import Depends
+    app=FastAPI()
+    app.include_router(endpoint.router,dependencies=[Depends(endpoint.group_allocation_capacity,scope='request')])
+    app.state.group_allocation_issuers={}
+    monkeypatch.setattr(endpoint,'capacity',anyio.CapacityLimiter(1))
+    original=anyio.fail_after
+    monkeypatch.setattr(endpoint.anyio,'fail_after',lambda seconds:original(0.02))
+    entered,release=asyncio.Event(),asyncio.Event()
+    calls=[]
+    async def provider():
+        calls.append('provider');entered.set()
+        # S3's non-abandoned worker shields cancellation while it owns resources.
+        with anyio.CancelScope(shield=True):await release.wait()
+        await anyio.lowlevel.checkpoint()
+        return SimpleNamespace(tenant=UUID(int=1),backend=None)
+    app.dependency_overrides[endpoint.records_store]=provider
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='https://storage.example') as client:
+        first=asyncio.create_task(client.post('/storage/group-allocations/issue',json={}))
+        try:
+            await entered.wait()
+            await asyncio.sleep(0.04)
+            assert endpoint.capacity.borrowed_tokens==1
+            second=await client.post('/storage/group-allocations/issue',json={})
+            assert second.status_code==503 and calls==['provider']
+            release.set()
+            assert (await first).status_code==503
+        finally:
+            release.set()
+            await asyncio.gather(first,return_exceptions=True)
+    assert endpoint.capacity.borrowed_tokens==0

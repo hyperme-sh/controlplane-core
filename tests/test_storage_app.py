@@ -167,3 +167,9 @@ async def test_observer_capacity_refuses_before_database_and_releases(db, monkey
     finally:
         runtime.app.dependency_overrides.pop(endpoint.media_objects_service, None)
         limiter.release_on_behalf_of(second)
+
+
+def test_group_admission_is_before_database_setup():
+    from api.interfaces.api_controllers.group_allocation_endpoint import group_allocation_capacity
+    route=next(route for route in runtime.app.routes if getattr(route,'path',None)=='/api/v1/storage/group-allocations/issue')
+    assert [dependency.call for dependency in route.dependant.dependencies][:2]==[group_allocation_capacity,runtime.request_database]

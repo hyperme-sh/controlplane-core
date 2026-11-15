@@ -22,7 +22,7 @@ from api.interfaces.api_controllers.tenant_replays_endpoint import router as rep
 from api.interfaces.api_controllers.media_allocation_endpoint import router as allocations
 from api.infrastructure.security.media_allocation_settings import load_issuers
 from api.infrastructure.security.group_allocation_settings import load_issuers as load_group_issuers
-from api.interfaces.api_controllers.group_allocation_endpoint import router as group_allocations
+from api.interfaces.api_controllers.group_allocation_endpoint import router as group_allocations, group_allocation_capacity
 from api.interfaces.api_controllers.media_retirement_endpoint import router as retirement
 from api.interfaces.api_controllers.media_payload_endpoint import router as payloads
 from api.interfaces.api_controllers.media_observation_endpoint import router as observations, observation_capacity
@@ -73,7 +73,7 @@ app.include_router(administration, prefix='/api/v1', dependencies=[Depends(reque
 app.include_router(records, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 app.include_router(replays, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 app.include_router(allocations, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
-app.include_router(group_allocations, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
+app.include_router(group_allocations, prefix='/api/v1', dependencies=[Depends(group_allocation_capacity, scope='request'), Depends(request_database, scope='request')])
 app.include_router(retirement, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 
 
