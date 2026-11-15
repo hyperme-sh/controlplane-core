@@ -18,12 +18,18 @@ SCOPES["media.payload.write"] = "storage:media:payload:write"
 SCOPES["media.payload.read"] = "storage:media:payload:read"
 SCOPES["media.observe"] = "storage:media:observe"
 SCOPES["media.retire"] = "storage:media:retire"
+SCOPES["group.wrap.read"] = "storage:groups:wraps:read"
+SCOPES["group.wrap.write"] = "storage:groups:wraps:write"
 SCOPES["group-allocations.issue"] = "storage:group-allocations:issue"
 SCOPES["allocations.issue"] = "storage:allocations:issue"
 SCOPES["replays.consume"] = "storage:replays:consume"
 
 
 def request_operation(method: str, path: str) -> str | None:
+    if path.startswith('/api/v1/storage/groups/'):
+        if method in ('GET','PUT') and re.fullmatch(r'/api/v1/storage/groups/wraps/set_p_[a-f0-9]{128}_[a-f0-9]{32}/[a-f0-9]{64}',path):
+            return 'group.wrap.read' if method=='GET' else 'group.wrap.write'
+        return None
     if method in ("GET","PUT") and re.fullmatch(r"/api/v1/storage/media/payloads/media_p_[0-9a-f]{128}_[0-9a-f]{32}/(ciphertext|wrap)/[0-9a-f]{64}",path):
         return "media.payload.read" if method=="GET" else "media.payload.write"
     if method=="GET" and re.fullmatch(r"/api/v1/storage/media/payloads/media_p_[0-9a-f]{128}_[0-9a-f]{32}/ciphertext",path):

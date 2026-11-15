@@ -216,3 +216,16 @@ def test_group_allocation_requires_its_own_exact_operation_and_scope(tokens):
     for scope in ['storage:allocations:issue','storage:records:write','storage:media:write']:
         with pytest.raises(HTTPException):auth.storage_session(mint({'scope':scope}),'group-allocations.issue',now)
     assert auth.storage_session(mint({'scope':'storage:group-allocations:issue'}),'group-allocations.issue',now)==tenant
+
+
+def test_group_wrap_scopes_are_separate_and_paths_exact(tokens):
+    tenant,now,mint=tokens
+    path='/api/v1/storage/groups/wraps/set_p_'+'a'*128+'_'+'b'*32+'/'+'c'*64
+    for method,operation in [('GET','read'),('PUT','write')]:
+        selected='group.wrap.'+operation
+        assert auth.request_operation(method,path)==selected
+        assert auth.storage_session(mint({'scope':'storage:groups:wraps:'+operation}),selected,now)==tenant
+        for scope in ['storage:objects:'+operation,'storage:media:payload:'+operation,'storage:group-allocations:issue']:
+            with pytest.raises(HTTPException):auth.storage_session(mint({'scope':scope}),selected,now)
+    for method,bad in [('DELETE',path),('PUT',path+'/extra'),('GET',path.replace('set_p_','media_p_'))]:
+        assert auth.request_operation(method,bad) is None

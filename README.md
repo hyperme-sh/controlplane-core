@@ -659,3 +659,12 @@ Callers must authenticate current protected group authority before using this
 internal adapter; it does not grant membership or expose a public delivery route.
 The CI contracts use controlplane-db #51 and test recovery, provider changes and
 isolated group cleanup without installing any deployed schema.
+
+
+Private group wrap transport uses `/api/v1/storage/groups/wraps/<set>/<digest>`
+with separate `storage:groups:wraps:read` and `storage:groups:wraps:write` service
+scopes. Requests are admitted before database/provider setup and limited to four
+concurrent operations, eight seconds and 64 KiB. Uploads require the allocated
+owner; downloads return only verified bytes from the durable group store. The
+calling ACL service must still enforce current member authority and its final
+protected delivery commit. No browser receives these service credentials.

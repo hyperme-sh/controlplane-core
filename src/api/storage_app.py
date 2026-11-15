@@ -22,6 +22,7 @@ from api.interfaces.api_controllers.tenant_replays_endpoint import router as rep
 from api.interfaces.api_controllers.media_allocation_endpoint import router as allocations
 from api.infrastructure.security.media_allocation_settings import load_issuers
 from api.infrastructure.security.group_allocation_settings import load_issuers as load_group_issuers
+from api.interfaces.api_controllers.group_payload_endpoint import router as group_payloads, group_payload_capacity
 from api.interfaces.api_controllers.group_allocation_endpoint import router as group_allocations, group_allocation_capacity
 from api.interfaces.api_controllers.media_retirement_endpoint import router as retirement
 from api.interfaces.api_controllers.media_payload_endpoint import router as payloads
@@ -99,3 +100,5 @@ async def health():
 
 app.include_router(observations, prefix='/api/v1', dependencies=[Depends(observation_capacity, scope='request'), Depends(request_database, scope='request')])
 app.include_router(payloads, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
+
+app.include_router(group_payloads, prefix="/api/v1", dependencies=[Depends(group_payload_capacity, scope="request"), Depends(request_database, scope="request")])
