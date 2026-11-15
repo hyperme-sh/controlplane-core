@@ -636,3 +636,12 @@ The independent group tables come from controlplane-db #50. CI covers original
 allocation replay, permanent scope and retirement, concurrent source claims,
 quota serialization and authorization-guard rollback. This change configures no
 deployed provider or credentials and does not enable group wrap delivery.
+
+
+Group wrap provider adapters accept only `tenant-group/v1/<tenant>/wrap/<digest>`
+keys and encrypted bodies of 1–65536 bytes. Media and generic object keys are
+refused. Create-only uploads preserve permanent zero-byte retirement markers,
+so a delayed upload cannot restore retired bytes. Provider namespace identity
+excludes rotating credentials. The adapters are not exposed as public routes;
+current protected group authority and durable reference accounting remain
+required before wiring delivery.
