@@ -1,3 +1,7 @@
+> Superseded: runtime images no longer download or include source archives.
+> LICENSE/NOTICE and dependency legal texts remain. The records below describe
+> prior builds and are retained for historical review, not current build steps.
+
 # Core source and replacement preparation
 
 The Linux amd64 CPython 3.13 storage image includes certifi 2026.10.23 (MPL-2.0),

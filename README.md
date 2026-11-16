@@ -693,3 +693,9 @@ in scheduled nightly CI.
 [Notice and history preparation](docs/public-distribution.md) describes the
 installed legal-text checks, retained-content findings and remaining publication
 limits. The storage image includes the owner and Python dependency notice bundle.
+
+## Runtime distribution
+
+Runtime builds do not download or bundle third-party source archives. Owner
+LICENSE/NOTICE and dependency legal texts remain in the image. Source-bundle
+records describe earlier builds only; no separate source container is introduced.
