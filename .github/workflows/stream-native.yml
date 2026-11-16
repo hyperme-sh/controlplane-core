@@ -1,0 +1,36 @@
+name: Native stream protocol contracts
+on:
+  pull_request:
+    paths:
+      - 'src/api/streaming/**'
+      - 'tests/test_stream*'
+      - 'qualification/stream_native_test.go'
+      - '.github/workflows/stream-native.yml'
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64", "debrunner"]') || 'ubuntu-24.04' }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: bluenviron/mediamtx
+          ref: e65f9411a56b19076a0dfde1fb4a59414bdf642c
+          path: upstream-mediamtx
+          persist-credentials: false
+      - name: Native H264 Opus expiration and active-session kick contracts
+        run: |
+          cp qualification/stream_native_test.go upstream-mediamtx/internal/servers/webrtc/core_stream_test.go
+          docker run --rm --name "core-stream-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
+            --memory=2g --cpus=2 --pids-limit=256 \
+            -v "$PWD/upstream-mediamtx:/source" -w /source golang:1.27 \
+            sh -ec 'go test ./internal/auth -count=1
+              go test ./internal/servers/webrtc -run "^(TestCoreStreamKickBound|TestServerPublishExpiration)$" -count=1
+              go test ./internal/servers/webrtc -run "^TestServerRead$/(h264|opus)$" -count=1'
+      - name: Remove interrupted job container
+        if: always()
+        run: docker rm -f "core-stream-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >/dev/null 2>&1 || true
