@@ -124,3 +124,16 @@ ingestion and the existing table reader use separate credentials. Deployment
 must bind operation access and its fixed destination to the same tenant as the
 DCR. No credentials or provisioning are supplied here. Local tests use explicit
 HTTP transports and SQLite in temporary directories, not provider services.
+
+Session exchange operations may explicitly set `forward_session_bearer: true`.
+This is restricted to POST `/auth/scoped-session` or `/auth/network-session`,
+kind `session`, without suffixes or a configured Authorization header. The owning
+server supplies its verified native bearer in `X-Experiment-Session-Bearer`.
+The relay authenticates the separate server credential first, validates a bounded
+JSON body containing exactly its configured tenant (and one nonzero organization
+UUID for scoped exchange), and forwards only the native bearer as Authorization.
+Auth retains all current identity/membership and session issuance checks. No
+browser headers, cookies, grants, identity fields or bearer values enter rows.
+Other operations reject the header. Marked scheduled sessions requiring a private
+run grant must retain their existing native path; this contract does not forward
+that grant. No operation is enabled or provisioned by this source change.
