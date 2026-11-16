@@ -88,9 +88,11 @@ Forwarding bypasses stored cookies and rejects encoded responses before reading.
 
 Server and platform independently time their own HTTP exchange. HTTP 5xx,
 transport errors, oversize replies and refused redirects count as unavailable;
-ordinary client refusals (including 401/403) do not. The operation kind selects
-`dependency_failure_rate` or `session_failure_rate`, alongside `error_rate` and
-`latency_ms`. Session metrics describe session-service HTTP availability only,
+ordinary client refusals do not increment `error_rate` or dependency failures.
+For session operations, non-authorization HTTP failures (including 422/429)
+also increment `session_failure_rate`; 401/403 remain excluded. The operation
+kind selects `dependency_failure_rate` or `session_failure_rate`, alongside
+`error_rate` and `latency_ms`. Session metrics describe session HTTP exchanges,
 not whether an identity assertion is valid. Neither observer accepts reported
 counts or duration. Tenant, audience and source never enter the submitted DCR
 rows: the separate existing DCRs fix those constants.
