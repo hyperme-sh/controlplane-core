@@ -54,3 +54,17 @@ async def test_native_path_listing_can_wait_for_auth_but_never_hang():
         blocked=True
         async with asyncio.timeout(1.5):
             with pytest.raises(TimeoutError):await media.paths()
+
+
+@pytest.mark.asyncio
+async def test_kick_accepts_only_typed_native_absence_after_disconnect_race():
+    body={'status':'error','error':'session not found'};status=404
+    def respond(request):return httpx.Response(status,json=body)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        media=MediaMTX(client,'http://127.0.0.1:9997')
+        await media.kick('11111111-1111-4111-8111-111111111111')
+        with pytest.raises(Refused):await media.sessions()
+        for body in ({'error':'route not found'},{}, {'error':'session not found','other':True}):
+            with pytest.raises(Refused):await media.kick('11111111-1111-4111-8111-111111111111')
+        body={'status':'error','error':'session not found'};status=500
+        with pytest.raises(Refused):await media.kick('11111111-1111-4111-8111-111111111111')

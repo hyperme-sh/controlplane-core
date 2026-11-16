@@ -14,14 +14,17 @@ class MediaMTX:
                 or parsed.port is None): raise Refused('Private media API required')
         self.client, self.origin = client, origin
 
-    async def request(self, method, path):
+    async def request(self, method, path, *, missing_session=False):
         async with asyncio.timeout(0.7):
             async with self.client.stream(method,self.origin+path,follow_redirects=False) as response:
-                if response.status_code!=200: raise Refused('Media API unavailable')
+                absent=missing_session and response.status_code==404
+                if response.status_code!=200 and not absent: raise Refused('Media API unavailable')
                 raw = bytearray()
                 async for chunk in response.aiter_bytes():
                     if len(raw)+len(chunk)>65536: raise Refused('Media API response too large')
                     raw.extend(chunk)
+                if absent and json.loads(raw,object_pairs_hook=unique)!={'status':'error','error':'session not found'}:
+                    raise Refused('Native session absence required')
                 return bytes(raw)
 
     async def sessions(self):
@@ -38,7 +41,7 @@ class MediaMTX:
         return result
 
     async def kick(self, identity):
-        await self.request('POST','/v3/webrtcsessions/kick/'+uuid(identity))
+        await self.request('POST','/v3/webrtcsessions/kick/'+uuid(identity),missing_session=True)
 
     async def paths(self):
         value=json.loads(await self.request('GET','/v3/paths/list?itemsPerPage=100'),object_pairs_hook=unique)
