@@ -166,3 +166,12 @@ def test_source_records_match_the_frozen_core_lock():
     assert any(row['hash'] == 'sha256:' + manifest['binary_wheel']['sha256']
                for row in locked['psycopg-binary']['wheels'])
     assert not any(row['source'] is None for row in manifest['binary_wheel']['members'])
+
+
+def test_quay_s3_fallback_is_restricted_to_the_reviewed_layer():
+    url = 'https://s3.us-east-1.amazonaws.com' + sources.QUAY_LAYER_PATH + '?signature=public-download'
+    assert sources.allowed_url(url, redirect=True)
+    assert not sources.allowed_url(url)
+    assert not sources.allowed_url(url.replace('quayio-production-s3', 'another-bucket'), redirect=True)
+    assert not sources.allowed_url(url.replace('0ed13069', 'bad13069'), redirect=True)
+    assert not sources.allowed_url(url.replace('https:', 'http:'), redirect=True)

@@ -12,13 +12,15 @@ import urllib.request
 
 HOSTS = {'www.python.org', 'files.pythonhosted.org', 'codeload.github.com', 'vault.centos.org', 'www.openldap.org', 'github.com', 'quay.io'}
 REDIRECT_HOSTS = {'www.python.org', 'release-assets.githubusercontent.com', 'cdn01.quay.io'}
+QUAY_LAYER_PATH = '/quayio-production-s3/sha256/0e/0ed130695b570a3871c0dc35e45a7f4307541729e71c9796279b66eefa34c6db'
 
 
 def allowed_url(url, redirect=False):
     parsed = urllib.parse.urlsplit(url)
-    return (parsed.scheme == 'https' and (parsed.hostname in HOSTS or (redirect and parsed.hostname in REDIRECT_HOSTS))
+    quay_s3 = redirect and parsed.hostname == 's3.us-east-1.amazonaws.com' and parsed.path == QUAY_LAYER_PATH
+    return (parsed.scheme == 'https' and (parsed.hostname in HOSTS or (redirect and parsed.hostname in REDIRECT_HOSTS) or quay_s3)
             and parsed.port in (None, 443) and not parsed.username and not parsed.password
-            and (not parsed.query or (redirect and parsed.hostname in REDIRECT_HOSTS)) and not parsed.fragment)
+            and (not parsed.query or (redirect and parsed.hostname in REDIRECT_HOSTS) or quay_s3) and not parsed.fragment)
 
 
 class ReviewedRedirects(urllib.request.HTTPRedirectHandler):
