@@ -1,0 +1,35 @@
+name: Native stream protocol contracts
+on:
+  pull_request:
+    paths:
+      - 'src/api/streaming/**'
+      - 'tests/test_stream*'
+      - 'qualification/stream_native_test.go'
+      - '.github/workflows/stream-native.yml'
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ${{ github.event.repository.private && fromJSON('["self-hosted", "linux", "x64", "debrunner"]') || 'ubuntu-24.04' }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: bluenviron/mediamtx
+          ref: e65f9411a56b19076a0dfde1fb4a59414bdf642c
+          path: upstream-mediamtx
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: upstream-mediamtx/go.mod
+          cache: false
+      - name: Native H264 Opus expiration and active-session kick contracts
+        run: |
+          cp qualification/stream_native_test.go upstream-mediamtx/internal/servers/webrtc/core_stream_test.go
+          cd upstream-mediamtx
+          go test ./internal/auth -count=1
+          go test ./internal/servers/webrtc -run '^(TestCoreStreamKickBound|TestServerPublishExpiration)$' -count=1
+          go test ./internal/servers/webrtc -run '^TestServerRead$/(h264|opus)$' -count=1
