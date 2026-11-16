@@ -11,15 +11,16 @@ class Controller:
         self.waiting = {}
         self.counters = {}
         self.meters = {}
+        self.negotiating = {}
 
     async def tick(self):
         async with asyncio.timeout(0.8):
-            # Read native state first: auth commits its DB row before a session
-            # appears here, so a later DB snapshot cannot miss a new admission.
+            # Read native state before the ledger so an already-established
+            # session cannot be missed by an earlier database snapshot. Native
+            # pre-auth negotiations are handled separately below.
             sessions = await self.media.sessions()
             rows = await self.admission.store.outstanding(self.admission.generation)
             known = {str(row['media_session']) for row in rows if row['phase']==1}
-            if set(sessions)-known: raise Refused('Untracked media session')
             now,stamp = int(self.clock()),self.monotonic()
 
             async def current(row):
@@ -38,6 +39,23 @@ class Controller:
                 current_tasks = [checks.create_task(current(row)) for row in rows]
             paths = paths_task.result()
             valid = [task.result() for task in current_tasks]
+            # Native sessions become visible before their auth callback commits.
+            # Only a zero-byte, unconnected negotiation matching a currently
+            # allowed pending reservation may wait for that commit, briefly.
+            unknown = set(sessions)-known
+            for sid in unknown:
+                native = sessions[sid]
+                pending = any(allowed and row['phase']==0
+                              and row['path']==native.get('path')
+                              and row['action']==native.get('state')
+                              for row,allowed in zip(rows,valid))
+                first = self.negotiating.setdefault(sid,stamp)
+                if (not pending or native.get('peerConnectionEstablished') is not False
+                        or any(type(native.get(key)) is not int or native[key]!=0
+                               for key in ('inboundBytes','outboundBytes'))
+                        or self.monotonic()-first>=0.7):
+                    raise Refused('Untracked media session')
+            self.negotiating = {sid:at for sid,at in self.negotiating.items() if sid in unknown}
             publishers = {row['path'] for row,allowed in zip(rows,valid)
                           if allowed and row['action']=='publish' and row['phase']==1
                           and str(row['media_session']) in sessions and compatible_path(paths.get(row['path']))}

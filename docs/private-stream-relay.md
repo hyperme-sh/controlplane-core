@@ -110,3 +110,8 @@ listings serialize behind admission callbacks. Path and current-authority reads
 overlap after the ordered session/ledger snapshots; their waits do not stack.
 The controller tick stays bounded to 800 ms, and the independent one-second
 watchdog remains unchanged. This does not extend the two-second shutdown bound.
+
+MediaMTX exposes negotiating sessions before callback consumption commits. A
+currently allowed pending reservation may match one unconnected, zero-byte
+negotiation for at most 700 ms. Established or data-carrying untracked sessions,
+unknown paths/actions, denied authority and overdue negotiations stop renewal.

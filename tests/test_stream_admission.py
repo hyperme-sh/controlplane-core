@@ -151,3 +151,26 @@ async def test_native_path_and_authority_waits_overlap_without_renewing_early():
         renew.append(True)
     await Controller(service,media,renewed,clock=lambda:NOW).tick()
     assert renew==[True] and store.rows[0]['phase']==1
+
+
+@pytest.mark.asyncio
+async def test_visible_negotiation_must_match_allowed_pending_row_and_stay_empty():
+    store=Store();authority=Authority();service=Admission(store,authority,GENERATION,clock=lambda:NOW)
+    grant=await service.issue(SCOPE,60);sid=str(uuid4())
+    native={'path':grant['path'],'state':'publish','peerConnectionEstablished':False,
+            'inboundBytes':0,'outboundBytes':0}
+    media=Media();media.values[sid]=native.copy();renew=[];stamp=[0.]
+    control=Controller(service,media,lambda:renew.append(True),clock=lambda:NOW,monotonic=lambda:stamp[0])
+    await control.tick();assert renew==[True]
+    for mutation in ({'peerConnectionEstablished':True},{'inboundBytes':1},
+                     {'outboundBytes':True},{'path':'foreign'},{'state':'read'}):
+        media.values[sid]=native|mutation
+        with pytest.raises(Refused):await control.tick()
+    media.values[sid]=native.copy();authority.allowed=False
+    with pytest.raises(Refused):await control.tick()
+    authority.allowed=True;stamp[0]=.7
+    with pytest.raises(Refused):await control.tick()
+    assert renew==[True]
+    await service.authorize(wire(grant,id=sid))
+    await control.tick()
+    assert renew==[True,True] and not control.negotiating
