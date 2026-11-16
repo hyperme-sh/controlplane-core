@@ -1,4 +1,5 @@
 """Private native API and inactive composition contracts, no listeners started."""
+import asyncio
 import httpx
 import pytest
 from api.streaming.mediamtx import MediaMTX, compatible_path
@@ -38,3 +39,32 @@ async def test_native_api_is_loopback_only_bounded_and_rejects_redirects():
         assert await media.sessions()=={} and await media.paths()=={}
         for mode in ('redirect','large','unknown'):
             with pytest.raises(Refused):await media.sessions()
+
+
+@pytest.mark.asyncio
+async def test_native_path_listing_can_wait_for_auth_but_never_hang():
+    blocked=False
+    async def respond(request):
+        if blocked:await asyncio.Event().wait()
+        await asyncio.sleep(.3)
+        return httpx.Response(200,json={'items':[],'itemCount':0,'pageCount':0})
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        media=MediaMTX(client,'http://127.0.0.1:9997')
+        assert await media.paths()=={}
+        blocked=True
+        async with asyncio.timeout(1.5):
+            with pytest.raises(TimeoutError):await media.paths()
+
+
+@pytest.mark.asyncio
+async def test_kick_accepts_only_typed_native_absence_after_disconnect_race():
+    body={'status':'error','error':'session not found'};status=404
+    def respond(request):return httpx.Response(status,json=body)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        media=MediaMTX(client,'http://127.0.0.1:9997')
+        await media.kick('11111111-1111-4111-8111-111111111111')
+        with pytest.raises(Refused):await media.sessions()
+        for body in ({'error':'route not found'},{}, {'error':'session not found','other':True}):
+            with pytest.raises(Refused):await media.kick('11111111-1111-4111-8111-111111111111')
+        body={'status':'error','error':'session not found'};status=500
+        with pytest.raises(Refused):await media.kick('11111111-1111-4111-8111-111111111111')

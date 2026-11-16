@@ -100,3 +100,18 @@ job is not a real room acceptance claim. The scheduled Infra adapter must use
 real declared owner fixtures and fail closed when they are missing. No local
 shared-host runs, provider provisioning, new credentials or frontend changes are
 part of this implementation.
+
+
+Native authority requests have a 700 ms deadline, allowing a fresh owner snapshot
+and a bounded reread when the evaluation second rolls over. The s3r.ch binding
+batches only requests queued before a snapshot starts; it never reuses completed
+snapshots or allow decisions. Media management calls have the same 700 ms ceiling because native path
+listings serialize behind admission callbacks. Path and current-authority reads
+overlap after the ordered session/ledger snapshots; their waits do not stack.
+The controller tick stays bounded to 800 ms, and the independent one-second
+watchdog remains unchanged. This does not extend the two-second shutdown bound.
+
+MediaMTX exposes negotiating sessions before callback consumption commits. A
+currently allowed pending reservation may match one unconnected, zero-byte
+negotiation for at most 700 ms. Established or data-carrying untracked sessions,
+unknown paths/actions, denied authority and overdue negotiations stop renewal.

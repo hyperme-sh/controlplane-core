@@ -17,7 +17,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from api.storage.configure_provider import private_json
 from .admission import Admission
 from .authority import ProtectedAuthority
-from .contracts import Refused, uuid
+from .contracts import AUTHORITY_TIMEOUT, Refused, uuid
 from .controller import Controller
 from .http import create_app
 from .mediamtx import MediaMTX
@@ -67,7 +67,7 @@ async def run(value):
         await asyncio.sleep(1.1)
         rows=await store.outstanding(value['generation'])
         for row in rows: await store.close(row['reservation_id'])
-        async with httpx.AsyncClient(timeout=0.25,trust_env=False,limits=httpx.Limits(max_connections=32)) as client:
+        async with httpx.AsyncClient(timeout=AUTHORITY_TIMEOUT,trust_env=False,limits=httpx.Limits(max_connections=32)) as client:
             authority=ProtectedAuthority(client,value['authorityUrl'],value['serviceKey'],
                 Ed25519PublicKey.from_public_bytes(base64.b64decode(value['authorityKey'],validate=True)))
             admission=Admission(store,authority,value['generation'])
