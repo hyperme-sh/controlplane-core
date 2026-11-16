@@ -52,3 +52,73 @@ nightly batch owns provider and browser scenarios under Infra #923.
 
 References: [Logs query requests](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/api/request-format),
 [authenticated DCR ingestion](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/logs-ingestion-api-overview).
+
+## Measurement producer preparation (Core #61)
+
+`api.domain.experiments.producers` supplies an independently timed server
+observer and a private platform HTTP relay. `python -I -m api.experiment_measurements`
+exits without opening sockets or reading credentials unless
+`EXPERIMENT_MEASUREMENTS_ENABLED=1`. It is not mounted on the public Core app.
+Activation remains disabled. Native consumer injection is still required;
+these primitives alone do not complete #61.
+
+The native owner must verify current assignment, identity, consent and retained
+variant before calling `ServerObserver.request`. It passes compiled experiment,
+variant and operation names. The observer creates a fresh UUIDv4; a browser event
+ID is never reused. Initial/coalesced cache refreshes happen before assignment
+and cannot be labeled with a newly selected variant. The first coordinated
+consumer is the existing s3r.ch outbox GET after native verification. It measures
+**telemetry-delivery availability**, not identity/session readiness or the health
+of unrelated product operations. Its runtime wiring is owned by the native
+consumer after s3r.ch #552.
+
+The dedicated relay accepts POST `/v1/observe`, an exact private bearer secret,
+`Content-Type: application/octet-stream`, and `X-Experiment-Attribution` JSON:
+`action`, `experiment`, `variant`, `operation`, `issued`, optional `target`.
+Only deployment-configured operation names select HTTPS destination, method,
+upstream credential headers, timeout and response bound. For the outbox GET,
+`target` must be exactly 64 lowercase hexadecimal characters appended to the
+fixed consent-record prefix; the native server derives it from its own verified
+consent-scoped record name. No arbitrary path, query or incoming credential
+header is forwarded. GET requires an empty body. ETag, status and bounded body
+are preserved; no cookies, redirects or unrelated upstream headers propagate.
+Native consumers must enforce their existing tighter timeout/size constraints.
+
+Server and platform independently time their own HTTP exchange. HTTP 5xx,
+transport errors, oversize replies and refused redirects count as unavailable;
+ordinary client refusals (including 401/403) do not. The operation kind selects
+`dependency_failure_rate` or `session_failure_rate`, alongside `error_rate` and
+`latency_ms`. Session metrics describe session-service HTTP availability only,
+not whether an identity assertion is valid. Neither observer accepts reported
+counts or duration. Tenant, audience and source never enter the submitted DCR
+rows: the separate existing DCRs fix those constants.
+
+Attribution expires after 60 seconds. SQLite admission retains action IDs across
+restart, refuses replays, caps admission at 60/minute, and has no raw payload or
+identity columns. Sampling selects UUID modulo the deployment's `sample_every`;
+unsampled/default-disabled calls use the existing native path. A sampled relay
+failure is explicit: no hidden retry or second upstream operation. The native
+caller owns its existing operation-failure behavior. DCR failure does not alter
+a completed operation. `BoundedPublisher` provides a separate 64-item in-memory
+queue, three-second delivery budget and 60-second expiry; full/stopped queues
+drop samples. Never send these measurements through the measured analytics
+outbox. Missing source observations cannot authorize a disable.
+
+The runner binds loopback port 8097, disables access logs and trusts no proxy
+headers. Deployment must provide a private TLS listener inaccessible to browsers,
+a private durable state directory, and a **platform-only** DCR publisher identity.
+It reads `EXPERIMENT_MEASUREMENTS_BINDING_FILE` (compact, owner-only JSON),
+`EXPERIMENT_MEASUREMENTS_RELAY_SECRET_FILE` (64 lowercase hex),
+`EXPERIMENT_MEASUREMENTS_STATE_DIRECTORY`, `EXPERIMENT_MEASUREMENTS_DIRECTORY`,
+`EXPERIMENT_MEASUREMENTS_CLIENT_ID`, `EXPERIMENT_MEASUREMENTS_SECRET_FILE`,
+`EXPERIMENT_MEASUREMENTS_INGESTION_ENDPOINT` and `EXPERIMENT_MEASUREMENTS_DCR_ID`.
+Binding JSON contains `tenant`, `audience`, `experiments` (compiled variant lists),
+`operations` and optional `sample_every` (default 100). Each operation contains
+`url`, `method`, `kind`, optional fixed `headers`, `suffix` (`none` or `sha256`),
+`timeout_seconds` (default 3) and `response_limit` (default 65536).
+
+Server ingestion, relay authentication, upstream operation access, platform
+ingestion and the existing table reader use separate credentials. Deployment
+must bind operation access and its fixed destination to the same tenant as the
+DCR. No credentials or provisioning are supplied here. Local tests use explicit
+HTTP transports and SQLite in temporary directories, not provider services.
