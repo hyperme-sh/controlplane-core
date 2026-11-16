@@ -292,7 +292,8 @@ async def test_platform_never_replays_cookie_jar_or_decodes_encoded_body(tmp_pat
     admission.close()
 
 @pytest.mark.asyncio
-async def test_native_session_exchange_preserves_only_opted_in_bearer_and_fixed_scope(tmp_path):
+@pytest.mark.parametrize("status", [200, 403, 422, 429, 500])
+async def test_native_session_exchange_preserves_only_opted_in_bearer_and_fixed_scope(tmp_path, status):
     captured, platform, server = [], [], []
     b = binding(operations={'session': {'url': 'https://auth.test/auth/scoped-session', 'method': 'POST',
         'kind': 'session', 'forward_session_bearer': True}})
@@ -302,7 +303,7 @@ async def test_native_session_exchange_preserves_only_opted_in_bearer_and_fixed_
         assert request.headers['authorization'] == 'Bearer native.session.token'
         assert request.content == body
         assert 'cookie' not in request.headers and 'x-experiment-attribution' not in request.headers
-        return httpx.Response(403, content=b'current membership refused')
+        return httpx.Response(status, content=b'native session reply')
     async def record_platform(m): platform.append(m)
     async def record_server(m): server.append(m)
     admission = Admission(str(tmp_path / 'actions.sqlite'))
@@ -314,9 +315,12 @@ async def test_native_session_exchange_preserves_only_opted_in_bearer_and_fixed_
                     publish=record_server, enabled=True)
                 result = await observer.request(experiment='signup', variant='join', operation='session',
                     body=body, session_bearer='native.session.token')
-                assert result.status_code == 403 and len(captured) == 1
+                assert result.status_code == status and len(captured) == 1
                 assert len(platform) == len(server) == 1
-                assert all(row['Value'] == 0 for row in server[0].rows() if row['Metric'] != 'latency_ms')
+                for sample in [server[0], platform[0]]:
+                    rows = {row['Metric']: row['Value'] for row in sample.rows()}
+                    assert rows['error_rate'] == float(status >= 500)
+                    assert rows['session_failure_rate'] == float(status >= 400 and status not in (401, 403))
                 assert all('token' not in json.dumps(row) and 'tenant_id' not in row for row in platform[0].rows())
                 for bad in (None, 'native token', 'a\r\nb', 'x' * 8193):
                     with pytest.raises(ValueError):

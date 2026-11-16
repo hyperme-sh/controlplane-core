@@ -114,11 +114,12 @@ class Measurement:
     duration_ms: float
     failed: bool
     kind: str
+    session_failed: bool | None = None
 
     def rows(self):
         a = self.attribution
         values = {"latency_ms": self.duration_ms, "error_rate": float(self.failed),
-                  self.kind + "_failure_rate": float(self.failed)}
+                  self.kind + "_failure_rate": float(self.session_failed if self.kind == "session" and self.session_failed is not None else self.failed)}
         return [{"ActionId": str(a.action), "Experiment": a.experiment, "Variant": a.variant,
                  "Metric": metric, "ObservedAt": self.observed, "Value": value} for metric, value in values.items()]
 
@@ -258,7 +259,7 @@ def create_relay(*, binding, token, admission, client, publish, enabled=False):
             except (httpx.HTTPError, TimeoutError, ValueError):
                 pass
             measured = Measurement(a, int(time.time()), (time.monotonic() - started) * 1000,
-                                   status >= 500, operation.kind)
+                                   status >= 500, operation.kind, status >= 400 and status not in (401, 403))
             try:
                 async with asyncio.timeout(3):
                     await publish(measured)
@@ -310,7 +311,8 @@ class ServerObserver:
                     raise ValueError("Encoded relay response refused")
                 content = await _read(response.aiter_bytes(), spec.response_limit)
                 measured = Measurement(a, int(time.time()), (time.monotonic() - started) * 1000,
-                                       response.status_code >= 500, self.binding.operations[operation].kind)
+                                       response.status_code >= 500, self.binding.operations[operation].kind,
+                                       response.status_code >= 400 and response.status_code not in (401, 403))
                 result = httpx.Response(response.status_code, content=content,
                                         headers={"content-type": response.headers.get("content-type", "application/octet-stream"),
                                                  **({"etag": response.headers["etag"]} if "etag" in response.headers else {})})
