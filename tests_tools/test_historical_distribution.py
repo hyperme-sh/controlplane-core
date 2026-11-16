@@ -78,3 +78,17 @@ def test_version_lookup_failure_is_not_an_empty_inventory():
     def denied(page): raise PermissionError('denied')
     with pytest.raises(PermissionError): registry.retained_versions(denied)
     with pytest.raises(ValueError): registry.retained_versions(lambda page: [{'name': 'not-a-digest'}])
+
+
+def test_public_asset_exception_requires_bytes_path_coordinate_and_symbol(tmp_path):
+    import hashlib
+    from classify_image_findings import known_asset
+    path=tmp_path/'4/opt/storage/share/jupyter/map'
+    path.parent.mkdir(parents=True);path.write_bytes(b'public function symbol')
+    asset={'path':'opt/storage/share/jupyter/map','rule':'generic-api-key','start':6,'end':6,
+           'symbols':['PublicFunction'], 'member_sha256':hashlib.sha256(path.read_bytes()).hexdigest()}
+    row={'File':str(path),'RuleID':'generic-api-key','StartLine':6,'EndLine':6,'Secret':'PublicFunction'}
+    assert known_asset(row,tmp_path,[asset])
+    for key,value in [('Secret','credential'),('StartLine',7),('File',str(tmp_path/'elsewhere'))]:
+        assert not known_asset(dict(row,**{key:value}),tmp_path,[asset])
+    path.write_bytes(b'changed');assert not known_asset(row,tmp_path,[asset])

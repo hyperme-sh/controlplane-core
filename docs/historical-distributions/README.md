@@ -24,3 +24,9 @@ publication limitations even when a secret scan succeeds.
 
 GHCR settings, visibility and historical refs are unchanged. TEST remains on the
 moving storage:test channel; integration/e2e remains in scheduled nightly CI.
+
+Two scanner matches in the exact pydeck 0.9.3 Jupyter source map are public
+JavaScript identifiers (`GLTFV1Normalizer` and `getS2QuadkeyFromCellId`). The file
+was matched byte-for-byte with the locked public PyPI wheel. The exception records
+the upstream wheel/member hashes and requires the exact installed path, file hash,
+rule, line range and identifier. Changed assets or other values still fail.

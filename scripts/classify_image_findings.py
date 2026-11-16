@@ -7,13 +7,35 @@ from classify_source_findings import classify as source_matches
 from classify_debian_findings import classify as debian_matches
 
 
+def known_asset(row, layers, assets):
+    path = Path(row['File']).resolve()
+    try:
+        relative = path.relative_to(layers.resolve())
+    except ValueError:
+        return False
+    if len(relative.parts) < 2 or not relative.parts[0].isdigit() or not path.is_file():
+        return False
+    for asset in assets:
+        if (relative.relative_to(relative.parts[0]).as_posix() == asset['path']
+                and row['RuleID'] == asset['rule']
+                and row['StartLine'] == asset['start'] and row['EndLine'] == asset['end']
+                and row.get('Secret') in asset['symbols']
+                and hashlib.sha256(path.read_bytes()).hexdigest() == asset['member_sha256']):
+            return True
+    return False
+
+
 def classify(rows, layers, root):
     known = json.loads((root / '.github/workflows/history-scan-review.json').read_text())
     coordinates = {(r['sha256'], r['rule'], r['start'], r['end']) for r in known}
+    assets = json.loads((root / '.github/workflows/reviewed-image-assets.json').read_text())
     unexpected = []
     accepted = 0
     for row in rows:
         path = Path(row['File'])
+        if known_asset(row, layers, assets):
+            accepted += 1
+            continue
         if (path.resolve() == (layers / 'image-config.json').resolve()
                 and row['RuleID'] == 'generic-api-key'
                 and row.get('Secret') == '7169605F62C751356D054A26A821E680E5FA6305'):
