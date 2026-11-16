@@ -174,7 +174,7 @@ with `X-Internal-Token` and `X-Tenant-ID`. Revoke uses
 `.../renter-key-fingerprints/revoke` (and the IR revoke path for an IR key).
 Lookup of the tenant's active lease is
 `GET .../api/v1/hypermesh/internal/mapped-lease`.
-[hypermesh-gateway](https://github.com/hyperme-sh/hypermesh-gateway) pulls the
+[hypermesh-gateway](https://github.com/hyperme-sh/gateway) pulls the
 cross-tenant fingerprint index with the same token:
 
 `GET {HYPERMESH_CONTROL_PLANE_URL}/api/v1/hypermesh/internal/renter-key-index`
