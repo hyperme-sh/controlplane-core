@@ -15,10 +15,15 @@ MAX_FILE = 128 * 1024
 def prepare(directory, output):
     directory, output = Path(directory), Path(output)
     record = json.loads((directory / 'manifest.json').read_text())
-    if (record.get('repository') != 'hyperme-sh/controlplane-db'
+    if (not isinstance(record, dict)
+            or set(record) != {'repository', 'revision', 'sha256', 'archive', 'qualification_run'}
+            or not all(isinstance(value, str) for value in record.values())
+            or record.get('repository') != 'hyperme-sh/controlplane-db'
             or not re.fullmatch('[0-9a-f]{40}', record.get('revision', ''))
             or not re.fullmatch('[0-9a-f]{64}', record.get('sha256', ''))
-            or not re.fullmatch(r'controlplane_db-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz', record.get('archive', ''))):
+            or not re.fullmatch(r'controlplane_db-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz', record.get('archive', ''))
+            or not re.fullmatch(r'https://github.com/hyperme-sh/controlplane-db/actions/runs/[0-9]+',
+                                record.get('qualification_run', ''))):
         raise ValueError('Invalid storage schema source manifest')
     archive = directory / record['archive']
     if archive.is_symlink() or archive.stat().st_size > MAX_ARCHIVE:
