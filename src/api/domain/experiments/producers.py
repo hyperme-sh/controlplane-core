@@ -1,6 +1,7 @@
 """Private measurement transport. Never install on the public Core application."""
 import asyncio
 import hmac
+import json
 import re
 import sqlite3
 import time
@@ -43,6 +44,7 @@ class Operation(ClosedModel):
     suffix: Literal["none", "sha256"] = "none"
     timeout_seconds: int = Field(default=3, ge=1, le=10)
     response_limit: int = Field(default=65536, ge=1, le=MAX_RESPONSE)
+    forward_session_bearer: bool = False
     headers: dict[str, str] = Field(default_factory=dict, max_length=8)
 
     @model_validator(mode="after")
@@ -54,6 +56,10 @@ class Operation(ClosedModel):
                or not 1 <= len(v) <= 8192 or any(ord(c) < 32 or ord(c) > 126 for c in v)
                for k, v in self.headers.items()):
             raise ValueError("Invalid fixed operation headers")
+        if self.forward_session_bearer and (self.kind != "session" or self.method != "POST"
+                or self.suffix != "none" or url.path not in ("/auth/scoped-session", "/auth/network-session")
+                or "authorization" in self.headers):
+            raise ValueError("Explicit session exchange binding required")
         return self
 
 
@@ -75,6 +81,30 @@ class Binding(ClosedModel):
         return (attribution.variant in self.experiments.get(attribution.experiment, ())
                 and attribution.operation in self.operations
                 and (attribution.target is not None) == (self.operations[attribution.operation].suffix == "sha256"))
+
+
+def session_headers(binding, operation, body, bearer):
+    """One opt-in native bearer, never arbitrary browser headers or cookies."""
+    if not operation.forward_session_bearer:
+        if bearer is not None:
+            raise ValueError("Session bearer not configured")
+        return {}
+    if not isinstance(bearer, str) or not re.fullmatch(r"[A-Za-z0-9._~+/=-]{1,8192}", bearer):
+        raise ValueError("Native session bearer required")
+    if len(body) > 4096:
+        raise ValueError("Session body exceeds bound")
+    try:
+        payload = json.loads(body)
+        scoped = urlsplit(operation.url).path == "/auth/scoped-session"
+        fields = {"tenant_id", "organization_id"} if scoped else {"tenant_id"}
+        if (not isinstance(payload, dict) or set(payload) != fields
+                or payload["tenant_id"] != str(binding.tenant)
+                or scoped and (str(UUID(payload["organization_id"])) != payload["organization_id"]
+                               or not UUID(payload["organization_id"]).int)):
+            raise ValueError("Session body scope mismatch")
+    except (ValueError, TypeError, AttributeError) as error:
+        raise ValueError("Session body scope mismatch") from error
+    return {"authorization": "Bearer " + bearer}
 
 
 @dataclass(frozen=True)
@@ -201,6 +231,7 @@ def create_relay(*, binding, token, admission, client, publish, enabled=False):
                 async with asyncio.timeout(3):
                     body = await _read(request.stream(), MAX_BODY)
                 operation = binding.operations[a.operation]
+                forwarded = session_headers(binding, operation, body, request.headers.get("x-experiment-session-bearer"))
                 if operation.method == "GET" and body:
                     return Response(status_code=400)
             except (ValueError, TimeoutError):
@@ -214,7 +245,7 @@ def create_relay(*, binding, token, admission, client, publish, enabled=False):
                 # timeout response and server observation to reach the caller.
                 async with asyncio.timeout(operation.timeout_seconds - 0.5):
                     async with _forward(client, operation.method, operation.url + (a.target or ""), body,
-                            {"content-type": "application/json", **operation.headers, "accept-encoding": "identity"}) as upstream:
+                            {"content-type": "application/json", **operation.headers, **forwarded, "accept-encoding": "identity"}) as upstream:
                         if upstream.headers.get("content-encoding", "identity").lower() != "identity":
                             raise ValueError("Encoded operation refused")
                         content = await _read(upstream.aiter_bytes(), operation.response_limit)
@@ -255,13 +286,14 @@ class ServerObserver:
         self.binding, self.url, self.token = binding, endpoint.rstrip("/") + "/v1/observe", token
         self.client, self.publish, self.enabled = client, publish, enabled
 
-    async def request(self, *, experiment, variant, operation, body=b"", target=None):
+    async def request(self, *, experiment, variant, operation, body=b"", target=None, session_bearer=None):
         if not self.enabled:
             return None
         a = Attribution(action=uuid4(), experiment=experiment, variant=variant, operation=operation, issued=int(time.time()), target=target)
         if not self.binding.permits(a) or len(body) > MAX_BODY:
             raise ValueError("Unbound measured operation")
         spec = self.binding.operations[operation]
+        session_headers(self.binding, spec, body, session_bearer)
         if spec.method == "GET" and body:
             raise ValueError("GET body refused")
         if a.action.int % self.binding.sample_every:
@@ -270,7 +302,8 @@ class ServerObserver:
         async with asyncio.timeout(spec.timeout_seconds):
             async with self.client.stream("POST", self.url, content=body, timeout=spec.timeout_seconds, follow_redirects=False,
                     headers={"Authorization": "Bearer " + self.token, "Content-Type": "application/octet-stream",
-                             "X-Experiment-Attribution": a.model_dump_json()}) as response:
+                             "X-Experiment-Attribution": a.model_dump_json(),
+                             **({"X-Experiment-Session-Bearer": session_bearer} if session_bearer is not None else {})}) as response:
                 if response.headers.get("x-experiment-action") != str(a.action):
                     raise ValueError("Unobserved relay operation")
                 if response.headers.get("content-encoding", "identity").lower() != "identity":

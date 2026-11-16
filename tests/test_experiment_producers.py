@@ -290,3 +290,54 @@ async def test_platform_never_replays_cookie_jar_or_decodes_encoded_body(tmp_pat
             assert (await client.post("/v1/observe", headers=headers(attribution()))).status_code == 502
     assert len(samples) == 2 and samples[1].failed
     admission.close()
+
+@pytest.mark.asyncio
+async def test_native_session_exchange_preserves_only_opted_in_bearer_and_fixed_scope(tmp_path):
+    captured, platform, server = [], [], []
+    b = binding(operations={'session': {'url': 'https://auth.test/auth/scoped-session', 'method': 'POST',
+        'kind': 'session', 'forward_session_bearer': True}})
+    body = json.dumps({'tenant_id': str(b.tenant), 'organization_id': str(uuid4())}).encode()
+    async def upstream(request):
+        captured.append(request)
+        assert request.headers['authorization'] == 'Bearer native.session.token'
+        assert request.content == body
+        assert 'cookie' not in request.headers and 'x-experiment-attribution' not in request.headers
+        return httpx.Response(403, content=b'current membership refused')
+    async def record_platform(m): platform.append(m)
+    async def record_server(m): server.append(m)
+    admission = Admission(str(tmp_path / 'actions.sqlite'))
+    try:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(upstream)) as network:
+            relay = create_relay(binding=b, token=TOKEN, admission=admission, client=network, publish=record_platform, enabled=True)
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=relay)) as client:
+                observer = ServerObserver(binding=b, endpoint='https://relay.test', token=TOKEN, client=client,
+                    publish=record_server, enabled=True)
+                result = await observer.request(experiment='signup', variant='join', operation='session',
+                    body=body, session_bearer='native.session.token')
+                assert result.status_code == 403 and len(captured) == 1
+                assert len(platform) == len(server) == 1
+                assert all(row['Value'] == 0 for row in server[0].rows() if row['Metric'] != 'latency_ms')
+                assert all('token' not in json.dumps(row) and 'tenant_id' not in row for row in platform[0].rows())
+                for bad in (None, 'native token', 'a\r\nb', 'x' * 8193):
+                    with pytest.raises(ValueError):
+                        await observer.request(experiment='signup', variant='join', operation='session', body=body, session_bearer=bad)
+                for bad_body in ({'tenant_id': str(uuid4()), 'organization_id': str(uuid4())},
+                                 {'tenant_id': str(b.tenant), 'organization_id': '00000000-0000-0000-0000-000000000000'},
+                                 {'tenant_id': str(b.tenant), 'organization_id': str(uuid4()), 'source': 'browser'}):
+                    a = attribution(operation='session')
+                    h = headers(a) | {'x-experiment-session-bearer': 'native.session.token'}
+                    response = await client.post('https://relay.test/v1/observe', headers=h, content=json.dumps(bad_body))
+                    assert response.status_code == 400
+                assert len(captured) == 1
+    finally: admission.close()
+
+
+def test_session_bearer_requires_explicit_fixed_session_post():
+    from api.domain.experiments.producers import Operation, session_headers
+    for changes in ({'kind': 'dependency'}, {'method': 'GET'}, {'suffix': 'sha256'},
+                    {'url': 'https://auth.test/arbitrary'}, {'headers': {'authorization': 'Bearer fixed'}}):
+        with pytest.raises(ValueError):
+            Operation(**({'url': 'https://auth.test/auth/network-session', 'method': 'POST', 'kind': 'session',
+                          'forward_session_bearer': True} | changes))
+    b = binding()
+    with pytest.raises(ValueError): session_headers(b, b.operations['lookup'], b'', 'native')
