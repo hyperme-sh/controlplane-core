@@ -38,15 +38,23 @@ def create_app(admissions, authenticate, callback_secret):
         raise Refused('Private callback credential required')
     expected = 'Basic ' + base64.b64encode(('mediamtx:'+callback_secret).encode()).decode()
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-    slots = asyncio.Semaphore(4)
+    public_slots = asyncio.Semaphore(4)
+    callback_slots = asyncio.Semaphore(4)
+    pending_identities = set()
 
     @app.post('/streams/reserve')
     async def reserve(request: Request):
+        identity = None
         try:
-            if slots.locked(): raise Refused('Busy')
-            async with slots, asyncio.timeout(0.8):
+            if public_slots.locked(): raise Refused('Busy')
+            async with public_slots, asyncio.timeout(0.8):
                 subject = await authenticate(request)
                 if type(subject) is not Subject: raise Refused('Authenticated identity required')
+                if subject in pending_identities: raise Refused('Identity busy')
+                # No await between membership and insertion: one event-loop task
+                # owns this identity until completion, timeout or cancellation.
+                pending_identities.add(subject)
+                identity = subject
                 value = await body(request)
                 if type(value) is not dict or set(value) != {'room','action','seconds','fallback'} or value.get('fallback') is not True:
                     raise Refused('Invalid reservation')
@@ -57,6 +65,8 @@ def create_app(admissions, authenticate, callback_secret):
                 return JSONResponse(await admission.issue(scope,value['seconds']), headers=PRIVATE)
         except Exception:
             return JSONResponse({'error':'stream-unavailable'},status_code=403,headers=PRIVATE)
+        finally:
+            if identity is not None: pending_identities.discard(identity)
 
     @app.post('/internal/mediamtx/auth')
     async def authorize(request: Request):
@@ -64,8 +74,8 @@ def create_app(admissions, authenticate, callback_secret):
             supplied = request.headers.getlist('authorization')
             if (request.client is None or request.client.host not in ('127.0.0.1','::1')
                     or len(supplied)!=1 or not hmac.compare_digest(supplied[0],expected)
-                    or slots.locked()): raise Refused('Private callback required')
-            async with slots, asyncio.timeout(0.8):
+                    or callback_slots.locked()): raise Refused('Private callback required')
+            async with callback_slots, asyncio.timeout(0.8):
                 value = await body(request)
                 from .contracts import callback
                 from uuid import UUID

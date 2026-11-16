@@ -90,3 +90,42 @@ async def test_owner_transport_uses_native_resolver_and_current_check():
         source.allowed=False
         with pytest.raises(Refused):await authority.check(SCOPE)
     with pytest.raises(Refused):create_owner(object(),key,'s'*32)
+
+
+@pytest.mark.asyncio
+async def test_slow_public_bodies_cannot_take_native_callback_capacity():
+    import asyncio
+    store=Store();service=Admission(store,Authority(),GENERATION,clock=lambda:NOW)
+    grant=await service.issue(SCOPE,60)
+    async def authenticate(request):
+        return Subject(TENANT,request.headers['authorization'].removeprefix('Bearer '))
+    app=create_app({TENANT:service},authenticate,'c'*32)
+    entered=[asyncio.Event() for _ in range(4)]
+    release=asyncio.Event()
+    async def slow(index):
+        entered[index].set()
+        await release.wait()
+        yield b'{}'
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app,client=('127.0.0.1',1234)),base_url='https://core.example') as client:
+        tasks=[]
+        try:
+            tasks.append(asyncio.create_task(client.post('/streams/reserve',content=slow(0),
+                headers={'Authorization':'Bearer identity-0','Content-Type':'application/json'})))
+            await asyncio.wait_for(entered[0].wait(),0.5)
+            # Even with free public slots, one identity cannot hold two bodies.
+            duplicate=await client.post('/streams/reserve',json={'room':'room','action':'publish','seconds':60,'fallback':True},
+                headers={'Authorization':'Bearer identity-0'})
+            assert duplicate.status_code==403
+            for index in range(1,4):
+                tasks.append(asyncio.create_task(client.post('/streams/reserve',content=slow(index),
+                    headers={'Authorization':f'Bearer identity-{index}','Content-Type':'application/json'})))
+            await asyncio.wait_for(asyncio.gather(*(event.wait() for event in entered)),0.5)
+            native=await client.post('/internal/mediamtx/auth',json=wire(grant),auth=('mediamtx','c'*32))
+            assert native.status_code==200
+        finally:
+            for task in tasks:task.cancel()
+            await asyncio.gather(*tasks,return_exceptions=True)
+        # Cancellation releases identity ownership rather than poisoning it.
+        response=await client.post('/streams/reserve',json={'room':'room','action':'publish','seconds':60,'fallback':True},
+            headers={'Authorization':'Bearer identity-0'})
+        assert response.status_code==200
