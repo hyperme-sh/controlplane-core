@@ -1,3 +1,7 @@
+> Superseded: runtime images no longer download or include source archives.
+> LICENSE/NOTICE and dependency legal texts remain. The records below describe
+> prior builds and are retained for historical review, not current build steps.
+
 # Core base-image source/legal review
 
 This review covers the existing Linux amd64 `python:3.13-slim-bookworm` base
