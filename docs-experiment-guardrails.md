@@ -83,6 +83,8 @@ consent-scoped record name. No arbitrary path, query or incoming credential
 header is forwarded. GET requires an empty body. ETag, status and bounded body
 are preserved; no cookies, redirects or unrelated upstream headers propagate.
 Native consumers must enforce their existing tighter timeout/size constraints.
+The relay reserves 500ms inside that deadline to return timeout measurements.
+Forwarding bypasses stored cookies and rejects encoded responses before reading.
 
 Server and platform independently time their own HTTP exchange. HTTP 5xx,
 transport errors, oversize replies and refused redirects count as unavailable;

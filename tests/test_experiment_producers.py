@@ -233,3 +233,60 @@ async def test_session_failures_measured_from_real_http_not_body(tmp_path):
     assert result.status_code == 401
     assert next(row["Value"] for row in samples[0].rows() if row["Metric"] == "session_failure_rate") == 0
     admission.close()
+
+
+def test_late_attribution_still_occupies_full_admission_rate_window(tmp_path):
+    admission = Admission(str(tmp_path / "a.db"))
+    for _ in range(60): assert admission.take(attribution(issued=940), 1000)
+    assert not admission.take(attribution(issued=1001), 1001)
+    assert not admission.take(attribution(issued=1059), 1059)
+    assert admission.take(attribution(issued=1060), 1060)
+    admission.close()
+
+
+@pytest.mark.asyncio
+async def test_timeout_is_corroborated_within_native_deadline(tmp_path):
+    import asyncio
+    platform, server = [], []
+    async def platform_sink(m): platform.append(m)
+    async def server_sink(m): server.append(m)
+    async def slow(_):
+        await asyncio.sleep(2)
+        return httpx.Response(200)
+    b = binding(operations={"lookup": {"url": "https://owner.test/lookup", "method": "GET", "kind": "dependency", "timeout_seconds": 1}})
+    admission = Admission(str(tmp_path / "a.db"))
+    async with httpx.AsyncClient(transport=httpx.MockTransport(slow)) as network:
+        app = create_relay(binding=b, token=TOKEN, admission=admission, client=network, publish=platform_sink, enabled=True)
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://relay.test") as client:
+            observer = ServerObserver(binding=b, endpoint="https://relay.test", token=TOKEN, client=client, publish=server_sink, enabled=True)
+            response = await observer.request(experiment="signup", variant="join", operation="lookup")
+    assert response.status_code == 502
+    assert len(server) == len(platform) == 1
+    assert server[0].failed and platform[0].failed
+    assert server[0].duration_ms < 1000
+    admission.close()
+
+
+@pytest.mark.asyncio
+async def test_platform_never_replays_cookie_jar_or_decodes_encoded_body(tmp_path):
+    calls, samples = [], []
+    async def record(m): samples.append(m)
+    class Bomb(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            raise AssertionError("Must refuse encoding before consuming any bytes")
+            yield b""
+    def upstream(request):
+        calls.append(request)
+        assert "cookie" not in request.headers
+        if len(calls) == 1:
+            return httpx.Response(200, headers={"set-cookie": "session=private; Path=/"})
+        return httpx.Response(200, headers={"content-encoding": "gzip"}, stream=Bomb())
+    admission = Admission(str(tmp_path / "a.db"))
+    async with httpx.AsyncClient(transport=httpx.MockTransport(upstream)) as network:
+        app = create_relay(binding=binding(), token=TOKEN, admission=admission, client=network, publish=record, enabled=True)
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://relay.test") as client:
+            assert (await client.post("/v1/observe", headers=headers(attribution()))).status_code == 200
+            assert network.cookies.get("session") == "private"
+            assert (await client.post("/v1/observe", headers=headers(attribution()))).status_code == 502
+    assert len(samples) == 2 and samples[1].failed
+    admission.close()

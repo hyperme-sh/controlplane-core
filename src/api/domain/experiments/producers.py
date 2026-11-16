@@ -5,6 +5,7 @@ import re
 import sqlite3
 import time
 from dataclasses import dataclass
+from contextlib import asynccontextmanager
 from typing import Literal
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4
@@ -130,7 +131,7 @@ class Admission:
             return False
         with self.db:
             self.db.execute("BEGIN IMMEDIATE")
-            self.db.execute("DELETE FROM actions WHERE expires < ?", (now,))
+            self.db.execute("DELETE FROM actions WHERE expires < ? AND admitted <= ?", (now, now - 60))
             if self.db.execute("SELECT COUNT(*) FROM actions WHERE admitted > ?", (now - 60,)).fetchone()[0] >= 60:
                 return False
             try:
@@ -151,6 +152,18 @@ async def _read(stream, limit):
         if len(data) > limit:
             raise ValueError("Operation exceeds bound")
     return bytes(data)
+
+
+@asynccontextmanager
+async def _forward(client, method, url, body, headers):
+    # Construct directly: AsyncClient.build_request/stream merge its cookie jar.
+    # No stored response cookie or client default header becomes authority.
+    request = httpx.Request(method, url, content=body, headers=headers)
+    response = await client.send(request, stream=True, follow_redirects=False, auth=None)
+    try:
+        yield response
+    finally:
+        await response.aclose()
 
 
 def create_relay(*, binding, token, admission, client, publish, enabled=False):
@@ -197,10 +210,13 @@ def create_relay(*, binding, token, admission, client, publish, enabled=False):
             started = time.monotonic()
             status, content, content_type, etag = 502, b"", "application/octet-stream", None
             try:
-                async with asyncio.timeout(operation.timeout_seconds):
-                    async with client.stream(operation.method, operation.url + (a.target or ""), content=body,
-                            headers={"content-type": "application/json", **operation.headers, "accept-encoding": "identity"},
-                            timeout=operation.timeout_seconds, follow_redirects=False) as upstream:
+                # Reserve 500ms inside the native deadline for the measured
+                # timeout response and server observation to reach the caller.
+                async with asyncio.timeout(operation.timeout_seconds - 0.5):
+                    async with _forward(client, operation.method, operation.url + (a.target or ""), body,
+                            {"content-type": "application/json", **operation.headers, "accept-encoding": "identity"}) as upstream:
+                        if upstream.headers.get("content-encoding", "identity").lower() != "identity":
+                            raise ValueError("Encoded operation refused")
                         content = await _read(upstream.aiter_bytes(), operation.response_limit)
                         status = upstream.status_code
                         etag = upstream.headers.get("etag")
@@ -257,6 +273,8 @@ class ServerObserver:
                              "X-Experiment-Attribution": a.model_dump_json()}) as response:
                 if response.headers.get("x-experiment-action") != str(a.action):
                     raise ValueError("Unobserved relay operation")
+                if response.headers.get("content-encoding", "identity").lower() != "identity":
+                    raise ValueError("Encoded relay response refused")
                 content = await _read(response.aiter_bytes(), spec.response_limit)
                 measured = Measurement(a, int(time.time()), (time.monotonic() - started) * 1000,
                                        response.status_code >= 500, self.binding.operations[operation].kind)
