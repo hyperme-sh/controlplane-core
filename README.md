@@ -699,3 +699,13 @@ limits. The storage image includes the owner and Python dependency notice bundle
 Runtime builds do not download or bundle third-party source archives. Owner
 LICENSE/NOTICE and dependency legal texts remain in the image. Source-bundle
 records describe earlier builds only; no separate source container is introduced.
+
+The inactive streaming wire-budget consumer (`api.streaming.wire.WireBudget`)
+uses the DB owner's explicit `wire_migrate.py` schema. Its trusted controller
+reserves and claims one allowance before installing a packet limit, and checks
+current policy/expiry before renewing a short kernel gate. It exposes no browser
+endpoint, provisions nothing and never refunds ambiguous or unused allowances.
+TURN and MediaMTX must use one authoritative tenant database across all regions.
+This consumer does not itself police packets; Infra owns the separate namespace
+packet-limit controller. Direct P2P traffic and disabled company seeding do not
+use this path. Existing native room authority checks remain mandatory.
