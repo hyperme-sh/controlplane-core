@@ -129,3 +129,23 @@ async def test_slow_public_bodies_cannot_take_native_callback_capacity():
         response=await client.post('/streams/reserve',json={'room':'room','action':'publish','seconds':60,'fallback':True},
             headers={'Authorization':'Bearer identity-0'})
         assert response.status_code==200
+
+
+@pytest.mark.asyncio
+async def test_native_read_latency_fits_but_unresponsive_owner_is_bounded():
+    import asyncio
+    key=Ed25519PrivateKey.generate(); blocked=False
+    async def owner(request):
+        if blocked:await asyncio.Event().wait()
+        await asyncio.sleep(.3)  # Fresh native snapshot, not a cached allow.
+        value=json.loads(request.content)
+        claims={'version':1,'nonce':value['nonce'],'operation':'check','evaluatedAt':NOW,
+                'scope':value['scope'],'allowed':True,'validUntil':NOW+60,'revision':'b'*64}
+        return httpx.Response(200,json={'claims':claims,'signature':base64.b64encode(key.sign(DOMAIN+canonical(claims))).decode()})
+    async with httpx.AsyncClient(transport=httpx.MockTransport(owner)) as client:
+        authority=ProtectedAuthority(client,'https://authority.example/stream-check','s'*32,key.public_key(),clock=lambda:NOW)
+        (await authority.check(SCOPE)).validate(SCOPE,NOW)
+        blocked=True
+        async with asyncio.timeout(1.5):
+            with pytest.raises(TimeoutError):
+                await authority.check(SCOPE)

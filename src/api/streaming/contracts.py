@@ -6,7 +6,9 @@ from uuid import UUID
 
 BYTES_PER_SECOND = 391000
 MAX_SESSION_SECONDS = 3600
-AUTHORITY_TIMEOUT = 0.25
+# Fits a fresh native read plus one clock-rollover read inside the unchanged
+# 0.8-second controller tick and independent one-second media watchdog.
+AUTHORITY_TIMEOUT = 0.7
 POLL_SECONDS = 0.25
 WATCHDOG_SECONDS = 1.0
 
