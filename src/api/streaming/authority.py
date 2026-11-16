@@ -34,6 +34,7 @@ class ProtectedAuthority:
 
     async def call(self, operation, value, bearer=None):
         from .http import unique
+        started = int(self.clock())
         nonce = secrets.token_hex(32)
         request = {'version':1,'nonce':nonce,'operation':operation,**value}
         headers = {'X-Stream-Service-Key':self.service_key}
@@ -50,9 +51,11 @@ class ProtectedAuthority:
             if type(envelope) is not dict or set(envelope)!={'claims','signature'}: raise ValueError()
             claims=envelope['claims']
             self.public_key.verify(base64.b64decode(envelope['signature'],validate=True),DOMAIN+canonical(claims))
+            finished = int(self.clock())
             if (claims['nonce']!=nonce or type(claims['version']) is not int or claims['version']!=1
                     or claims['operation']!=operation or type(claims['evaluatedAt']) is not int
-                    or abs(self.clock()-claims['evaluatedAt'])>1): raise ValueError()
+                    or not 0<=finished-started<=1
+                    or not started<=claims['evaluatedAt']<=finished): raise ValueError()
             return claims
         except Exception:
             raise Refused('Invalid protected authority response') from None

@@ -149,3 +149,24 @@ async def test_native_read_latency_fits_but_unresponsive_owner_is_bounded():
         async with asyncio.timeout(1.5):
             with pytest.raises(TimeoutError):
                 await authority.check(SCOPE)
+
+
+@pytest.mark.asyncio
+async def test_nonce_bound_response_can_cross_second_but_not_predate_request():
+    key=Ed25519PrivateKey.generate();clock=[1000.99];evaluated=1000
+    def owner(request):
+        value=json.loads(request.content)
+        claims={'version':1,'nonce':value['nonce'],'operation':'check','evaluatedAt':evaluated,
+                'scope':value['scope'],'allowed':True,'validUntil':1060,'revision':'c'*64}
+        clock[0]=1001.01
+        return httpx.Response(200,json={'claims':claims,'signature':base64.b64encode(key.sign(DOMAIN+canonical(claims))).decode()})
+    async with httpx.AsyncClient(transport=httpx.MockTransport(owner)) as client:
+        authority=ProtectedAuthority(client,'https://authority.example/stream-check','s'*32,key.public_key(),clock=lambda:clock[0])
+        (await authority.check(SCOPE)).validate(SCOPE,1001)
+        for evaluated in (999,1002):
+            clock[0]=1000.99
+            with pytest.raises(Refused):await authority.check(SCOPE)
+        # Even a timestamp less than one second old is stale if the request
+        # began in a later evaluation second.
+        clock[0]=1001.0;evaluated=1000
+        with pytest.raises(Refused):await authority.check(SCOPE)
