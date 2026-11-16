@@ -124,3 +124,30 @@ async def test_budget_exhaustion_closes_native_session():
     media=Media();media.values[request['id']]={'path':grant['path'],'state':'publish','inboundBytes':391000}
     await Controller(service,media,lambda:None,clock=lambda:NOW).tick()
     assert media.kicked==[request['id']]
+
+
+@pytest.mark.asyncio
+async def test_native_path_and_authority_waits_overlap_without_renewing_early():
+    entered=asyncio.Event();release=asyncio.Event();finished=[]
+    class ConcurrentAuthority(Authority):
+        async def check(self,scope):
+            entered.set()
+            await release.wait()
+            finished.append('authority')
+            return await super().check(scope)
+    class ConcurrentMedia(Media):
+        async def paths(self):
+            await entered.wait()
+            release.set()
+            finished.append('paths')
+            return await super().paths()
+    store=Store();service=Admission(store,Authority(),GENERATION,clock=lambda:NOW)
+    grant=await service.issue(SCOPE,60);request=wire(grant);await service.authorize(request)
+    service.authority=ConcurrentAuthority()
+    media=ConcurrentMedia();media.values[request['id']]={'path':grant['path'],'state':'publish','inboundBytes':1}
+    renew=[]
+    def renewed():
+        assert set(finished)=={'authority','paths'}
+        renew.append(True)
+    await Controller(service,media,renewed,clock=lambda:NOW).tick()
+    assert renew==[True] and store.rows[0]['phase']==1

@@ -15,7 +15,7 @@ class MediaMTX:
         self.client, self.origin = client, origin
 
     async def request(self, method, path):
-        async with asyncio.timeout(0.25):
+        async with asyncio.timeout(0.7):
             async with self.client.stream(method,self.origin+path,follow_redirects=False) as response:
                 if response.status_code!=200: raise Refused('Media API unavailable')
                 raw = bytearray()
