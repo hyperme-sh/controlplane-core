@@ -27,7 +27,8 @@ def fixture(tmp_path, extra=(), omit=None):
         for item in extra:
             target.addfile(item, io.BytesIO(b'x' * item.size) if item.isfile() else None)
     record = {'repository': 'hyperme-sh/controlplane-db', 'revision': 'a' * 40,
-              'archive': archive.name, 'sha256': hashlib.sha256(archive.read_bytes()).hexdigest()}
+              'archive': archive.name, 'sha256': hashlib.sha256(archive.read_bytes()).hexdigest(),
+              'qualification_run': 'https://github.com/hyperme-sh/controlplane-db/actions/runs/123'}
     (tmp_path / 'manifest.json').write_text(json.dumps(record))
     return archive, record
 
@@ -87,3 +88,38 @@ def test_refuses_invalid_source_manifest(tmp_path, field, value):
     (tmp_path / 'manifest.json').write_text(json.dumps(record))
     with pytest.raises(ValueError, match='manifest'):
         module.prepare(tmp_path, tmp_path / 'output')
+
+
+@pytest.mark.parametrize('value', [None, 123,
+    'https://github.com/hyperme-sh/controlplane-db/pull/59',
+    'https://github.com/other/controlplane-db/actions/runs/123',
+    'https://github.com/hyperme-sh/controlplane-db/actions/runs/123?anything=1',
+    'https://github.com/hyperme-sh/controlplane-db/actions/runs/123#fragment',
+    'http://github.com/hyperme-sh/controlplane-db/actions/runs/123'])
+def test_rejects_unqualified_source_before_output(tmp_path, value):
+    _, record = fixture(tmp_path)
+    record['qualification_run'] = value
+    (tmp_path / 'manifest.json').write_text(json.dumps(record))
+    with pytest.raises(ValueError, match='manifest'):
+        module.prepare(tmp_path, tmp_path / 'output')
+    assert not (tmp_path / 'output').exists()
+
+
+@pytest.mark.parametrize('change', ['missing', 'extra'])
+def test_requires_exact_source_contract(tmp_path, change):
+    _, record = fixture(tmp_path)
+    if change == 'missing':
+        del record['qualification_run']
+    else:
+        record['unrecognized'] = 'value'
+    (tmp_path / 'manifest.json').write_text(json.dumps(record))
+    with pytest.raises(ValueError, match='manifest'):
+        module.prepare(tmp_path, tmp_path / 'output')
+    assert not (tmp_path / 'output').exists()
+
+
+def test_checked_in_bundle_has_deployable_source_contract(tmp_path):
+    source = Path(__file__).resolve().parents[1] / 'tests_artifacts/storage-schema'
+    module.prepare(source, tmp_path / 'output')
+    assert json.loads((tmp_path / 'output/source.json').read_text()) == json.loads(
+        (source / 'manifest.json').read_text())
