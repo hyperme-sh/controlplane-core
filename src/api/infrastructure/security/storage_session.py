@@ -14,6 +14,7 @@ for audience in ("s3rch", "hypermesh", "portal"):
     for kind in ("cache", "outbox"):
         for operation in (("read",) if kind == "cache" else ("read", "write")):
             SCOPES[f"experiments.{audience}.{kind}.{operation}"] = f"storage:experiments:{audience}:{kind}:{operation}"
+SCOPES.update({"vault." + operation: "storage:vault:" + operation for operation in ("read", "write")})
 SCOPES["media.payload.write"] = "storage:media:payload:write"
 SCOPES["media.payload.read"] = "storage:media:payload:read"
 SCOPES["media.observe"] = "storage:media:observe"
@@ -44,6 +45,10 @@ def request_operation(method: str, path: str) -> str | None:
         return "allocations.issue" if method == "POST" and path == "/api/v1/storage/allocations/issue" else None
     if path.startswith("/api/v1/storage/replays/"):
         return "replays.consume" if method == "POST" else None
+    if path.startswith("/api/v1/storage/records/vault"):
+        if method in ("GET", "PUT") and re.fullmatch(r"/api/v1/storage/records/vault/[a-f0-9]{64}", path):
+            return "vault.read" if method == "GET" else "vault.write"
+        return None
     operation = {"GET": "read", "HEAD": "read", "PUT": "write", "DELETE": "delete"}.get(method)
     if path.startswith("/api/v1/storage/records/experiments/"):
         name = path[len("/api/v1/storage/records/experiments/"):]

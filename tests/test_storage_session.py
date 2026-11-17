@@ -229,3 +229,17 @@ def test_group_wrap_scopes_are_separate_and_paths_exact(tokens):
             with pytest.raises(HTTPException):auth.storage_session(mint({'scope':scope}),selected,now)
     for method,bad in [('DELETE',path),('PUT',path+'/extra'),('GET',path.replace('set_p_','media_p_'))]:
         assert auth.request_operation(method,bad) is None
+
+
+def test_vault_transport_is_separate_from_general_records_and_cannot_delete(tokens):
+    tenant, now, mint = tokens
+    path = "/api/v1/storage/records/vault/" + "ab" * 32
+    for method, operation in (("GET", "read"), ("PUT", "write")):
+        assert auth.request_operation(method, path) == "vault." + operation
+        assert auth.storage_session(mint({"scope": "storage:vault:" + operation}), "vault." + operation, now) == tenant
+        for scope in ("storage:records:" + operation, "storage:media:" + operation):
+            with pytest.raises(HTTPException) as error:
+                auth.storage_session(mint({"scope": scope}), "vault." + operation, now)
+            assert error.value.status_code == 403
+    for method, target in (("DELETE", path), ("HEAD", path), ("GET", path + "/access"), ("PUT", path + "/extra"), ("PUT", path[:-1])):
+        assert auth.request_operation(method, target) is None
