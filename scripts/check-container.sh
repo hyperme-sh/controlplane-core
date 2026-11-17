@@ -23,11 +23,13 @@ test "$(docker image inspect "$image" --format '{{.Config.User}}')" = '65532:655
 docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges "$image" python -I - /usr/share/doc/controlplane-core < scripts/verify_notices.py
 docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges "$image" python -I /opt/storage-schema/migrate.py --help >/dev/null
 docker image inspect "$image" --format '{{json .RootFS.Layers}}' > "$scratch/base-layers.json"
-python3 - "$scratch/base-layers.json" <<'BASE'
+architecture=$(docker image inspect "$image" --format '{{.Architecture}}')
+python3 - "$scratch/base-layers.json" "$architecture" <<'BASE'
 import json, sys
 sys.path.insert(0, 'scripts')
 from verify_base import verify_layers
-verify_layers({'rootfs': {'diff_ids': json.load(open(sys.argv[1]))}}, json.load(open('licenses/base-image.json')))
+base = json.load(open('licenses/storage-alpine-base.json'))
+verify_layers({'rootfs': {'diff_ids': json.load(open(sys.argv[1]))}}, base['platforms'][sys.argv[2]])
 BASE
 bash scripts/check-library-replacement.sh "$image"
 container=$(docker run -d --read-only --cap-drop ALL --security-opt no-new-privileges --tmpfs /tmp:rw,noexec,nosuid --add-host host.docker.internal:host-gateway -e "DATABASE_URL=$STORAGE_TEST_DATABASE_URL" "$image")
