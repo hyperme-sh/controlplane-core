@@ -46,3 +46,21 @@ success. Those product rules belong above this backend-neutral record boundary.
 This runtime addition requires the edge route and key-owner scope policies to be
 deployed before consumers can use it. Unit contracts use memory and SDK/HTTP
 doubles; the existing CI image check also verifies anonymous record rejection.
+
+
+## Vault transport
+
+`/api/v1/storage/records/vault/{id}` stores an encrypted vault head under an
+opaque 64-character lowercase hex identifier. GET and conditional PUT require
+separate `storage:vault:read` and `storage:vault:write` service-key scopes.
+General record, cache and media credentials do not inherit these operations.
+DELETE, HEAD, direct-provider access and suffix routes refuse. The same 8 MiB
+record bound and provider-atomic CAS apply; the vault's 1 MiB item bound belongs
+to its encrypted content contract.
+
+This is untrusted ciphertext transport, not a vault permission grant. The client
+must authenticate the owner-signed head with current SociACL history, verify exact
+ciphertext readback, and commit its independent head floor before using the result.
+Neither a storage ETag nor a login session supplies that authority. Service keys
+stay on trusted servers and must not be exposed to browsers. No end-user route,
+shared-space provisioning or scope assignment is enabled by this addition.

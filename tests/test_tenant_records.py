@@ -338,3 +338,24 @@ async def test_private_media_records_keep_tenant_namespace_and_conditional_write
         await media.delete("media", "grant", first.revision)
     await media.delete("media", "grant", changed.revision)
     assert await media.get("media", "grant") is None
+
+
+@pytest.mark.asyncio
+async def test_vault_opaque_cas_conflicts_and_namespace_isolation():
+    backend = Memory()
+    vault = TenantRecords(uuid4(), backend)
+    name = "ab" * 32
+    first = await vault.put("vault", name, b"encrypted-vault-head", None)
+    assert await vault.get("vault", name) == first
+    assert await vault.get("cache", name) is None
+    assert await TenantRecords(uuid4(), backend).get("vault", name) is None
+    with pytest.raises(RecordConflict):
+        await vault.put("vault", name, b"competing-head", None)
+    second = await vault.put("vault", name, b"encrypted-next-head", first.revision)
+    with pytest.raises(RecordConflict):
+        await vault.put("vault", name, b"stale-head", first.revision)
+    with pytest.raises(ObjectInputError):
+        await vault.delete("vault", name, second.revision)
+    with pytest.raises(ObjectInputError):
+        await vault.put("vault", "secret-name", b"encrypted", None)
+    assert await vault.get("vault", name) == second

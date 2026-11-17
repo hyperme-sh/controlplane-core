@@ -39,8 +39,10 @@ def provider_etag(value: str) -> str:
 
 
 def record_key(tenant: UUID, namespace: str, name: str) -> str:
-    if namespace not in ("cache", "recovery", "fixtures", "media", "experiments") or not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", name):
+    if namespace not in ("cache", "recovery", "fixtures", "media", "experiments", "vault") or not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", name):
         raise ObjectInputError("Invalid record name")
+    if namespace == "vault" and not re.fullmatch(r"[a-f0-9]{64}", name):
+        raise ObjectInputError("Opaque vault identifier required")
     from api.domain.experiments.records import physical_record
     namespace, name = physical_record(namespace, name)
     return f"tenant-records/v1/{storage_tenant(tenant).hex}/{namespace}/{name}"
@@ -88,8 +90,8 @@ class TenantRecords:
         return decode(encoded)
 
     async def delete(self, namespace: str, name: str, expected: str) -> None:
-        if namespace == "experiments":
-            raise ObjectInputError("Experiment records require revocation until expiry")
+        if namespace in ("experiments", "vault"):
+            raise ObjectInputError("Protected records cannot be deleted")
         key = record_key(self.tenant, namespace, name)
         if not isinstance(expected, str) or not re.fullmatch(r"[a-f0-9]{64}", expected):
             raise ObjectInputError("Invalid record revision")
