@@ -1,7 +1,7 @@
 # Runtime bytes come from the qualified wheel, not a second source build.
-FROM python:3.13-slim-bookworm@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f AS build
+FROM python:3.13-alpine@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e AS build
 WORKDIR /build
-RUN pip install --no-cache-dir uv==0.11.26
+COPY --from=ghcr.io/astral-sh/uv:0.11.26@sha256:3d868e555f8f1dbc324afa005066cd11e1053fc4743b9808ca8025283e65efa5 /uv /usr/local/bin/uv
 COPY requirements.txt ./
 RUN uv venv /opt/storage && uv pip sync --python /opt/storage/bin/python --require-hashes requirements.txt
 COPY private/ ./private/
@@ -14,7 +14,7 @@ RUN /opt/storage/bin/python /build/prepare_notices.py /build/legal/third-party /
  && /opt/storage/bin/python /build/verify_notices.py /build/legal
 RUN /opt/storage/bin/python -I -c "from api.storage_app import app; assert app.routes"
 
-FROM python:3.13-slim-bookworm@sha256:281d39ff02e3b389401586134ff9e6572954687822a58055ec07a60ded4e0b7f
+FROM python:3.13-alpine@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e
 COPY --from=build /opt/storage /opt/storage
 COPY storage-schema/ /opt/storage-schema/
 COPY --from=build /build/legal /usr/share/doc/controlplane-core
