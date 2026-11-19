@@ -40,14 +40,18 @@ async def observe(request: Request, media=Depends(media_objects_service)):
                     raw.extend(chunk)
             try:
                 body = json.loads(raw, object_pairs_hook=_unique)
-                if type(body) is not dict or set(body) != {'object', 'references'}:
+                if type(body) is not dict or set(body) not in (
+                        {'object', 'references'}, {'object', 'references', 'includeAllocation'}):
+                    raise ValueError()
+                if 'includeAllocation' in body and type(body['includeAllocation']) is not bool:
                     raise ValueError()
                 observation_request(body['object'], body['references'])
             except (ValueError, TypeError, RecursionError):
                 raise HTTPException(400, 'Invalid observation request', headers=PRIVATE) from None
             if await request.is_disconnected():
                 raise HTTPException(408, 'Observation cancelled', headers=PRIVATE)
-            result = await observe_media(media, object=body['object'], references=body['references'], guard=lambda: None)
+            result = await observe_media(media, object=body['object'], references=body['references'],
+                                         guard=lambda: None, include_allocation=body.get('includeAllocation', False))
             if await request.is_disconnected():
                 raise HTTPException(408, 'Observation cancelled', headers=PRIVATE)
             return JSONResponse(result, headers=PRIVATE)

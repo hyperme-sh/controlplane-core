@@ -141,3 +141,32 @@ async def test_registry_changes_during_provider_io_refuse(fixture, change):
     backend.head.side_effect = head
     with pytest.raises(RecordConflict):
         await observe_media(media, object=OBJECT, references=[REF], guard=lambda:None)
+
+
+@pytest.mark.asyncio
+async def test_optional_allocation_observation_fingerprints_permanent_row(fixture):
+    media, cursor, backend = fixture
+    media._object.return_value.update(phase=0, deletion_command=None, allocation_id=UUID(int=3))
+
+    def reset(active=1):
+        cursor.fetchone.side_effect = [None, {'owner_objects': 0, 'owner_bytes': 0, 'tenant_bytes': 0},
+                                       {'active': active}]
+
+    async def read():
+        return (await observe_media(media, object=OBJECT, references=[], guard=lambda: None,
+                                    include_allocation=True))['allocation']
+
+    reset()
+    first = await read()
+    assert first['ownerActive'] == 1 and len(first['digest']) == 64 and UUID(int=3).hex not in first['digest']
+    assert cursor.execute.call_args.args[1] == (TENANT, ISSUER, OWNER)
+    reset()
+    assert await read() == first
+    media._object.return_value['allocation_id'] = UUID(int=4)
+    reset(2)
+    second = await read()
+    assert second['digest'] != first['digest'] and second['ownerActive'] == 2
+    reset(0)
+    with pytest.raises(ObjectUnavailable):
+        await read()
+    backend.head.assert_not_awaited()
