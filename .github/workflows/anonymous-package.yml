@@ -25,15 +25,20 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+          fetch-depth: 2
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
           enable-cache: false
           version: '0.11.26'
           python-version: '3.13'
-      - name: Qualify locked public dependencies and all package forms
-        run: >-
-          bash scripts/anonymous-command.sh env RELEASE_ARTIFACT_DIR="$RELEASE_ARTIFACT_DIR"
+      - name: Qualify locked public dependencies, package forms and Storage skew
+        env:
+          CORE_BASE_REVISION: ${{ github.event.pull_request.base.sha }}
+        run: |
+          bash scripts/anonymous-command.sh env RELEASE_ARTIFACT_DIR="$RELEASE_ARTIFACT_DIR" CORE_BASE_REVISION="$CORE_BASE_REVISION" bash -e <<'SH'
           bash scripts/check-package.sh --contracts
+          .venv/bin/python scripts/check-storage-skew.py --baseline "$CORE_BASE_REVISION"
+          SH
       - name: Qualify storage container and installed notice bytes
         env:
           QUALIFIED_IMAGE_REF: storage:ci-${{ github.run_id }}-${{ github.run_attempt }}
