@@ -8,6 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from controlplane_api.config import settings
+from controlplane_api.version import router as version_router
 from controlplane_db.session import normalize_database_url
 from api.infrastructure.persistence.db_session import (
     configure_session_maker, get_session_maker, reset_db_session, set_db_session,
@@ -69,6 +70,7 @@ async def request_database(request: Request):
 
 
 app = FastAPI(title='Spanopticon tenant storage', lifespan=startup, docs_url=None, redoc_url=None, openapi_url=None)
+app.include_router(version_router)
 app.include_router(objects, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])
 app.include_router(administration, prefix='/api/v1', dependencies=[Depends(request_database, scope='function')])
 app.include_router(records, prefix='/api/v1', dependencies=[Depends(request_database, scope='request')])

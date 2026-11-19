@@ -134,3 +134,84 @@ async def test_cross_tenant_insert_is_refused(fixture):
                 assert await session.scalar(text('SELECT count(*) FROM service_outbox')) == 0
     finally:
         await engine.dispose()
+
+
+def test_archive_relay_lost_ack_resume(fixture):
+    """Real owner packages and PostgreSQL; transport is an explicit callback double."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    from controlplane_events.inbox import receive
+    from controlplane_events.outbox import relay_batch
+    from api.infrastructure.messaging.transactional_outbox import enqueue_fact
+    from api.infrastructure.messaging.relay_status import queue_status
+    url, config = fixture
+    url = url.set(drivername='postgresql+psycopg')
+    tenant = uuid.UUID(config['tenant_id'])
+    owner = create_engine(url)
+    # Separate transactions, same disposable schema: this does not qualify HTTP
+    # authentication or production receiver isolation.
+    receiver = create_engine(url)
+    seen = []
+    operation = uuid.uuid4()
+    payload = {'user_id':str(uuid.uuid4()), 'email':'relay@example.com'}
+    try:
+        with Session(owner) as session, session.begin():
+            session.execute(text("SELECT set_config('app.current_tenant_id',:tenant,true)"), {'tenant':str(tenant)})
+            event_id = enqueue_fact(session, service='user-service', tenant_id=tenant,
+                event_type='user.created.v1', payload=payload, operation_id=operation)
+            session.execute(text("UPDATE service_outbox SET created_at=now()-interval '10 seconds' WHERE id=:id"), {'id':event_id})
+        mark = queue_status(owner, tenant)
+        assert mark['pending'] == 1 and mark['oldest_age_seconds'] >= 10
+        assert queue_status(owner, uuid.UUID(config['other_tenant_id']))['pending'] == 0
+        def lost_ack(identifier, envelope):
+            seen.append((identifier, receive(receiver, identifier, envelope, producer='user-service')))
+            raise RuntimeError('simulated lost acknowledgement after receiver commit')
+        with pytest.raises(RuntimeError, match='lost acknowledgement'):
+            relay_batch(owner, tenant, lost_ack)
+        assert queue_status(owner, tenant)['pending'] == 1
+        owner.dispose()
+        owner = create_engine(url)
+        def retry(identifier, envelope):
+            seen.append((identifier, receive(receiver, identifier, envelope, producer='user-service')))
+        # Resume through the previous owner's built wheel in a fresh process.
+        # Locked dependencies must match; the Infra runner checks both graphs.
+        driver = """
+import sys
+sys.path.insert(0, sys.argv[1])
+from pathlib import Path
+from uuid import UUID
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session
+import json
+from controlplane_events.outbox import relay_batch
+from controlplane_events.inbox import receive
+from api.infrastructure.messaging.transactional_outbox import enqueue_fact
+engine=create_engine(Path(sys.argv[2]).read_text().strip())
+receiver=create_engine(Path(sys.argv[2]).read_text().strip())
+try:
+    with Session(engine) as session, session.begin():
+        session.execute(text("SELECT set_config('app.current_tenant_id',:tenant,true)"), {'tenant':sys.argv[3]})
+        identifier=enqueue_fact(session, service='user-service', tenant_id=UUID(sys.argv[3]),
+            event_type='user.created.v1', payload=json.loads(sys.argv[5]), operation_id=UUID(sys.argv[4]))
+        assert str(identifier)==sys.argv[6]
+    def send(identifier, envelope):
+        assert not receive(receiver, identifier, envelope, producer='user-service')
+    assert relay_batch(engine, UUID(sys.argv[3]), send)==1
+finally:
+    engine.dispose(); receiver.dispose()
+"""
+        subprocess.run([sys.executable, '-I', '-c', driver,
+            os.environ['CORE_BASELINE_PACKAGE_ROOT'],
+            str(Path(os.environ['CORE_OUTBOX_FIXTURE_DIR'])/'owner-url'), str(tenant),
+            str(operation), json.dumps(payload), str(event_id)],
+            check=True, timeout=60)
+        assert relay_batch(owner, tenant, retry) == 0
+        assert seen == [(event_id, True)]
+        assert queue_status(owner, tenant) == {'pending':0, 'oldest_age_seconds':None}
+        assert relay_batch(owner, tenant, retry) == 0
+        with receiver.begin() as db:
+            db.execute(text("SELECT set_config('app.current_tenant_id',:tenant,true)"), {'tenant':str(tenant)})
+            assert db.scalar(text('SELECT count(*) FROM event_inbox')) == 1
+    finally:
+        owner.dispose()
+        receiver.dispose()
