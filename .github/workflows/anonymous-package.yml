@@ -31,14 +31,14 @@ jobs:
           enable-cache: false
           version: '0.11.26'
           python-version: '3.13'
-      - name: Qualify locked public dependencies and all package forms
-        run: >-
-          bash scripts/anonymous-command.sh env RELEASE_ARTIFACT_DIR="$RELEASE_ARTIFACT_DIR"
-          bash scripts/check-package.sh --contracts
-      - name: Baseline and candidate Storage codec contract
+      - name: Qualify locked public dependencies, package forms and Storage skew
         env:
           CORE_BASE_REVISION: ${{ github.event.pull_request.base.sha }}
-        run: .venv/bin/python scripts/check-storage-skew.py --baseline "$CORE_BASE_REVISION"
+        run: |
+          bash scripts/anonymous-command.sh env RELEASE_ARTIFACT_DIR="$RELEASE_ARTIFACT_DIR" CORE_BASE_REVISION="$CORE_BASE_REVISION" bash -e <<'SH'
+          bash scripts/check-package.sh --contracts
+          .venv/bin/python scripts/check-storage-skew.py --baseline "$CORE_BASE_REVISION"
+          SH
       - name: Qualify storage container and installed notice bytes
         env:
           QUALIFIED_IMAGE_REF: storage:ci-${{ github.run_id }}-${{ github.run_attempt }}
