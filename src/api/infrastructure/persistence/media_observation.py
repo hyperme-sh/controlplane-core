@@ -1,7 +1,10 @@
 """Read-only registry and provider metadata for a separately scoped observer."""
+import hashlib
 import re
 from uuid import UUID
 from psycopg import sql
+from api.domain.media_allocation_grant import _uuid
+from api.domain.media_allocation_store import MAX_ALLOCATIONS
 from api.domain.tenant_objects import ObjectInputError, ObjectMetadata, ObjectUnavailable
 from api.domain.tenant_records import RecordConflict
 from api.infrastructure.externals.media_retirement_backend import RETIRED, media_key
@@ -24,7 +27,7 @@ def observation_request(object, references):
         seen.add(key)
 
 
-async def _registry_snapshot(media, object, requires_location, guard):
+async def _registry_snapshot(media, object, requires_location, guard, *, include_allocation):
     store = media.store
     guard()
     async with store._locked() as cursor:
@@ -64,13 +67,27 @@ async def _registry_snapshot(media, object, requires_location, guard):
             if type(value) is not int or not 0 <= value <= 2**53-1:
                 raise ObjectUnavailable('Invalid media quota observation')
             quota[name] = value
+        result = {'tenant': store.tenant, 'issuer': store.issuer, 'object': object, 'owner': owner,
+                  'phase': phase, 'command': command, 'providerLocation': media.location if location else None,
+                  'references': held, 'quota': quota, 'observed': []}
+        if include_allocation:
+            identifier = _uuid(str(row['allocation_id']))
+            await cursor.execute(sql.SQL(
+                'SELECT count(*) AS active FROM {} WHERE tenant_id=%s AND issuer_id=%s AND owner_principal=%s AND phase<>2'
+            ).format(store._table()), (store.tenant, store.issuer, owner))
+            active = (await cursor.fetchone())['active']
+            if type(active) is not int or not int(phase != 2) <= active <= MAX_ALLOCATIONS:
+                raise ObjectUnavailable('Invalid media allocation count')
+            scope = (store.tenant, store.issuer, object, identifier)
+            result['allocation'] = {
+                'digest': hashlib.sha256(('storage-media-allocation-v1\0' + '\0'.join(scope)).encode()).hexdigest(),
+                'ownerActive': active,
+            }
         guard()
-        return {'tenant': store.tenant, 'issuer': store.issuer, 'object': object, 'owner': owner,
-                'phase': phase, 'command': command, 'providerLocation': media.location if location else None,
-                'references': held, 'quota': quota, 'observed': []}
+        return result
 
 
-async def observe_media(media, *, object, references, guard):
+async def observe_media(media, *, object, references, guard, include_allocation=False):
     """Observe tenant metadata without holding its lock during provider I/O.
 
     Requested digests need the caller's retained pre-cleanup membership snapshot.
@@ -78,7 +95,7 @@ async def observe_media(media, *, object, references, guard):
     is not an atomic provider/registry transaction or an authorization to mutate.
     """
     observation_request(object, references)
-    first = await _registry_snapshot(media, object, bool(references), guard)
+    first = await _registry_snapshot(media, object, bool(references), guard, include_allocation=include_allocation)
     store = media.store
     observed = []
     for ref in references:
@@ -96,7 +113,7 @@ async def observe_media(media, *, object, references, guard):
         observed.append({**ref, 'state': state, 'length': length})
     guard()
     if references:
-        second = await _registry_snapshot(media, object, True, guard)
+        second = await _registry_snapshot(media, object, True, guard, include_allocation=include_allocation)
         if first != second:
             raise RecordConflict('Media observation changed')
     return {**first, 'observed': observed}

@@ -20,12 +20,15 @@ async def test_bounded_observation_request_and_exact_failures(monkeypatch):
         result=await client.post('/storage/media/observe',json=body)
         assert result.status_code==200 and result.json()=={'phase':2}
         assert result.headers['cache-control']=='private, no-store'
-        for invalid in [{},{**body,'references':[{}]},{**body,'object':'foreign'},{**body,'repair':True}]:
+        assert observe.await_args.kwargs['include_allocation'] is False
+        assert (await client.post('/storage/media/observe',json={**body,'includeAllocation':True})).status_code==200
+        assert observe.await_args.kwargs['include_allocation'] is True
+        for invalid in [{},{**body,'references':[{}]},{**body,'object':'foreign'},{**body,'repair':True},{**body,'includeAllocation':1}]:
             assert (await client.post('/storage/media/observe',json=invalid)).status_code==400
         assert (await client.post('/storage/media/observe',content=b'{}')).status_code==415
         assert (await client.post('/storage/media/observe',json=body,headers={'content-encoding':'gzip'})).status_code==415
         assert (await client.post('/storage/media/observe',content=b'x'*4097,headers={'content-type':'application/json'})).status_code==413
-        assert observe.await_count==1
+        assert observe.await_count==2
         for error,status in [(AllocationRejected(),403),(RecordConflict(),409),(ObjectInputError(),400),(ObjectUnavailable(),503),(TimeoutError(),503)]:
             observe.side_effect=error
             assert (await client.post('/storage/media/observe',json=body)).status_code==status
