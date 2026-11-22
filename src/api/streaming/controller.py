@@ -23,9 +23,24 @@ class Controller:
             known = {str(row['media_session']) for row in rows if row['phase']==1}
             now,stamp = int(self.clock()),self.monotonic()
 
+            unknown = set(sessions) - known
+            negotiating = {(sessions[sid].get('path'), sessions[sid].get('state')) for sid in unknown}
+            active_publishers = [
+                row for row in rows if row['phase'] == 1 and row['action'] == 'publish'
+                and str(row['media_session']) in sessions
+            ]
+
+            def expired(row):
+                return (str(row['generation']) != self.admission.generation or row['expires_at'] <= now
+                        or row['phase'] == 0 and row['issued_at'] + 10 <= now)
+
             async def current(row):
-                if (str(row['generation'])!=self.admission.generation or row['expires_at']<=now
-                        or row['phase']==0 and row['issued_at']+10<=now): return False
+                if expired(row):
+                    return False
+                # Idle reservations have no media to renew. The callback
+                # performs its own fresh Check before consuming the grant.
+                if row['phase'] == 0 and (row['path'], row['action']) not in negotiating:
+                    return False
                 try:
                     await self.admission.check(self.admission.store.scope(row))
                     return True
@@ -35,14 +50,13 @@ class Controller:
             # tick, instead of stacking both native waits. Session-before-row
             # ordering above remains mandatory for tracking new admissions.
             async with asyncio.TaskGroup() as checks:
-                paths_task = checks.create_task(self.media.paths())
+                paths_task = checks.create_task(self.media.paths()) if active_publishers else None
                 current_tasks = [checks.create_task(current(row)) for row in rows]
-            paths = paths_task.result()
+            paths = paths_task.result() if paths_task else {}
             valid = [task.result() for task in current_tasks]
             # Native sessions become visible before their auth callback commits.
             # Only a zero-byte, unconnected negotiation matching a currently
             # allowed pending reservation may wait for that commit, briefly.
-            unknown = set(sessions)-known
             for sid in unknown:
                 native = sessions[sid]
                 pending = any(allowed and row['phase']==0
@@ -60,6 +74,10 @@ class Controller:
                           if allowed and row['action']=='publish' and row['phase']==1
                           and str(row['media_session']) in sessions and compatible_path(paths.get(row['path']))}
             for row,allowed in zip(rows,valid):
+                if row['phase'] == 0:
+                    if expired(row):
+                        await self.admission.store.close(row['reservation_id'], pending_only=True)
+                    continue
                 sid = str(row['media_session']) if row['media_session'] else None
                 if row['action']=='read' and row['path'] not in publishers: allowed=False
                 if sid:
