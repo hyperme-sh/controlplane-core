@@ -75,3 +75,19 @@ async def test_restart_closes_without_refund_and_missing_policy_never_bootstraps
         assert result==(row['reserved_bytes'],)
     with pytest.raises(Refused):await reserve(store,str(uuid4()))
     with pytest.raises(Refused):await reserve(PostgresStreams(str(uuid4()),connect,schema=schema),generation)
+
+
+@pytest.mark.asyncio
+async def test_pending_cleanup_and_publisher_close_are_serialized_with_consumption(streams):
+    store, generation, _, _ = streams
+    publisher = await reserve(store, generation)
+    await store.consume(publisher, str(uuid4()), int(time.time()))
+    await store.close(publisher['reservation_id'], pending_only=True)
+    viewer = await reserve(store, generation, action='read')
+
+    await store.close(publisher['reservation_id'])
+    with pytest.raises(Refused, match='Publisher unavailable'):
+        await store.consume(viewer, str(uuid4()), int(time.time()))
+
+    remaining = await store.outstanding(generation)
+    assert [(row['reservation_id'], row['phase']) for row in remaining] == [(viewer['reservation_id'], 0)]

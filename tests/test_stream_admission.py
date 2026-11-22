@@ -40,9 +40,10 @@ class Store:
         found.update(phase=1,media_session=session)
     def scope(self,row):return Scope(Subject(row['tenant_id'],row['principal']),row['room'],row['action'],row['source_ip'])
     async def outstanding(self,generation):return [dict(r) for r in self.rows if r['phase']!=2]
-    async def close(self,reservation):
+    async def close(self, reservation, *, pending_only=False):
         for row in self.rows:
-            if row['reservation_id']==reservation:row['phase']=2
+            if row['reservation_id'] == reservation and (not pending_only or row['phase'] == 0):
+                row['phase'] = 2
 
 
 def wire(grant,**changes):
@@ -174,3 +175,94 @@ async def test_visible_negotiation_must_match_allowed_pending_row_and_stay_empty
     await service.authorize(wire(grant,id=sid))
     await control.tick()
     assert renew==[True,True] and not control.negotiating
+
+
+@pytest.mark.asyncio
+async def test_idle_reservation_does_not_compete_with_native_authentication():
+    class AuthorityWithCalls(Authority):
+        def __init__(self):
+            self.calls = []
+
+        async def check(self, scope):
+            self.calls.append(scope)
+            return await super().check(scope)
+
+    class MediaWithoutActivePublisher(Media):
+        async def paths(self):
+            pytest.fail('An idle reservation cannot require a native path listing')
+
+    store = Store()
+    authority = AuthorityWithCalls()
+    service = Admission(store, authority, GENERATION, clock=lambda: NOW)
+    grant = await service.issue(SCOPE, 60)
+    authority.allowed = False
+    media = MediaWithoutActivePublisher()
+    renewed = []
+    control = Controller(service, media, lambda: renewed.append(True), clock=lambda: NOW)
+    await control.tick()
+    assert authority.calls == [SCOPE]
+    assert store.rows[0]['phase'] == 0
+    assert renewed == [True]
+
+    request = wire(grant)
+    with pytest.raises(Refused):
+        await service.authorize(request)
+    authority.allowed = True
+    await service.authorize(request)
+    assert store.rows[0]['phase'] == 1
+
+
+@pytest.mark.asyncio
+async def test_pending_expiry_does_not_close_concurrently_consumed_grant():
+    class ConcurrentStore(Store):
+        async def outstanding(self, generation):
+            snapshot = await super().outstanding(generation)
+            await service.authorize(request)
+            return snapshot
+
+    store = ConcurrentStore()
+    service = Admission(store, Authority(), GENERATION, clock=lambda: NOW + 9)
+    grant = await service.issue(SCOPE, 60)
+    service.clock = lambda: NOW + 18
+    request = wire(grant)
+    await Controller(service, Media(), lambda: None, clock=lambda: NOW + 19).tick()
+    assert store.rows[0]['phase'] == 1
+    assert store.rows[0]['media_session'] == request['id']
+
+
+@pytest.mark.asyncio
+async def test_viewer_revocation_keeps_publisher_while_another_grant_is_pending():
+    viewer = Scope(Subject(TENANT, 'viewer'), SCOPE.room, 'read', SCOPE.ip)
+    pending = Scope(Subject(TENANT, 'pending'), 'other-room', 'publish', SCOPE.ip)
+
+    class ScopedAuthority(Authority):
+        revoked = False
+
+        async def check(self, scope):
+            if self.revoked and scope == pending:
+                pytest.fail('An idle grant must not contend with revocation checks')
+            return Decision(scope, not (self.revoked and scope == viewer), 2000, 'a' * 64)
+
+    store = Store()
+    authority = ScopedAuthority()
+    service = Admission(store, authority, GENERATION, clock=lambda: NOW)
+    publisher_grant = await service.issue(SCOPE, 60)
+    publisher = wire(publisher_grant)
+    await service.authorize(publisher)
+    viewer_grant = await service.issue(viewer, 60)
+    store.rows[-1]['path'] = viewer_grant['path'] = publisher_grant['path']
+    reader = wire(viewer_grant, action='read')
+    await service.authorize(reader)
+    await service.issue(pending, 60)
+
+    media = Media()
+    media.values[publisher['id']] = {'path': publisher['path'], 'state': 'publish', 'inboundBytes': 1}
+    media.values[reader['id']] = {'path': reader['path'], 'state': 'read', 'outboundBytes': 1}
+    control = Controller(service, media, lambda: None, clock=lambda: NOW)
+    await control.tick()
+    authority.revoked = True
+    await control.tick()
+
+    assert media.kicked == [reader['id']]
+    assert media.values.keys() == {publisher['id']}
+    assert [row['phase'] for row in store.rows] == [1, 2, 0]

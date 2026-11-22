@@ -67,6 +67,15 @@ class PostgresStreams:
     async def consume(self, row, session, now):
         async with self.locked() as cursor:
             await self.policy(cursor, str(row['generation']))
+            if row['action'] == 'read':
+                # Revalidate the publisher under the same tenant lock as
+                # consumption. It may have closed since this grant was issued.
+                await cursor.execute(sql.SQL(
+                    "SELECT 1 FROM {} WHERE tenant_id=%s AND generation=%s AND path=%s"
+                    " AND action='publish' AND phase=1 AND expires_at>%s"
+                ).format(self.table('stream_sessions')), (self.tenant, row['generation'], row['path'], now))
+                if await cursor.fetchone() is None:
+                    raise Refused('Publisher unavailable')
             await cursor.execute(sql.SQL('UPDATE {} SET phase=1,media_session=%s WHERE tenant_id=%s AND reservation_id=%s AND phase=0 AND expires_at>%s AND issued_at>=%s RETURNING reservation_id').format(self.table('stream_sessions')),
                 (session,self.tenant,row['reservation_id'],now,now-10))
             if await cursor.fetchone() is None: raise Refused('Stream reservation unavailable')
@@ -79,6 +88,8 @@ class PostgresStreams:
             if len(rows)>22: raise Refused('Stream capacity exceeded')
             return rows
 
-    async def close(self, reservation):
+    async def close(self, reservation, *, pending_only=False):
         async with self.locked() as cursor:
-            await cursor.execute(sql.SQL('UPDATE {} SET phase=2 WHERE tenant_id=%s AND reservation_id=%s').format(self.table('stream_sessions')), (self.tenant,reservation))
+            await cursor.execute(sql.SQL(
+                'UPDATE {} SET phase=2 WHERE tenant_id=%s AND reservation_id=%s AND (NOT %s OR phase=0)'
+            ).format(self.table('stream_sessions')), (self.tenant, reservation, pending_only))
