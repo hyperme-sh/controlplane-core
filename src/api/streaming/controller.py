@@ -54,17 +54,20 @@ class Controller:
                 current_tasks = [checks.create_task(current(row)) for row in rows]
             paths = paths_task.result() if paths_task else {}
             valid = [task.result() for task in current_tasks]
-            # Native sessions become visible before their auth callback commits.
-            # Only a zero-byte, unconnected negotiation matching a currently
-            # allowed pending reservation may wait for that commit, briefly.
+            # MediaMTX can list a peer before its auth callback has finished.
+            # A second peer for an authorized, consumed grant is visible in
+            # the same state until the callback refuses it. Only peers with
+            # no established connection and zero bytes may wait, within the
+            # existing deadline. The callback alone can consume a grant.
+            eligible_negotiations = {
+                (row['path'], row['action']) for row, allowed in zip(rows, valid)
+                if allowed and (row['phase'] == 0 or str(row['media_session']) in sessions)
+            }
             for sid in unknown:
                 native = sessions[sid]
-                pending = any(allowed and row['phase']==0
-                              and row['path']==native.get('path')
-                              and row['action']==native.get('state')
-                              for row,allowed in zip(rows,valid))
+                eligible = (native.get('path'), native.get('state')) in eligible_negotiations
                 first = self.negotiating.setdefault(sid,stamp)
-                if (not pending or native.get('peerConnectionEstablished') is not False
+                if (not eligible or native.get('peerConnectionEstablished') is not False
                         or any(type(native.get(key)) is not int or native[key]!=0
                                for key in ('inboundBytes','outboundBytes'))
                         or self.monotonic()-first>=0.7):
