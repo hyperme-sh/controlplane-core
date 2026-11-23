@@ -266,3 +266,37 @@ async def test_viewer_revocation_keeps_publisher_while_another_grant_is_pending(
     assert media.kicked == [reader['id']]
     assert media.values.keys() == {publisher['id']}
     assert [row['phase'] for row in store.rows] == [1, 2, 0]
+
+
+@pytest.mark.asyncio
+async def test_replay_negotiation_leaves_original_publisher_running_until_callback_refusal():
+    store = Store()
+    authority = Authority()
+    service = Admission(store, authority, GENERATION, clock=lambda: NOW)
+    grant = await service.issue(SCOPE, 60)
+    original = wire(grant)
+    await service.authorize(original)
+    replay = wire(grant)
+
+    media = Media()
+    media.values[original['id']] = {'path': grant['path'], 'state': 'publish', 'inboundBytes': 1}
+    media.values[replay['id']] = {
+        'path': grant['path'], 'state': 'publish', 'peerConnectionEstablished': False,
+        'inboundBytes': 0, 'outboundBytes': 0,
+    }
+    renewed = []
+    control = Controller(service, media, lambda: renewed.append(True), clock=lambda: NOW)
+    await control.tick()
+
+    with pytest.raises(Refused):
+        await service.authorize(replay)
+    assert len(store.rows) == 1
+    assert store.rows[0]['media_session'] == original['id']
+    assert renewed == [True]
+    assert media.kicked == []
+
+    media.values.pop(replay['id'])
+    await control.tick()
+    assert set(media.values) == {original['id']}
+    assert not control.negotiating
+    assert renewed == [True, True]
