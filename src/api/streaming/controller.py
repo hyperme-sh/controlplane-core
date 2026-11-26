@@ -71,14 +71,16 @@ class Controller:
                 current_tasks = [checks.create_task(current(row)) for row in rows]
             observation = paths_task.result() if paths_task else ({}, self.monotonic())
             valid = [task.result() for task in current_tasks]
-            # MediaMTX can list a peer before its auth callback has finished.
-            # A second peer for an authorized, consumed grant is visible in
-            # the same state until the callback refuses it. Only peers with
-            # no established connection and zero bytes may wait, within the
-            # existing deadline. The callback alone can consume a grant.
+            # MediaMTX lists incoming peers before the callback resolves.
+            # An empty negotiation for a consumed grant must have time to
+            # receive the callback's refusal even if the original's Check
+            # just failed. That Check still controls the original session.
             eligible_negotiations = {
                 (row['path'], row['action']) for row, allowed in zip(rows, valid)
-                if allowed and (row['phase'] == 0 or str(row['media_session']) in sessions)
+                if not expired(row) and (
+                    (row['phase'] == 0 and allowed) or
+                    (row['phase'] == 1 and str(row['media_session']) in sessions)
+                )
             }
             for sid in unknown:
                 native = sessions[sid]
@@ -87,7 +89,9 @@ class Controller:
                 if (not eligible or native.get('peerConnectionEstablished') is not False
                         or any(type(native.get(key)) is not int or native[key]!=0
                                for key in ('inboundBytes','outboundBytes'))
-                        or self.monotonic()-first>=0.7):
+                        # Compare to when the zero-byte snapshot was read.
+                        # Later waits cannot make that snapshot more recent.
+                        or not 0 <= stamp-first < 0.7):
                     raise Refused('Untracked media session')
             self.negotiating = {sid:at for sid,at in self.negotiating.items() if sid in unknown}
             current_publishers = {

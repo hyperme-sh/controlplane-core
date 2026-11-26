@@ -305,6 +305,41 @@ async def test_replay_negotiation_leaves_original_publisher_running_until_callba
 
 
 @pytest.mark.asyncio
+async def test_duplicate_stays_pre_auth_when_original_check_fails_during_native_snapshot():
+    stamp = [0.0]
+
+    class SlowPaths(Media):
+        async def paths(self):
+            stamp[0] = 0.71
+            return await super().paths()
+
+    store = Store()
+    authority = Authority()
+    service = Admission(store, authority, GENERATION, clock=lambda: NOW)
+    grant = await service.issue(SCOPE, 60)
+    original, duplicate = wire(grant), wire(grant)
+    await service.authorize(original)
+    authority.allowed = False
+    media = SlowPaths()
+    media.values[original['id']] = {'path': grant['path'], 'state': 'publish', 'inboundBytes': 1}
+    media.values[duplicate['id']] = {'path': grant['path'], 'state': 'publish',
+        'peerConnectionEstablished': False, 'inboundBytes': 0, 'outboundBytes': 0}
+    renewed = []
+    control = Controller(service, media, lambda: renewed.append(True), clock=lambda: NOW,
+                            monotonic=lambda: stamp[0])
+
+    await control.tick()
+    assert media.kicked == [original['id']]
+    assert renewed == [True]
+    assert store.rows[0]['media_session'] == original['id']
+    with pytest.raises(Refused):
+        await service.authorize(duplicate)
+    with pytest.raises(Refused, match='Untracked media session'):
+        await control.tick()
+    assert renewed == [True]
+
+
+@pytest.mark.asyncio
 async def test_path_poll_timeout_keeps_only_a_recent_authorized_publisher_observation():
     class BusyPaths(Media):
         busy = False
