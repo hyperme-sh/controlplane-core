@@ -10,9 +10,8 @@ PATH_POLL_SECONDS = 0.6
 PATH_OBSERVATION_SECONDS = 0.9
 # The pinned MediaMTX path manager adds up to four seconds of deliberate
 # delay after an auth failure. Allow its one-second callback and a brief
-# queue ahead of it while the duplicate remains unconnected and empty.
-CONSUMED_NEGOTIATION_SECONDS = 6.0
-PENDING_NEGOTIATION_SECONDS = 0.7
+# queue ahead of it while the native peer remains unconnected and empty.
+NATIVE_NEGOTIATION_SECONDS = 6.0
 
 
 class Controller:
@@ -46,7 +45,6 @@ class Controller:
             now,stamp = int(self.clock()),self.monotonic()
 
             unknown = set(sessions) - known
-            negotiating = {(sessions[sid].get('path'), sessions[sid].get('state')) for sid in unknown}
             active_publishers = [
                 row for row in rows if row['phase'] == 1 and row['action'] == 'publish'
                 and str(row['media_session']) in sessions
@@ -57,11 +55,9 @@ class Controller:
                         or row['phase'] == 0 and row['issued_at'] + 10 <= now)
 
             async def current(row):
-                if expired(row):
-                    return False
-                # Idle reservations have no media to renew. The callback
-                # performs its own fresh Check before consuming the grant.
-                if row['phase'] == 0 and (row['path'], row['action']) not in negotiating:
+                # Pending reservations have no media to renew. The native
+                # callback owns their fresh Check and one-time consumption.
+                if row['phase'] == 0 or expired(row):
                     return False
                 try:
                     await self.admission.check(self.admission.store.scope(row))
@@ -76,31 +72,23 @@ class Controller:
                 current_tasks = [checks.create_task(current(row)) for row in rows]
             observation = paths_task.result() if paths_task else ({}, self.monotonic())
             valid = [task.result() for task in current_tasks]
-            # MediaMTX lists incoming peers before the callback resolves.
-            # An empty negotiation for a consumed grant must have time to
-            # receive the callback's refusal even if the original's Check
-            # just failed. That Check still controls the original session.
-            consumed_negotiations = {
+            # Keep only the nonexpired scopes MediaMTX can be negotiating.
+            # The callback grants admission. The management snapshot can
+            # merely show an unconnected peer with no media counters yet.
+            eligible_negotiations = {
                 (row['path'], row['action']) for row in rows
-                if row['phase'] == 1 and not expired(row) and str(row['media_session']) in sessions
-            }
-            pending_negotiations = {
-                (row['path'], row['action']) for row, allowed in zip(rows, valid)
-                if row['phase'] == 0 and allowed
+                if not expired(row) and (row['phase'] == 0 or str(row['media_session']) in sessions)
             }
             for sid in unknown:
                 native = sessions[sid]
-                scope = (native.get('path'), native.get('state'))
-                consumed = scope in consumed_negotiations
-                eligible = consumed or scope in pending_negotiations
-                deadline = CONSUMED_NEGOTIATION_SECONDS if consumed else PENDING_NEGOTIATION_SECONDS
+                eligible = (native.get('path'), native.get('state')) in eligible_negotiations
                 first = self.negotiating.setdefault(sid,stamp)
                 if (not eligible or native.get('peerConnectionEstablished') is not False
                         or any(type(native.get(key)) is not int or native[key]!=0
                                for key in ('inboundBytes','outboundBytes'))
                         # Compare to when the zero-byte snapshot was read.
                         # Later waits cannot make that snapshot more recent.
-                        or not 0 <= stamp-first < deadline):
+                        or not 0 <= stamp-first < NATIVE_NEGOTIATION_SECONDS):
                     raise Refused('Untracked media session')
             self.negotiating = {sid:at for sid,at in self.negotiating.items() if sid in unknown}
             current_publishers = {
