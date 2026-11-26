@@ -300,3 +300,50 @@ async def test_replay_negotiation_leaves_original_publisher_running_until_callba
     assert set(media.values) == {original['id']}
     assert not control.negotiating
     assert renewed == [True, True]
+
+
+@pytest.mark.asyncio
+async def test_path_poll_timeout_keeps_only_a_recent_authorized_publisher_observation():
+    class BusyPaths(Media):
+        busy = False
+
+        async def paths(self):
+            if self.busy:
+                raise TimeoutError
+            return await super().paths()
+
+    stamp = [0.0]
+    store = Store()
+    authority = Authority()
+    service = Admission(store, authority, GENERATION, clock=lambda: NOW)
+    publisher = wire(await service.issue(SCOPE, 60))
+    await service.authorize(publisher)
+    viewer_scope = Scope(Subject(TENANT, 'viewer'), SCOPE.room, 'read', SCOPE.ip)
+    viewer_grant = await service.issue(viewer_scope, 60)
+    # The in-memory store does not implement the production reader reservation lookup.
+    store.rows[-1]['path'] = publisher['path']
+    viewer = wire(viewer_grant, action='read', path=publisher['path'])
+    await service.authorize(viewer)
+    media = BusyPaths()
+    media.values[publisher['id']] = {'path': publisher['path'], 'state': 'publish', 'inboundBytes': 1}
+    media.values[viewer['id']] = {'path': publisher['path'], 'state': 'read', 'outboundBytes': 1}
+    renewed = []
+    controller = Controller(service, media, lambda: renewed.append(True), clock=lambda: NOW,
+                            monotonic=lambda: stamp[0])
+    await controller.tick()
+
+    media.busy = True
+    stamp[0] = 0.25
+    await controller.tick()
+    assert media.kicked == []
+    assert renewed == [True, True]
+
+    stamp[0] = 0.5
+    await controller.tick()
+    assert media.kicked == [viewer['id']]
+    assert controller.compatible_publishers == {}
+
+    authority.allowed = False
+    stamp[0] = 0.6
+    await controller.tick()
+    assert media.kicked == [viewer['id'], publisher['id']]

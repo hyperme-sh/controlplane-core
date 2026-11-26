@@ -4,6 +4,9 @@ import time
 from .contracts import BYTES_PER_SECOND, POLL_SECONDS, Refused
 from .mediamtx import compatible_path
 
+PATH_POLL_SECONDS = 0.15
+PATH_OBSERVATION_SECONDS = 0.5
+
 
 class Controller:
     def __init__(self, admission, media, renew, *, clock=time.time, monotonic=time.monotonic):
@@ -12,6 +15,18 @@ class Controller:
         self.counters = {}
         self.meters = {}
         self.negotiating = {}
+        self.compatible_publishers = {}
+
+    async def read_paths(self):
+        # MediaMTX's path manager can be busy completing a native HTTP
+        # authorization. Do not let its optional codec refresh consume the
+        # whole controller tick while the peer awaits the refusal.
+        try:
+            async with asyncio.timeout(PATH_POLL_SECONDS):
+                paths = await self.media.paths()
+            return paths, self.monotonic()
+        except TimeoutError:
+            return None
 
     async def tick(self):
         async with asyncio.timeout(0.8):
@@ -50,9 +65,9 @@ class Controller:
             # tick, instead of stacking both native waits. Session-before-row
             # ordering above remains mandatory for tracking new admissions.
             async with asyncio.TaskGroup() as checks:
-                paths_task = checks.create_task(self.media.paths()) if active_publishers else None
+                paths_task = checks.create_task(self.read_paths()) if active_publishers else None
                 current_tasks = [checks.create_task(current(row)) for row in rows]
-            paths = paths_task.result() if paths_task else {}
+            observation = paths_task.result() if paths_task else ({}, self.monotonic())
             valid = [task.result() for task in current_tasks]
             # MediaMTX can list a peer before its auth callback has finished.
             # A second peer for an authorized, consumed grant is visible in
@@ -73,9 +88,26 @@ class Controller:
                         or self.monotonic()-first>=0.7):
                     raise Refused('Untracked media session')
             self.negotiating = {sid:at for sid,at in self.negotiating.items() if sid in unknown}
-            publishers = {row['path'] for row,allowed in zip(rows,valid)
-                          if allowed and row['action']=='publish' and row['phase']==1
-                          and str(row['media_session']) in sessions and compatible_path(paths.get(row['path']))}
+            current_publishers = {
+                str(row['media_session']): row['path'] for row, allowed in zip(rows, valid)
+                if allowed and row['action'] == 'publish' and row['phase'] == 1
+                and str(row['media_session']) in sessions
+            }
+            if observation is not None:
+                paths, observed_at = observation
+                self.compatible_publishers = {
+                    sid: observed_at for sid, path in current_publishers.items()
+                    if compatible_path(paths.get(path))
+                }
+            else:
+                # Reuse only an unexpired observation of the same admitted
+                # native publisher, after checking current authority this tick.
+                observed_at = self.monotonic()
+                self.compatible_publishers = {
+                    sid: at for sid, at in self.compatible_publishers.items()
+                    if sid in current_publishers and 0 <= observed_at - at < PATH_OBSERVATION_SECONDS
+                }
+            publishers = {current_publishers[sid] for sid in self.compatible_publishers}
             for row,allowed in zip(rows,valid):
                 if row['phase'] == 0:
                     if expired(row):
