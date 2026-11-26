@@ -5,7 +5,7 @@ import pytest
 from api.streaming.mediamtx import MediaMTX, compatible_path
 from api.streaming.contracts import Refused
 from api.streaming.policy import DAILY_BYTES, PROVISIONING_ENABLED, STREAMING_ENABLED
-from api.streaming.runtime import configuration
+from api.streaming.runtime import configuration, wait_for_first_tick
 
 
 def test_inactive_policy_and_native_codec_profile():
@@ -68,3 +68,38 @@ async def test_kick_accepts_only_typed_native_absence_after_disconnect_race():
             with pytest.raises(Refused):await media.kick('11111111-1111-4111-8111-111111111111')
         body={'status':'error','error':'session not found'};status=500
         with pytest.raises(Refused):await media.kick('11111111-1111-4111-8111-111111111111')
+
+
+@pytest.mark.asyncio
+async def test_first_tick_waits_for_private_listener_and_refuses_a_stopped_guard():
+    attempts = 0
+    completed = []
+
+    async def tick():
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise httpx.ConnectError("Private listener is still starting")
+        completed.append(True)
+
+    await wait_for_first_tick(tick, lambda: True)
+    assert attempts == 2
+    assert completed == [True]
+
+    with pytest.raises(Refused, match="Stream process stopped"):
+        await wait_for_first_tick(tick, lambda: False)
+    assert attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_first_tick_does_not_retry_an_invalid_management_response():
+    attempts = 0
+
+    async def tick():
+        nonlocal attempts
+        attempts += 1
+        raise Refused("Invalid management response")
+
+    with pytest.raises(Refused, match="Invalid management response"):
+        await wait_for_first_tick(tick, lambda: True)
+    assert attempts == 1

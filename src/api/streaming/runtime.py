@@ -50,6 +50,21 @@ def configuration(path):
     return value
 
 
+async def wait_for_first_tick(tick, running):
+    """Reach the private management API within the existing watchdog budget."""
+    async with asyncio.timeout(0.8):
+        while running():
+            try:
+                await tick()
+            except httpx.ConnectError:
+                # The child may still be binding its loopback listener. No
+                # heartbeat is emitted until a complete controller tick.
+                await asyncio.sleep(0.025)
+            else:
+                return
+    raise Refused('Stream process stopped')
+
+
 async def run(value):
     @asynccontextmanager
     async def connect():
@@ -86,13 +101,21 @@ async def run(value):
                 guard=subprocess.Popen([sys.executable,str(Path(__file__).with_name('watchdog.py')),str(read_fd),value['mediaConfig']],
                     pass_fds=(read_fd,),stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
                 os.close(read_fd);read_fd=None
-                await asyncio.sleep(0.15)
                 controller=Controller(admission,MediaMTX(client,'http://127.0.0.1:9997'),lambda:heartbeat(write_fd))
-                while guard.poll() is None and not serving.done():
-                    async with asyncio.timeout(0.8):
-                        await lease.execute('SELECT 1')
-                        await controller.tick()
+
+                async def tick():
+                    await lease.execute('SELECT 1')
+                    await controller.tick()
+
+                def running():
+                    return guard.poll() is None and not serving.done()
+
+                await wait_for_first_tick(tick, running)
+                while running():
                     await asyncio.sleep(0.1)
+                    if not running(): break
+                    async with asyncio.timeout(0.8):
+                        await tick()
                 raise Refused('Stream process stopped')
             finally:
                 os.close(write_fd)
