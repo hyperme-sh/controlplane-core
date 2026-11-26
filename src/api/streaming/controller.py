@@ -8,6 +8,11 @@ PATH_POLL_SECONDS = 0.6
 # Allow one timed-out refresh plus the runtime polling interval. A second
 # missed refresh cannot retain the previous observation.
 PATH_OBSERVATION_SECONDS = 0.9
+# The pinned MediaMTX path manager adds up to four seconds of deliberate
+# delay after an auth failure. Allow its one-second callback and a brief
+# queue ahead of it while the duplicate remains unconnected and empty.
+CONSUMED_NEGOTIATION_SECONDS = 6.0
+PENDING_NEGOTIATION_SECONDS = 0.7
 
 
 class Controller:
@@ -75,23 +80,27 @@ class Controller:
             # An empty negotiation for a consumed grant must have time to
             # receive the callback's refusal even if the original's Check
             # just failed. That Check still controls the original session.
-            eligible_negotiations = {
+            consumed_negotiations = {
+                (row['path'], row['action']) for row in rows
+                if row['phase'] == 1 and not expired(row) and str(row['media_session']) in sessions
+            }
+            pending_negotiations = {
                 (row['path'], row['action']) for row, allowed in zip(rows, valid)
-                if not expired(row) and (
-                    (row['phase'] == 0 and allowed) or
-                    (row['phase'] == 1 and str(row['media_session']) in sessions)
-                )
+                if row['phase'] == 0 and allowed
             }
             for sid in unknown:
                 native = sessions[sid]
-                eligible = (native.get('path'), native.get('state')) in eligible_negotiations
+                scope = (native.get('path'), native.get('state'))
+                consumed = scope in consumed_negotiations
+                eligible = consumed or scope in pending_negotiations
+                deadline = CONSUMED_NEGOTIATION_SECONDS if consumed else PENDING_NEGOTIATION_SECONDS
                 first = self.negotiating.setdefault(sid,stamp)
                 if (not eligible or native.get('peerConnectionEstablished') is not False
                         or any(type(native.get(key)) is not int or native[key]!=0
                                for key in ('inboundBytes','outboundBytes'))
                         # Compare to when the zero-byte snapshot was read.
                         # Later waits cannot make that snapshot more recent.
-                        or not 0 <= stamp-first < 0.7):
+                        or not 0 <= stamp-first < deadline):
                     raise Refused('Untracked media session')
             self.negotiating = {sid:at for sid,at in self.negotiating.items() if sid in unknown}
             current_publishers = {
