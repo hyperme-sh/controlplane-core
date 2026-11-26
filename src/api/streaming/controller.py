@@ -8,9 +8,10 @@ PATH_POLL_SECONDS = 0.6
 # Allow one timed-out refresh plus the runtime polling interval. A second
 # missed refresh cannot retain the previous observation.
 PATH_OBSERVATION_SECONDS = 0.9
-# MediaMTX gives its auth callback one second after it reaches the path
-# manager. A refusal may also queue briefly behind an earlier admission.
-CONSUMED_NEGOTIATION_SECONDS = 2.0
+# The pinned MediaMTX path manager adds up to four seconds of deliberate
+# delay after an auth failure. Allow its one-second callback and a brief
+# queue ahead of it while the duplicate remains unconnected and empty.
+CONSUMED_NEGOTIATION_SECONDS = 6.0
 PENDING_NEGOTIATION_SECONDS = 0.7
 
 

@@ -291,7 +291,7 @@ async def test_replay_negotiation_leaves_original_publisher_running_until_callba
     control = Controller(service, media, lambda: renewed.append(True), clock=lambda: NOW,
                             monotonic=lambda: stamp[0])
     await control.tick()
-    stamp[0] = 1.1
+    stamp[0] = 4.25
     await control.tick()
 
     with pytest.raises(Refused):
@@ -301,7 +301,7 @@ async def test_replay_negotiation_leaves_original_publisher_running_until_callba
     assert renewed == [True, True]
     assert media.kicked == []
 
-    stamp[0] = 2.0
+    stamp[0] = 6.0
     with pytest.raises(Refused, match='Untracked media session'):
         await control.tick()
     assert renewed == [True, True]
