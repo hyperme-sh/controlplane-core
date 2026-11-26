@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 from api.streaming.admission import Admission
 from api.streaming.contracts import Decision, Refused, Scope, Subject, callback
-from api.streaming.controller import Controller
+from api.streaming.controller import Controller, PATH_OBSERVATION_SECONDS, PATH_POLL_SECONDS
 
 TENANT='11111111-1111-4111-8111-111111111111'
 GENERATION='22222222-2222-4222-8222-222222222222'
@@ -139,6 +139,8 @@ async def test_native_path_and_authority_waits_overlap_without_renewing_early():
     class ConcurrentMedia(Media):
         async def paths(self):
             await entered.wait()
+            # Native media can legitimately take this long behind admission.
+            await asyncio.sleep(0.3)
             release.set()
             finished.append('paths')
             return await super().paths()
@@ -300,3 +302,85 @@ async def test_replay_negotiation_leaves_original_publisher_running_until_callba
     assert set(media.values) == {original['id']}
     assert not control.negotiating
     assert renewed == [True, True]
+
+
+@pytest.mark.asyncio
+async def test_duplicate_stays_pre_auth_when_original_check_fails_during_native_snapshot():
+    stamp = [0.0]
+
+    class SlowPaths(Media):
+        async def paths(self):
+            stamp[0] = 0.71
+            return await super().paths()
+
+    store = Store()
+    authority = Authority()
+    service = Admission(store, authority, GENERATION, clock=lambda: NOW)
+    grant = await service.issue(SCOPE, 60)
+    original, duplicate = wire(grant), wire(grant)
+    await service.authorize(original)
+    authority.allowed = False
+    media = SlowPaths()
+    media.values[original['id']] = {'path': grant['path'], 'state': 'publish', 'inboundBytes': 1}
+    media.values[duplicate['id']] = {'path': grant['path'], 'state': 'publish',
+        'peerConnectionEstablished': False, 'inboundBytes': 0, 'outboundBytes': 0}
+    renewed = []
+    control = Controller(service, media, lambda: renewed.append(True), clock=lambda: NOW,
+                            monotonic=lambda: stamp[0])
+
+    await control.tick()
+    assert media.kicked == [original['id']]
+    assert renewed == [True]
+    assert store.rows[0]['media_session'] == original['id']
+    with pytest.raises(Refused):
+        await service.authorize(duplicate)
+    with pytest.raises(Refused, match='Untracked media session'):
+        await control.tick()
+    assert renewed == [True]
+
+
+@pytest.mark.asyncio
+async def test_path_poll_timeout_keeps_only_a_recent_authorized_publisher_observation():
+    class BusyPaths(Media):
+        busy = False
+
+        async def paths(self):
+            if self.busy:
+                await asyncio.Event().wait()
+            return await super().paths()
+
+    stamp = [0.0]
+    store = Store()
+    authority = Authority()
+    service = Admission(store, authority, GENERATION, clock=lambda: NOW)
+    publisher = wire(await service.issue(SCOPE, 60))
+    await service.authorize(publisher)
+    viewer_scope = Scope(Subject(TENANT, 'viewer'), SCOPE.room, 'read', SCOPE.ip)
+    viewer_grant = await service.issue(viewer_scope, 60)
+    # The in-memory store does not implement the production reader reservation lookup.
+    store.rows[-1]['path'] = publisher['path']
+    viewer = wire(viewer_grant, action='read', path=publisher['path'])
+    await service.authorize(viewer)
+    media = BusyPaths()
+    media.values[publisher['id']] = {'path': publisher['path'], 'state': 'publish', 'inboundBytes': 1}
+    media.values[viewer['id']] = {'path': publisher['path'], 'state': 'read', 'outboundBytes': 1}
+    renewed = []
+    controller = Controller(service, media, lambda: renewed.append(True), clock=lambda: NOW,
+                            monotonic=lambda: stamp[0])
+    await controller.tick()
+
+    media.busy = True
+    stamp[0] = PATH_POLL_SECONDS + 0.1
+    await controller.tick()
+    assert media.kicked == []
+    assert renewed == [True, True]
+
+    stamp[0] = PATH_OBSERVATION_SECONDS
+    await controller.tick()
+    assert media.kicked == [viewer['id']]
+    assert controller.compatible_publishers == {}
+
+    authority.allowed = False
+    stamp[0] += PATH_POLL_SECONDS
+    await controller.tick()
+    assert media.kicked == [viewer['id'], publisher['id']]
