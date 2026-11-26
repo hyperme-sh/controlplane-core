@@ -4,7 +4,7 @@ import time
 from .contracts import BYTES_PER_SECOND, POLL_SECONDS, Refused
 from .mediamtx import compatible_path
 
-PATH_POLL_SECONDS = 0.15
+PATH_POLL_SECONDS = 0.6
 PATH_OBSERVATION_SECONDS = 0.5
 
 

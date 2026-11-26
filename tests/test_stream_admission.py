@@ -139,6 +139,8 @@ async def test_native_path_and_authority_waits_overlap_without_renewing_early():
     class ConcurrentMedia(Media):
         async def paths(self):
             await entered.wait()
+            # Native media can legitimately take this long behind admission.
+            await asyncio.sleep(0.3)
             release.set()
             finished.append('paths')
             return await super().paths()
