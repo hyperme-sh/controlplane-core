@@ -287,21 +287,30 @@ async def test_replay_negotiation_leaves_original_publisher_running_until_callba
         'inboundBytes': 0, 'outboundBytes': 0,
     }
     renewed = []
-    control = Controller(service, media, lambda: renewed.append(True), clock=lambda: NOW)
+    stamp = [0.0]
+    control = Controller(service, media, lambda: renewed.append(True), clock=lambda: NOW,
+                            monotonic=lambda: stamp[0])
+    await control.tick()
+    stamp[0] = 1.1
     await control.tick()
 
     with pytest.raises(Refused):
         await service.authorize(replay)
     assert len(store.rows) == 1
     assert store.rows[0]['media_session'] == original['id']
-    assert renewed == [True]
+    assert renewed == [True, True]
     assert media.kicked == []
+
+    stamp[0] = 2.0
+    with pytest.raises(Refused, match='Untracked media session'):
+        await control.tick()
+    assert renewed == [True, True]
 
     media.values.pop(replay['id'])
     await control.tick()
     assert set(media.values) == {original['id']}
     assert not control.negotiating
-    assert renewed == [True, True]
+    assert renewed == [True, True, True]
 
 
 @pytest.mark.asyncio
