@@ -5,7 +5,9 @@ from .contracts import BYTES_PER_SECOND, POLL_SECONDS, Refused
 from .mediamtx import compatible_path
 
 PATH_POLL_SECONDS = 0.6
-PATH_OBSERVATION_SECONDS = 0.5
+# Allow one timed-out refresh plus the runtime polling interval. A second
+# missed refresh cannot retain the previous observation.
+PATH_OBSERVATION_SECONDS = 0.9
 
 
 class Controller:

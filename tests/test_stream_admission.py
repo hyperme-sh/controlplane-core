@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 from api.streaming.admission import Admission
 from api.streaming.contracts import Decision, Refused, Scope, Subject, callback
-from api.streaming.controller import Controller
+from api.streaming.controller import Controller, PATH_OBSERVATION_SECONDS, PATH_POLL_SECONDS
 
 TENANT='11111111-1111-4111-8111-111111111111'
 GENERATION='22222222-2222-4222-8222-222222222222'
@@ -311,7 +311,7 @@ async def test_path_poll_timeout_keeps_only_a_recent_authorized_publisher_observ
 
         async def paths(self):
             if self.busy:
-                raise TimeoutError
+                await asyncio.Event().wait()
             return await super().paths()
 
     stamp = [0.0]
@@ -335,17 +335,17 @@ async def test_path_poll_timeout_keeps_only_a_recent_authorized_publisher_observ
     await controller.tick()
 
     media.busy = True
-    stamp[0] = 0.25
+    stamp[0] = PATH_POLL_SECONDS + 0.1
     await controller.tick()
     assert media.kicked == []
     assert renewed == [True, True]
 
-    stamp[0] = 0.5
+    stamp[0] = PATH_OBSERVATION_SECONDS
     await controller.tick()
     assert media.kicked == [viewer['id']]
     assert controller.compatible_publishers == {}
 
     authority.allowed = False
-    stamp[0] = 0.6
+    stamp[0] += PATH_POLL_SECONDS
     await controller.tick()
     assert media.kicked == [viewer['id'], publisher['id']]
